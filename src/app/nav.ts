@@ -15,7 +15,7 @@ export interface NavItem {
   label: string;
   icon: LucideIcon;
   /**
-   * AC 1.5.3 — a screen belonging to an epic that is not yet built is not offered in the
+   * AC 1.4.3 — a screen belonging to an epic that is not yet built is not offered in the
    * navigation. The page component and its PageId are kept intact, so restoring an entry
    * is a one-line change here rather than a re-implementation.
    */

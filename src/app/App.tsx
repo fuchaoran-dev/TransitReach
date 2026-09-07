@@ -51,7 +51,7 @@ function App() {
 
   const showsMap = activePage === 'map' || activePage === 'services';
 
-  /** AC 1.5.2 — a landing-page selection becomes the starting point for every screen. */
+  /** AC 1.4.2 — a landing-page selection becomes the starting point for every screen. */
   const handleSearchSelect = (hit: SearchHit) => setOrigin(originFromHit(hit));
 
   const journey = {

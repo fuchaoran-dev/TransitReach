@@ -35,7 +35,7 @@ function findNearbyPreviewStops(
 }
 
 /**
- * AC 1.5.1 — the headline figures are read from the loaded feed, never typed in.
+ * AC 1.4.1 — the headline figures are read from the loaded feed, never typed in.
  *
  * The previous values (4 lines, 43 service points, 6 areas mapped) came from the
  * prototype's fictional dataset and described coverage the application does not have.
@@ -129,7 +129,7 @@ export function LandingPage({ onNavigate, onSearchSelect }: LandingPageProps) {
                 See how far you can go in{' '}
                 <span className="bg-gradient-to-r from-teal-600 to-teal-500 bg-clip-text text-transparent">30 minutes</span>
               </h1>
-              {/* AC 1.5.1 — claims only what is loaded. The previous copy promised essential
+              {/* AC 1.4.1 — claims only what is loaded. The previous copy promised essential
                   services and implied bus coverage; neither is in the computation. */}
               <p className="text-lg text-slate-600 leading-relaxed mb-8 max-w-xl">
                 TransitReach maps how far you can actually get across the Klang Valley on rail and on foot, within a time budget you choose. Computed from the published rail timetable and the real walking network — bus and feeder services are not yet included.
@@ -141,7 +141,7 @@ export function LandingPage({ onNavigate, onSearchSelect }: LandingPageProps) {
               </div>
 
               {/* The Methodology button was removed with the Method nav entry — its page
-                  belongs to an epic that is not built (AC 1.5.3). */}
+                  belongs to an epic that is not built (AC 1.4.3). */}
               <div className="flex flex-wrap items-center gap-3">
                 <button onClick={() => onNavigate('map')} className="btn-primary inline-flex items-center gap-2">
                   Explore the Map
@@ -203,7 +203,7 @@ export function LandingPage({ onNavigate, onSearchSelect }: LandingPageProps) {
             <p className="text-slate-600 max-w-2xl mx-auto">From choosing where to live to planning a new bus route — TransitReach gives you the data to understand access.</p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {/* AC 1.5.3 — features belonging to epics that are not yet built stay visible so
+            {/* AC 1.4.3 — features belonging to epics that are not yet built stay visible so
                 the planned scope is legible, but are disabled rather than linking to an
                 unfinished screen. `available` is the single switch; flip it when the epic lands. */}
             {[
@@ -253,7 +253,7 @@ function StatCard({ stat, index }: { stat: { icon: typeof Train; label: string; 
 }
 
 /**
- * AC 1.5.3 — an unavailable feature is disabled, not deleted.
+ * AC 1.4.3 — an unavailable feature is disabled, not deleted.
  *
  * It stays fully readable so the planned scope is still visible, but it cannot be
  * activated by click, tap or keyboard, and it is announced as disabled. Rendering it as a

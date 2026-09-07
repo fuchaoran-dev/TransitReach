@@ -44,7 +44,7 @@ export function hitPosition(hit: SearchHit): LatLng {
 /**
  * The starting point a search hit becomes.
  *
- * AC 1.5.2 — this is what carries a landing-page selection into the map page without the
+ * AC 1.4.2 — this is what carries a landing-page selection into the map page without the
  * visitor typing it again.
  */
 export function originFromHit(hit: SearchHit): Origin {
