@@ -1,0 +1,49 @@
+{
+  "old": "data/gtfs/static-kri-2025",
+  "new": "data/gtfs/static-bus-kl",
+  "routes": {
+    "old": 153,
+    "new": 137,
+    "shared": 117
+  },
+  "stops": {
+    "old": 4169,
+    "new": 4053,
+    "shared": 3698
+  },
+  "trip_templates": {
+    "old": 2600,
+    "new": 2096,
+    "shared": 1693
+  },
+  "frequency_rows": {
+    "old": 0,
+    "new": 2099
+  },
+  "selected_routes": {
+    "U1510": {
+      "old_trip_templates": 36,
+      "new_trip_templates": 28,
+      "shared_trip_templates": 28,
+      "old_stop_time_rows": 1566,
+      "new_stop_time_rows": 1218,
+      "shared_stop_ids": 80
+    },
+    "U2020": {
+      "old_trip_templates": 46,
+      "new_trip_templates": 50,
+      "shared_trip_templates": 42,
+      "old_stop_time_rows": 2576,
+      "new_stop_time_rows": 2800,
+      "shared_stop_ids": 108
+    },
+    "U6000": {
+      "old_trip_templates": 110,
+      "new_trip_templates": 117,
+      "shared_trip_templates": 96,
+      "old_stop_time_rows": 4457,
+      "new_stop_time_rows": 4617,
+      "shared_stop_ids": 76
+    }
+  }
+}

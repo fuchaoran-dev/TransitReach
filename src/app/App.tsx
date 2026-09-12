@@ -14,6 +14,7 @@ import { MethodologyPage } from '@/pages/MethodologyPage';
 import { DEFAULT_TIME_BUDGET } from '@/features/reachability';
 import { originFromHit, type SearchHit } from '@/features/reachability/reachabilityService';
 import type { Origin } from '@/features/reachability/types';
+import { ReliabilityPage } from '@/features/transit-reliability';
 
 /**
  * The journey state, held here rather than on each screen.
@@ -82,6 +83,7 @@ function App() {
         {activePage === 'time' && <TimeComparisonPage journey={journey} />}
         {activePage === 'scenario' && <ScenarioPage />}
         {activePage === 'typology' && <TypologyPage />}
+        {activePage === 'reliability' && <ReliabilityPage />}
         {activePage === 'methodology' && <MethodologyPage />}
       </PageTransition>
 

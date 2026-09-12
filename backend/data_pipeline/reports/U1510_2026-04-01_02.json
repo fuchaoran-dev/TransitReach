@@ -1,0 +1,36 @@
+{
+  "status": "quality_check_only_not_training_approved",
+  "route_id": "U1510",
+  "service_dates": ["2026-04-01", "2026-04-02"],
+  "sampling_seconds": 30,
+  "raw_source": {
+    "publisher": "Khazanah Research Institute",
+    "dataset": "Greater Kuala Lumpur Mobilities - Rapid KL Bus Positions",
+    "url": "https://kri-public-data.s3.ap-southeast-1.amazonaws.com/GTFS/vehicle_positions/year%3D2026/vehicle_positions_202604.parquet",
+    "sha256": "39b0234a9b046cd71caef281db58b3543495afaac56241ad04f83e5e9b88a02a"
+  },
+  "static_source": {
+    "publisher": "Prasarana Malaysia via data.gov.my",
+    "url": "https://api.data.gov.my/gtfs-static/prasarana?category=rapid-bus-kl",
+    "downloaded": "2026-09-13",
+    "sha256": "18d487f21c60f74bfda381341f61c31ee33b771677e98ea580968951ca48a4e6"
+  },
+  "clean_observations": 5554,
+  "candidate_stop_events": 2784,
+  "training_eligible_events": 203,
+  "rejected_events": 2581,
+  "match_rate": 0.0729,
+  "eligible_delay_minutes": {
+    "mean": 0.07,
+    "median": -0.48,
+    "p05": -9.45,
+    "p95": 15.39,
+    "minimum": -9.97,
+    "maximum": 22.77
+  },
+  "blockers": [
+    "The downloaded GTFS Static feed is current, not an archived April 2026 snapshot.",
+    "A 7.29% confirmed-stop match rate is insufficient for model enablement.",
+    "Arrival detection and schedule alignment require further validation against labelled arrivals."
+  ]
+}

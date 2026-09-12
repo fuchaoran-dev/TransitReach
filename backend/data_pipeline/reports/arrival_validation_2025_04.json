@@ -1,0 +1,12 @@
+{
+  "reviewed": 0,
+  "timed_arrivals": 0,
+  "thresholds": {
+    "minimum_reviewed": 300,
+    "maximum_mae_seconds": 90,
+    "minimum_within_120_seconds": 0.9,
+    "maximum_false_match_rate": 0.02
+  },
+  "metrics": {},
+  "arrival_validation_passed": false
+}

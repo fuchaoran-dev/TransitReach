@@ -1,0 +1,16 @@
+{
+  "status": "experimental_not_prediction_enabled",
+  "period": ["2025-04-01", "2025-05-31"],
+  "sampling_seconds": 30,
+  "source": "KRI GKLMOB-busindex matched-version GTFS and archived raw observations",
+  "routes": [
+    {"route_id": "U1510", "candidate_events": 39400, "eligible_events": 2223, "service_days": 37, "match_rate_percent": 5.64, "mean_delay_minutes": -1.00, "median_delay_minutes": -1.25, "mean_confidence": 0.669},
+    {"route_id": "U2020", "candidate_events": 178413, "eligible_events": 10026, "service_days": 37, "match_rate_percent": 5.62, "mean_delay_minutes": 4.65, "median_delay_minutes": 1.77, "mean_confidence": 0.667},
+    {"route_id": "U6000", "candidate_events": 382126, "eligible_events": 28433, "service_days": 37, "match_rate_percent": 7.44, "mean_delay_minutes": 5.39, "median_delay_minutes": 2.55, "mean_confidence": 0.673}
+  ],
+  "artifact_sha256": {
+    "clean_observations": "2015a6093dbe28100182ed23b5f6224f9b3e4aa38542750f22774c03854d025f",
+    "stop_arrivals": "92c08c82791b783a8a39ece30297dd91984ef111addabf83d7131ea7314884c9",
+    "feature_table": "99970a0c4e53383b627e34ea62f338d1ce17c4e8c8232413e6a059076ab0d817"
+  }
+}
