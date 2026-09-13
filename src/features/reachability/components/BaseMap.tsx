@@ -2,11 +2,14 @@ import {
   useEffect,
   type ReactNode,
 } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Polygon, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Marker, Polygon, useMap, useMapEvents } from 'react-leaflet';
+import { divIcon } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { IsochroneRegion } from '@/shared/data/adapters/routingAdapter';
 import type { LatLng, Origin } from '../types';
 import { NETWORK_CENTRE } from '../reachabilityService';
+import type { ServiceLocation } from '@/shared/types/service';
+import { CATEGORY_META } from '@/shared/data';
 
 /**
  * OpenStreetMap raster tiles.
@@ -25,22 +28,39 @@ const DEFAULT_ZOOM = 11;
 const ORIGIN_ZOOM = 15;
 
 /**
- * Fill opacity of the reachable area.
+ * The reachable area's colour.
+ *
+ * Graphite, not teal. Every layer on this map used to be some shade of teal — the area,
+ * the origin, the walking route, the selected station, and the Banks category at
+ * teal-500 — so colour told you nothing about what you were looking at, and a bank dot
+ * over the area fill was effectively invisible. Colour now carries one meaning each:
+ *
+ *   graphite  the reachable area
+ *   teal      you and your route (origin, walking line, selected station)
+ *   category  essential services, each ringed in white so it reads over any fill
+ *
+ * The area takes the neutral because it is the largest surface and the only one that can
+ * afford to recede. It cannot take a green or teal either way: Markets and Parks are
+ * green, and they cannot all move.
  *
  * AC 1.3.1's checkable requirement is that "street names and base map features remain
- * readable through it". The epic proposed 40% and left the value for the team to confirm;
- * the team settled on 25%, because 40% teal over OSM raster tiles buries small street
- * labels while 25% leaves them legible at every zoom. This value is now agreed, not
- * provisional.
+ * readable through it". The epic proposed 40% and the team settled on 25% teal; 18%
+ * graphite is lighter still, so the criterion holds with room to spare. The boundary
+ * carries the weight instead — a stronger, darker stroke, which is what a reader
+ * actually traces when asking how far the area extends.
  */
-const FILL_OPACITY = 0.25;
-const AREA_COLOR = '#0d9488';
+const FILL_OPACITY = 0.18;
+const AREA_COLOR = '#475569';
+const AREA_STROKE_COLOR = '#334155';
 
 interface BaseMapProps {
   origin: Origin | null;
   /** Disjoint reachable regions, or null when there is nothing to draw. */
   regions: IsochroneRegion[] | null;
   onMapClick: (at: LatLng) => void;
+  services?: ServiceLocation[];
+  selectedServiceId?: string | null;
+  onServiceSelect?: (service: ServiceLocation) => void;
   children?: ReactNode;
 }
 
@@ -98,34 +118,41 @@ function ViewController({ origin }: { origin: Origin | null }) {
 /**
  * The origin marker.
  *
- * Drawn as a CircleMarker rather than Leaflet's default marker: the default icon
- * resolves its PNGs by relative URL, which Vite does not rewrite, so it renders broken
- * without shipping the images through a public/ folder. A vector marker sidesteps that
- * and stays crisp at every zoom.
+ * A pin, and deliberately the loudest thing on the map. As two flat teal circles it was
+ * indistinguishable from everything else drawn in teal — the reachable area, the walking
+ * route, the selected station, the live-vehicle rings — and on a busy view you could not
+ * find your own starting point at all. Colour and size were not enough on their own,
+ * because every other layer here is also a disc; the shape is what separates it. Styling
+ * lives in index.css under `.origin-marker-pin`.
+ *
+ * A divIcon rather than Leaflet's default marker: that icon resolves its PNGs by relative
+ * URL, which Vite does not rewrite, so it renders broken without shipping the images
+ * through public/. Inline HTML has no such dependency — LiveTransitMapLayer does the same.
+ *
+ * `iconAnchor` puts the pin's *tip* on the coordinate, not its centre: a pin that floats
+ * with its middle on the point is pointing 20px north of where the user actually is. The
+ * value follows from the geometry — the head is a 32px box at left 6, top 2, so its
+ * centre is (22, 18), and rotating it 45° puts the tip half a diagonal below that.
+ *
+ * The class name `origin-marker` is load-bearing for the acceptance checks that assert
+ * AC 3.1.4's "the starting point is drawn distinctly"; keep it if this is restyled.
  */
+const originIcon = divIcon({
+  className: 'origin-marker',
+  html: '<div class="origin-marker-pin"></div><span class="origin-marker-ground"></span>',
+  iconSize: [44, 46],
+  iconAnchor: [22, 41],
+});
+
 function OriginPin({ at }: { at: LatLng }) {
   return (
-    <>
-      <CircleMarker
-        center={[at.lat, at.lon]}
-        radius={13}
-        // AC 1.3.1 — the marker must sit above the fill. Leaflet stacks vectors in the
-        // order their layers mount, and the area arrives after the pin, so leaving both
-        // in the default overlay pane buries the pin under the area. markerPane sits at
-        // z-index 600 against overlayPane's 400, which makes the ordering independent of
-        // mount order. Do not move these back to the default pane.
-        pane="markerPane"
-        pathOptions={{ className: 'origin-marker', color: '#0d9488', weight: 2, fillColor: '#0d9488', fillOpacity: 0.18 }}
-        interactive={false}
-      />
-      <CircleMarker
-        center={[at.lat, at.lon]}
-        radius={6}
-        pane="markerPane"
-        pathOptions={{ className: 'origin-marker', color: '#ffffff', weight: 2.5, fillColor: '#0d9488', fillOpacity: 1 }}
-        interactive={false}
-      />
-    </>
+    <Marker
+      position={[at.lat, at.lon]}
+      icon={originIcon}
+      // Above the area fill, and above the service dots that share markerPane.
+      zIndexOffset={1000}
+      interactive={false}
+    />
   );
 }
 
@@ -150,9 +177,9 @@ function ReachabilityLayer({ regions }: { regions: IsochroneRegion[] }) {
           )}
           pathOptions={{
             className: 'reach-area',
-            color: AREA_COLOR,
-            weight: 1.5,
-            opacity: 0.55,
+            color: AREA_STROKE_COLOR,
+            weight: 2,
+            opacity: 0.7,
             fillColor: AREA_COLOR,
             fillOpacity: FILL_OPACITY,
           }}
@@ -163,7 +190,35 @@ function ReachabilityLayer({ regions }: { regions: IsochroneRegion[] }) {
   );
 }
 
-export function BaseMap({ origin, regions, onMapClick, children, }: BaseMapProps) {
+function ServicePins({ services, selectedServiceId, onServiceSelect }: Pick<BaseMapProps, 'services' | 'selectedServiceId' | 'onServiceSelect'>) {
+  return <>
+    {(services ?? []).map(service => {
+      if (service.lat === undefined || service.lon === undefined) return null;
+      const color = CATEGORY_META[service.category].color;
+      const selected = service.id === selectedServiceId;
+      return (
+        <CircleMarker
+          key={service.id}
+          center={[service.lat, service.lon]}
+          radius={selected ? 9 : 6}
+          pane="markerPane"
+          // White ring, category fill. Ringing every dot is what lets a category hue read
+          // against the area fill, against the base map, and against the dot beside it —
+          // stroking each dot in its own colour left it blending into whatever was behind.
+          pathOptions={{
+            color: '#ffffff',
+            weight: selected ? 3 : 1.5,
+            fillColor: color,
+            fillOpacity: selected ? 1 : 0.9,
+          }}
+          eventHandlers={{ click: () => onServiceSelect?.(service) }}
+        />
+      );
+    })}
+  </>;
+}
+
+export function BaseMap({ origin, regions, onMapClick, services, selectedServiceId, onServiceSelect, children, }: BaseMapProps) {
   return (
     <MapContainer
       center={[NETWORK_CENTRE.lat, NETWORK_CENTRE.lon]}
@@ -178,6 +233,7 @@ export function BaseMap({ origin, regions, onMapClick, children, }: BaseMapProps
       <ViewController origin={origin} />
       {/* The area is drawn first so the origin pin sits above the fill (AC 1.3.1). */}
       {regions && <ReachabilityLayer regions={regions} />}
+      <ServicePins services={services} selectedServiceId={selectedServiceId} onServiceSelect={onServiceSelect} />
       {children}
       {origin && <OriginPin at={origin.at} />}
     </MapContainer>

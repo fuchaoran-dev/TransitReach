@@ -1,9 +1,7 @@
 import { useState } from 'react';
 
 import {
-  AlertTriangle,
   CircleHelp,
-  Clock,
   Footprints,
   Loader2,
   RotateCw,
@@ -22,8 +20,10 @@ import {
   getDataBasis,
 } from '@/features/reachability/reachabilityService';
 
+import { MapServicesContent } from './MapServicesContent';
+import type { MapServicesModel } from './useMapServices';
+
 export type MapAnalysisTab =
-  | 'reachability'
   | 'first-mile'
   | 'services'
   | 'transfers';
@@ -31,56 +31,77 @@ export type MapAnalysisTab =
 interface MapAnalysisPanelProps {
   reachState: ReachabilityState;
   firstMileState: FirstMileState;
-  timeBudget: number;
-  selectedRouteId:
-  string | null;
+
+  /*
+   * First-mile walking limit.
+   * This is separate from the total journey budget.
+   */
+  walkThresholdMinutes: number;
+
+  selectedRouteId: string | null;
 
   onSelectRoute: (
-    routeId:
-      string | null,
+    routeId: string | null,
   ) => void;
 
   selectedStopId: string | null;
-  onSelectStop: (stopId: string | null) => void;
+
+  onSelectStop: (
+    stopId: string | null,
+  ) => void;
 
   onRetryReachability: () => void;
-  
+
+  services: MapServicesModel;
+  hasOrigin: boolean;
 
   activeTab: MapAnalysisTab;
-  onTabChange: (tab: MapAnalysisTab) => void;
+
+  onTabChange: (
+    tab: MapAnalysisTab,
+  ) => void;
 }
 
 /**
  * Right-side analysis panel shared by map-based accessibility features.
  *
  * The panel keeps the headline reachability result visible while allowing
- * feature-specific details to be switched through tabs. First-mile is implemented
- * now; Services and Transfers are placeholders for later features.
+ * feature-specific details to be switched through tabs. First-mile and Services
+ * are implemented; Transfers is a placeholder for a later feature.
  *
  * ResultPanel and DataBasisNote previously lived directly inside MapPage.
  * Their responsibilities now live here so MapPage remains responsible for page
  * composition rather than individual result-card presentation.
+ *
+ * There is no Reachability tab. It restated the headline directly above it, and
+ * putting a result behind a tab implied it was one view among several rather than
+ * the thing every other tab is measured against. Its three obligations were not
+ * dropped with it — they were moved into the headline, where they are visible
+ * without a click: the modelled-boundary caveat (AC 1.3.1), the walking-only
+ * finding (AC 1.2.4), and the retry control for a failure or timeout (AC 1.3.2).
  */
 export function MapAnalysisPanel({
   reachState,
   firstMileState,
-  timeBudget,
+  walkThresholdMinutes,
   selectedStopId,
   onSelectStop,
   onRetryReachability,
+  services,
+  hasOrigin,
   activeTab,
   onTabChange,
   selectedRouteId,
   onSelectRoute
 }: MapAnalysisPanelProps) {
   const [helpOpen, setHelpOpen] = useState(false);
+  const [walkingNoteDismissedFor, setWalkingNoteDismissedFor] =
+    useState<number | null>(null);
 
-  if (
-    reachState.status === 'idle' &&
-    firstMileState.status === 'idle'
-  ) {
-    return null;
-  }
+  // The panel stays mounted with no starting point chosen. Hiding it left a first-time
+  // visitor looking at a bare map with nothing telling them what to do, and made the
+  // Services tab unreachable from the navigation until an origin happened to exist.
+  // Every tab below renders its own idle state.
 
   return (
     <div className="absolute top-4 right-4 sm:right-6 z-[500] w-[360px] max-w-[calc(100vw-2rem)]">
@@ -99,6 +120,17 @@ export function MapAnalysisPanel({
         <div className="p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
+
+              {reachState.status === 'idle' && (
+                <div className="py-1">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                    No starting point yet
+                  </div>
+                  <div className="text-sm text-slate-600 mt-0.5">
+                    Search or tap the map to begin
+                  </div>
+                </div>
+              )}
 
               {reachState.status === 'computing' && (
                 <div className="flex items-center gap-2 py-2">
@@ -128,6 +160,12 @@ export function MapAnalysisPanel({
                   <div className="text-sm font-semibold text-slate-800 mt-1">
                     Could not compute the reachable area.
                   </div>
+
+                  {/* AC 1.3.2 — re-runs the same settings without the user re-entering
+                      anything. It lived in the Reachability tab, which meant a failure
+                      could be read here while the way to recover from it was a click
+                      away. */}
+                  <RetryButton onClick={onRetryReachability} />
                 </div>
               )}
 
@@ -146,6 +184,13 @@ export function MapAnalysisPanel({
                     {reachState.budgetMinutes} min reachability
                     was not completed.
                   </div>
+
+                  <div className="text-[11px] text-slate-500 mt-1">
+                    Timed out after{' '}
+                    {Math.round(reachState.limitMs / 1000)} seconds.
+                  </div>
+
+                  <RetryButton onClick={onRetryReachability} />
                 </div>
               )}
 
@@ -179,6 +224,18 @@ export function MapAnalysisPanel({
                       ? 'one continuous area'
                       : `${reachState.result.regions.length} separate areas`}
                   </div>
+
+                  {/*
+                    AC 1.3.1 — the displayed boundary is modelled rather than a
+                    surveyed or exact accessibility boundary. Permanently beside
+                    the figure it qualifies, rather than behind a tab: a number
+                    read without its caveat is the failure this criterion exists
+                    to prevent.
+                  */}
+                  <p className="text-[11px] text-slate-500 leading-snug mt-1.5">
+                    A modelled boundary, not a precise line. A point just outside
+                    it is not meaningfully less reachable than one just inside.
+                  </p>
                 </>
               )}
             </div>
@@ -203,21 +260,46 @@ export function MapAnalysisPanel({
               />
             )}
           </div>
+
+          {/*
+            AC 1.2.4 — walking-only is a valid finding rather than an error, so it
+            keeps neutral styling and no error wording. Dismissal is remembered per
+            budget: choosing a different budget is a new question, and the answer to
+            it deserves to be stated again.
+          */}
+          {reachState.status === 'ready' &&
+            reachState.walkingOnly &&
+            walkingNoteDismissedFor !== reachState.budgetMinutes && (
+              <div className="rounded-xl bg-slate-50 p-3 mt-3 flex items-start gap-2">
+                <Footprints
+                  size={14}
+                  className="text-slate-500 shrink-0 mt-0.5"
+                />
+
+                <p className="text-[11px] text-slate-600 leading-snug flex-1">
+                  No public transport can be boarded from this point within{' '}
+                  {reachState.budgetMinutes} min. The displayed area is walking only.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setWalkingNoteDismissedFor(reachState.budgetMinutes)
+                  }
+                  aria-label="Dismiss walking-only note"
+                  className="text-[10px] text-slate-400 hover:text-slate-600"
+                >
+                  ×
+                </button>
+              </div>
+            )}
         </div>
 
         {/* =====================================================
             ANALYSIS TABS
             ===================================================== */}
         <div className="border-t border-slate-200/70 px-3 pt-2">
-          <div className="grid grid-cols-2 gap-1 bg-slate-100/70 rounded-xl p-1">
-
-            <AnalysisTabButton
-              label="Reachability"
-              active={activeTab === 'reachability'}
-              onClick={() =>
-                onTabChange('reachability')
-              }
-            />
+          <div className="grid grid-cols-3 gap-1 bg-slate-100/70 rounded-xl p-1">
 
             <AnalysisTabButton
               label="First-mile"
@@ -229,10 +311,10 @@ export function MapAnalysisPanel({
 
             <AnalysisTabButton
               label="Services"
-              active={false}
-              disabled
-              soon
-              onClick={() => {}}
+              active={activeTab === 'services'}
+              onClick={() =>
+                onTabChange('services')
+              }
             />
 
             <AnalysisTabButton
@@ -249,17 +331,10 @@ export function MapAnalysisPanel({
             ACTIVE TAB CONTENT
             ===================================================== */}
         <div className="p-4 max-h-[55vh] overflow-y-auto scrollbar-thin">
-          {activeTab === 'reachability' && (
-            <ReachabilityContent
-              state={reachState}
-              onRetry={onRetryReachability}
-            />
-          )}
-
           {activeTab === 'first-mile' && (
             <NearbyStopsPanel
               state={firstMileState}
-              thresholdMinutes={timeBudget}
+              thresholdMinutes={walkThresholdMinutes}
               selectedStopId={selectedStopId}
               onSelectStop={onSelectStop}
               selectedRouteId={
@@ -269,6 +344,13 @@ export function MapAnalysisPanel({
             onSelectRoute={
               onSelectRoute
             }
+            />
+          )}
+
+          {activeTab === 'services' && (
+            <MapServicesContent
+              model={services}
+              hasOrigin={hasOrigin}
             />
           )}
         </div>
@@ -400,171 +482,17 @@ function DataBasisHelp({
   );
 }
 
-/**
- * Reachability-specific content shown when the Reachability tab is active.
- *
- * This contains the presentation logic that previously lived inside
- * ResultPanel in MapPage.
- *
- * AC 1.3.2 requires computing, failure, timeout and valid-result states
- * to remain visually distinct.
- *
- * AC 1.2.4's walking-only outcome is a valid result rather than a failure,
- * so it deliberately carries neutral styling and no error wording.
- */
-function ReachabilityContent({
-  state,
-  onRetry,
-}: {
-  state: ReachabilityState;
-  onRetry: () => void;
-}) {
-  const [walkingNoteDismissedFor, setWalkingNoteDismissedFor] =
-    useState<number | null>(null);
-
-  if (state.status === 'idle') {
-    return (
-      <p className="text-sm text-slate-500">
-        Select a starting point to calculate reachability.
-      </p>
-    );
-  }
-
-  if (state.status === 'computing') {
-    return (
-      <div className="flex items-center gap-2 py-3 text-sm text-slate-600">
-        <Loader2
-          size={16}
-          className="spinner text-teal-600"
-        />
-
-        Computing reachable area for{' '}
-        {state.budgetMinutes} min…
-      </div>
-    );
-  }
-
-  if (state.status === 'failed') {
-    return (
-      <div className="rounded-xl bg-rose-50 p-3">
-        <div className="flex items-start gap-2">
-          <AlertTriangle
-            size={16}
-            className="text-rose-600 shrink-0 mt-0.5"
-          />
-
-          <div>
-            <p className="text-sm text-rose-800">
-              Could not compute the reachable area.
-              Try again.
-            </p>
-
-            <button
-              type="button"
-              onClick={onRetry}
-              className="btn-secondary inline-flex items-center gap-1.5 text-xs py-1.5 px-2.5 mt-2"
-            >
-              <RotateCw size={13} />
-              Retry
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  /*
-   * AC 1.3.2 — timeout is distinct from failure.
-   * It explicitly identifies the time limit that was exceeded.
-   */
-  if (state.status === 'timedout') {
-    return (
-      <div className="rounded-xl bg-amber-50 p-3">
-        <div className="flex items-start gap-2">
-          <Clock
-            size={16}
-            className="text-amber-600 shrink-0 mt-0.5"
-          />
-
-          <div>
-            <p className="text-sm text-amber-800">
-              Timed out after{' '}
-              {Math.round(
-                state.limitMs / 1000,
-              )}{' '}
-              seconds. The reachable area for{' '}
-              {state.budgetMinutes} min was not computed.
-            </p>
-
-            <button
-              type="button"
-              onClick={onRetry}
-              className="btn-secondary inline-flex items-center gap-1.5 text-xs py-1.5 px-2.5 mt-2"
-            >
-              <RotateCw size={13} />
-              Retry
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+/** AC 1.3.2 — re-runs the same settings; the user re-enters nothing. */
+function RetryButton({ onClick }: { onClick: () => void }) {
   return (
-    <div className="space-y-3">
-
-      {/*
-        AC 1.3.1 — the displayed boundary is modelled rather
-        than a surveyed or exact accessibility boundary.
-      */}
-      <div>
-        <div className="text-xs font-semibold text-slate-700">
-          Reachable area
-        </div>
-
-        <p className="text-[11px] text-slate-500 leading-relaxed mt-1">
-          A modelled boundary, not a precise line.
-          A point just outside it is not meaningfully
-          less reachable than one just inside.
-        </p>
-      </div>
-
-      {/*
-        AC 1.2.4 — walking-only is a valid finding rather
-        than an error and therefore deliberately uses
-        neutral styling.
-      */}
-      {state.walkingOnly &&
-        walkingNoteDismissedFor !==
-          state.budgetMinutes && (
-          <div className="rounded-xl bg-slate-50 p-3 flex items-start gap-2">
-            <Footprints
-              size={14}
-              className="text-slate-500 shrink-0 mt-0.5"
-            />
-
-            <p className="text-[11px] text-slate-600 leading-snug flex-1">
-              No public transport can be boarded
-              from this point within{' '}
-              {state.budgetMinutes} min.
-              The displayed area is walking only.
-            </p>
-
-            <button
-              type="button"
-              onClick={() =>
-                setWalkingNoteDismissedFor(
-                  state.budgetMinutes,
-                )
-              }
-              aria-label="Dismiss walking-only note"
-              className="text-[10px] text-slate-400 hover:text-slate-600"
-            >
-              ×
-            </button>
-          </div>
-        )}
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      className="btn-secondary inline-flex items-center gap-1.5 text-xs py-1.5 px-2.5 mt-2"
+    >
+      <RotateCw size={13} />
+      Retry
+    </button>
   );
 }
 

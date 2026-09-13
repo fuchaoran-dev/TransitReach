@@ -27,6 +27,18 @@ interface AccessibleStopLike {
 const LIVE_TRANSIT_URL =
   '/gtfs-rt/rapid-bus-kl';
 
+const LIVE_TRANSIT_CACHE_MS = 60_000;
+
+let cachedVehicles:
+  LiveTransitVehicle[] | null = null;
+
+let cachedAt = 0;
+
+let inFlightRequest:
+  Promise<LiveTransitVehicle[]> | null = null;
+
+let rateLimitedUntil = 0;
+
 /**
  * We only show vehicles reasonably close to a station
  * that the user can reach on foot.
@@ -118,106 +130,201 @@ function haversineMeters(
  * into simple frontend objects.
  */
 export async function fetchLiveTransitVehicles(
-  signal?: AbortSignal,
+  _signal?: AbortSignal,
 ): Promise<LiveTransitVehicle[]> {
-  const response = await fetch(
-    LIVE_TRANSIT_URL,
-    {
-      signal,
-      cache: 'no-store',
-    },
-  );
+  const now = Date.now();
 
-  if (!response.ok) {
-    throw new Error(
-      `Live transit feed returned ${response.status}`,
-    );
-  }
-
-  const binary =
-    new Uint8Array(
-      await response.arrayBuffer(),
-    );
-
-  const feed =
-    GtfsRealtimeBindings
-      .transit_realtime
-      .FeedMessage
-      .decode(binary);
-
-  const results:
-    LiveTransitVehicle[] = [];
-
-  for (
-    const entity of feed.entity
+  /*
+   * Reuse the latest GTFS-Realtime snapshot for
+   * 60 seconds.
+   *
+   * Changing the user's location should not cause
+   * another request to data.gov.my.
+   */
+  if (
+    cachedVehicles !== null &&
+    now - cachedAt < LIVE_TRANSIT_CACHE_MS
   ) {
-    const vehicle =
-      entity.vehicle;
-
-    const position =
-      vehicle?.position;
-
-    if (!vehicle || !position) {
-      continue;
-    }
-
-    const lat =
-      numericValue(
-        position.latitude,
-      );
-
-    const lon =
-      numericValue(
-        position.longitude,
-      );
-
-    if (
-      lat === null ||
-      lon === null
-    ) {
-      continue;
-    }
-
-    const vehicleId =
-      vehicle.vehicle?.id ??
-      entity.id ??
-      `${lat}-${lon}`;
-
-    results.push({
-      id: vehicleId,
-
-      routeId:
-        vehicle.trip?.routeId ??
-        null,
-
-      tripId:
-        vehicle.trip?.tripId ??
-        null,
-
-      lat,
-      lon,
-
-      bearing:
-        numericValue(
-          position.bearing,
-        ),
-
-      speedMps:
-        numericValue(
-          position.speed,
-        ),
-
-      timestamp:
-        numericValue(
-          vehicle.timestamp,
-        ),
-
-      distanceToAccessibleStopMeters:
-        null,
-    });
+    return cachedVehicles;
   }
 
-  return results;
+  /*
+   * If the API has already rate-limited us,
+   * do not keep sending more requests.
+   */
+  if (now < rateLimitedUntil) {
+    if (cachedVehicles !== null) {
+      return cachedVehicles;
+    }
+
+    throw new Error(
+      'Live vehicle data is temporarily unavailable. Please try again shortly.',
+    );
+  }
+
+  /*
+   * If another request is already running,
+   * reuse that request instead of creating
+   * another one.
+   */
+  if (inFlightRequest) {
+    return inFlightRequest;
+  }
+
+  inFlightRequest = (async () => {
+    const response = await fetch(
+      LIVE_TRANSIT_URL,
+      {
+        cache: 'no-store',
+      },
+    );
+
+    /*
+     * HTTP 429 = Too Many Requests.
+     *
+     * Respect Retry-After when available.
+     * Otherwise wait 60 seconds.
+     */
+    if (response.status === 429) {
+      const retryAfterHeader =
+        response.headers.get(
+          'Retry-After',
+        );
+
+      const retryAfterSeconds =
+        retryAfterHeader
+          ? Number(retryAfterHeader)
+          : NaN;
+
+      const retryDelay =
+        Number.isFinite(
+          retryAfterSeconds,
+        )
+          ? retryAfterSeconds * 1000
+          : 60_000;
+
+      rateLimitedUntil =
+        Date.now() + retryDelay;
+
+      /*
+       * If we already have an older valid
+       * snapshot, keep displaying it instead
+       * of removing all bus markers.
+       */
+      if (cachedVehicles !== null) {
+        return cachedVehicles;
+      }
+
+      throw new Error(
+        'Live vehicle data is temporarily rate limited. Retrying shortly.',
+      );
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        `Live transit feed returned ${response.status}`,
+      );
+    }
+
+    const binary =
+      new Uint8Array(
+        await response.arrayBuffer(),
+      );
+
+    const feed =
+      GtfsRealtimeBindings
+        .transit_realtime
+        .FeedMessage
+        .decode(binary);
+
+    const results:
+      LiveTransitVehicle[] = [];
+
+    for (
+      const entity of feed.entity
+    ) {
+      const vehicle =
+        entity.vehicle;
+
+      const position =
+        vehicle?.position;
+
+      if (!vehicle || !position) {
+        continue;
+      }
+
+      const lat =
+        numericValue(
+          position.latitude,
+        );
+
+      const lon =
+        numericValue(
+          position.longitude,
+        );
+
+      if (
+        lat === null ||
+        lon === null
+      ) {
+        continue;
+      }
+
+      const vehicleId =
+        vehicle.vehicle?.id ??
+        entity.id ??
+        `${lat}-${lon}`;
+
+      results.push({
+        id: vehicleId,
+
+        routeId:
+          vehicle.trip?.routeId ??
+          null,
+
+        tripId:
+          vehicle.trip?.tripId ??
+          null,
+
+        lat,
+        lon,
+
+        bearing:
+          numericValue(
+            position.bearing,
+          ),
+
+        speedMps:
+          numericValue(
+            position.speed,
+          ),
+
+        timestamp:
+          numericValue(
+            vehicle.timestamp,
+          ),
+
+        distanceToAccessibleStopMeters:
+          null,
+      });
+    }
+
+    /*
+     * Store the complete Rapid KL vehicle
+     * snapshot.
+     */
+    cachedVehicles = results;
+    cachedAt = Date.now();
+    rateLimitedUntil = 0;
+
+    return results;
+  })();
+
+  try {
+    return await inFlightRequest;
+  } finally {
+    inFlightRequest = null;
+  }
 }
 
 /**

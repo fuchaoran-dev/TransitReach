@@ -47,3 +47,6 @@ coverage/
 # AWS deployment artefacts: identifies your infrastructure, not the project.
 routing/deploy/created-resources.txt
 routing/deploy/*.pem
+
+# screenshots
+*.png

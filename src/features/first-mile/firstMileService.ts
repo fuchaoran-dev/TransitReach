@@ -17,6 +17,14 @@ import type {
   WalkingRoute,
 } from './types';
 
+/**
+ * How far anyone is asked to walk to reach transit.
+ *
+ * This is the first mile's own limit, and deliberately not the journey budget. The page
+ * used to pass the whole travel-time budget in here, so choosing a 45-minute journey
+ * listed every station within a 45-minute walk — a walk nobody takes, presented as
+ * access. AC 3.1.5's "configured maximum walking threshold" is this number.
+ */
 export const DEFAULT_FIRST_MILE_THRESHOLD_MINUTES = 15;
 
 const EARTH_RADIUS_METRES = 6_371_000;
@@ -124,8 +132,13 @@ async function routeToStop(
  * Returns every usable rail station reachable through the real
  * pedestrian network within the chosen threshold.
  *
- * Results are alphabetical deliberately: Epic 3 requires neutral
- * comparison, not "best stop" ranking.
+ * Ordered by walking distance, nearest first. This is an ordering, not a
+ * ranking: AC 3.2.2 forbids presenting one stop as better than another, and
+ * nothing here does — no stop is marked closest, fastest or recommended, and
+ * the walking and service figures are still stated separately for each. An
+ * alphabetical list simply made the reader do the sorting themselves.
+ *
+ * Distance and time give the same order, since walking speed is a constant.
  */
 export async function computeFirstMileAccess(
   origin: GeoPoint,
@@ -176,10 +189,10 @@ export async function computeFirstMileAccess(
     }
   }
 
-  // AC 3.2.2 — neutral ordering, not fastest/closest/recommended.
+  // Nearest walk first. Ties fall back to the name so the order is stable.
   routed.sort((a, b) =>
-    a.route.distanceMeters -
-    b.route.distanceMeters
+    a.route.distanceMeters - b.route.distanceMeters ||
+    a.stop.name.localeCompare(b.stop.name),
   );
 
   return {

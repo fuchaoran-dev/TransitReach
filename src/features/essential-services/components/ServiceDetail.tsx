@@ -1,60 +1,29 @@
-import { Accessibility, Footprints, Navigation, Star, Timer, Train } from 'lucide-react';
+import { Accessibility, Clock, MapPin } from 'lucide-react';
 import { CATEGORY_META } from '@/shared/data';
 import type { ServiceLocation } from '@/shared/types/service';
 
+/** AC 5.1.3 / 5.2.4 — show the source-backed detail and identify unavailable fields. */
 export function ServiceDetail({ service }: { service: ServiceLocation }) {
   const meta = CATEGORY_META[service.category];
   const Icon = meta.icon;
   return (
-    <div className="space-y-5">
-      <div className="flex items-center gap-3">
-        <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: meta.colorLight }}>
-          <Icon size={28} style={{ color: meta.color }} />
-        </div>
-        <div>
+    <div className="glass p-4 space-y-3">
+      <div className="flex items-start gap-3">
+        <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: meta.colorLight }}><Icon size={21} style={{ color: meta.color }} /></div>
+        <div className="min-w-0">
           <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: meta.color }}>{meta.label}</div>
-          <div className="text-sm text-slate-500">{service.address}</div>
+          <div className="font-bold text-slate-900">{service.name}</div>
         </div>
       </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="glass-chip p-3">
-          <div className="flex items-center gap-1.5 mb-1"><Footprints size={14} className="text-teal-600" /><span className="text-[10px] font-bold text-slate-400 uppercase">Walk Time</span></div>
-          <div className="text-lg font-bold text-slate-900">{service.walkMin} min</div>
-        </div>
-        <div className="glass-chip p-3">
-          <div className="flex items-center gap-1.5 mb-1"><Train size={14} className="text-blue-500" /><span className="text-[10px] font-bold text-slate-400 uppercase">Transit Time</span></div>
-          <div className="text-lg font-bold text-slate-900">{service.transitMin} min</div>
-        </div>
-        <div className="glass-chip p-3">
-          <div className="flex items-center gap-1.5 mb-1"><Timer size={14} className="text-amber-500" /><span className="text-[10px] font-bold text-slate-400 uppercase">Wait Time</span></div>
-          <div className="text-lg font-bold text-slate-900">{service.waitingMin} min</div>
-        </div>
-        <div className="glass-chip p-3">
-          <div className="flex items-center gap-1.5 mb-1"><Star size={14} className="text-amber-400" /><span className="text-[10px] font-bold text-slate-400 uppercase">Rating</span></div>
-          <div className="text-lg font-bold text-slate-900">{service.rating} / 5</div>
-        </div>
+      <div className="grid grid-cols-2 gap-2 text-sm">
+        <div className="glass-chip p-2"><span className="text-xs text-slate-500">Location</span><div className="font-mono text-xs mt-1">{service.lat?.toFixed(5) ?? 'Unavailable'}, {service.lon?.toFixed(5) ?? 'Unavailable'}</div></div>
+        <div className="glass-chip p-2"><span className="text-xs text-slate-500">Estimated travel</span><div className="font-semibold mt-1">{service.estimatedTravelTime == null ? 'Unavailable' : `${service.estimatedTravelTime} min`}</div></div>
       </div>
-
-      <div>
-        <div className="text-xs font-bold text-slate-500 uppercase mb-2">Opening Hours</div>
-        <div className="glass-chip px-3 py-2 text-sm font-semibold text-slate-700">{service.hours}</div>
-      </div>
-
-      <div>
-        <div className="text-xs font-bold text-slate-500 uppercase mb-2">Accessibility</div>
-        <div className="flex items-center gap-2 glass-chip px-3 py-2">
-          <Accessibility size={16} className={service.accessible ? 'text-teal-600' : 'text-slate-400'} />
-          <span className="text-sm font-semibold text-slate-700">
-            {service.accessible ? 'Wheelchair accessible' : 'Limited accessibility'}
-          </span>
-        </div>
-      </div>
-
-      <button className="btn-primary w-full flex items-center justify-center gap-2">
-        <Navigation size={16} />
-        Get Directions
-      </button>
+      <div className="text-sm text-slate-600"><MapPin size={14} className="inline mr-1 text-teal-600" />{service.address || 'Address unavailable'}</div>
+      <div className="text-sm text-slate-600"><Clock size={14} className="inline mr-1 text-teal-600" />{service.hours || 'Opening hours unavailable'}</div>
+      <div className="text-xs text-slate-500">Source tag: <span className="font-mono">{service.sourceCategory || 'Unavailable'}</span></div>
+      <div className="text-xs text-slate-500 flex items-center gap-1"><Accessibility size={13} />{service.accessible === undefined ? 'Wheelchair information unavailable' : service.accessible ? 'Wheelchair accessible' : 'Wheelchair access marked no'}</div>
+      {service.missingFields && service.missingFields.length > 0 && <div className="text-xs text-amber-700">Unavailable fields: {service.missingFields.join(', ')}</div>}
     </div>
   );
 }

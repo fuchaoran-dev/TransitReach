@@ -7,7 +7,9 @@ import { useRef } from 'react';
  * arbitrary number of minutes is out of scope. The maximum is 60 min because isochrone
  * computation cost above that range has not been assessed.
  */
-const OPTIONS = [15, 30, 45, 60] as const;
+export const TIME_BUDGET_OPTIONS = [15, 30, 45, 60] as const;
+
+const OPTIONS = TIME_BUDGET_OPTIONS;
 
 interface TimeBudgetProps {
   value: number;

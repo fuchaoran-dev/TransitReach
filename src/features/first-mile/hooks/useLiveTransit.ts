@@ -74,11 +74,19 @@ export function useLiveTransit(
       !enabled ||
       accessibleStops.length === 0
     ) {
-      setState({
-        status: 'idle',
-        vehicles: [],
-        lastUpdatedAt: null,
-      });
+      // Only write when there is something to change. Setting a fresh idle object
+      // unconditionally re-renders the caller, which re-runs this effect if the caller
+      // passes an unstable dependency — a loop that is cheap to make impossible here.
+      setState(previous =>
+        previous.status === 'idle' &&
+        previous.vehicles.length === 0
+          ? previous
+          : {
+              status: 'idle',
+              vehicles: [],
+              lastUpdatedAt: null,
+            },
+      );
 
       return;
     }

@@ -8,9 +8,22 @@ interface ServiceFiltersProps {
   compact?: boolean;
 }
 
+/**
+ * Category chips.
+ *
+ * Nothing is selected on arrival, so these are the first thing the reader is asked to
+ * act on. That makes their state worth stating properly rather than implying: selection
+ * used to be carried by fill colour alone, with no role, no pressed state and no
+ * accessible name beyond the label — a screen reader announced twelve identical-sounding
+ * buttons and gave no way to tell which were on.
+ */
 export function ServiceFilters({ selected, onToggle, counts, compact = false }: ServiceFiltersProps) {
   return (
-    <div className={`flex flex-wrap gap-2 ${compact ? 'gap-1.5' : ''}`}>
+    <div
+      role="group"
+      aria-label="Service categories"
+      className={`flex flex-wrap gap-2 ${compact ? 'gap-1.5' : ''}`}
+    >
       {CATEGORY_ORDER.map((catId) => {
         const meta = CATEGORY_META[catId];
         const Icon = meta.icon;
@@ -19,7 +32,16 @@ export function ServiceFilters({ selected, onToggle, counts, compact = false }: 
         return (
           <button
             key={catId}
+            type="button"
             onClick={() => onToggle(catId)}
+            aria-pressed={isSelected}
+            title={
+              count === undefined || count === 0
+                ? `${meta.label} — none in reach`
+                : isSelected
+                  ? `Hide ${meta.label} (${count} in reach)`
+                  : `Show ${meta.label} (${count} in reach)`
+            }
             className={`chip ${isSelected ? 'chip-selected' : 'chip-unselected'}`}
             style={compact ? { padding: '6px 10px', fontSize: 12 } : undefined}
           >

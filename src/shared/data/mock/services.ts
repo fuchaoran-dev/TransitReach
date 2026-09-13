@@ -7,9 +7,11 @@ import {
   Pill,
   Trees,
   Banknote,
+  Store,
   ShieldCheck,
   Baby,
   Utensils,
+  HelpCircle,
 } from 'lucide-react';
 import type { ServiceCategory, ServiceCategoryMeta, ServiceLocation } from '@/shared/types/service';
 
@@ -19,16 +21,24 @@ export const CATEGORY_META: Record<ServiceCategory, ServiceCategoryMeta> = {
   pharmacy:   { id: 'pharmacy',  label: 'Pharmacies',     icon: Pill,           color: '#8b5cf6', colorLight: '#ede9fe' },
   school:     { id: 'school',    label: 'Schools',        icon: GraduationCap,  color: '#f59e0b', colorLight: '#fef3c7' },
   market:     { id: 'market',    label: 'Markets',         icon: ShoppingBag,    color: '#10b981', colorLight: '#d1fae5' },
+  // Its own chip rather than a share of Markets: a mall is a destination people name and
+  // go looking for, and folded into "Markets" it was findable only by accident.
+  mall:       { id: 'mall',      label: 'Malls',           icon: Store,          color: '#c026d3', colorLight: '#fae8ff' },
   govt:       { id: 'govt',      label: 'Government',     icon: Building2,      color: '#6366f1', colorLight: '#e0e7ff' },
   park:       { id: 'park',      label: 'Parks',           icon: Trees,          color: '#22c55e', colorLight: '#dcfce7' },
-  bank:       { id: 'bank',      label: 'Banks & ATMs',    icon: Banknote,       color: '#14b8a6', colorLight: '#ccfbf1' },
+  // Bronze, not teal-500. At #14b8a6 this sat one step from the reachable area's old
+  // teal, so a bank dot over the area fill was all but invisible. Teal now belongs to
+  // the user's own position and route, and no category may take it.
+  bank:       { id: 'bank',      label: 'Banks & ATMs',    icon: Banknote,       color: '#a16207', colorLight: '#fef3c7' },
   police:     { id: 'police',    label: 'Police',          icon: ShieldCheck,    color: '#3b82f6', colorLight: '#dbeafe' },
   childcare:  { id: 'childcare', label: 'Childcare',       icon: Baby,           color: '#ec4899', colorLight: '#fce7f3' },
   food:       { id: 'food',       label: 'Food & Meals',    icon: Utensils,       color: '#f97316', colorLight: '#ffedd5' },
+  other:      { id: 'other',      label: 'Other services', icon: HelpCircle,      color: '#64748b', colorLight: '#f1f5f9' },
 };
 
 export const CATEGORY_ORDER: ServiceCategory[] = [
-  'hospital', 'clinic', 'pharmacy', 'school', 'market', 'govt', 'park', 'bank', 'police', 'childcare', 'food',
+  'hospital', 'clinic', 'pharmacy', 'school', 'market', 'mall', 'govt', 'park', 'bank', 'police', 'childcare', 'food',
+  'other',
 ];
 
 function svc(

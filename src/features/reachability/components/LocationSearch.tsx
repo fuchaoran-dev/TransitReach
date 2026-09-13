@@ -1,43 +1,78 @@
-import { useMemo, useState, type ReactNode } from 'react';
-import { Search, MapPin, Train } from 'lucide-react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  Search, MapPin, Train, Building2, GraduationCap, Landmark, Plane, ShoppingBag, Stethoscope,
+} from 'lucide-react';
 import { loadRailStops, linesForStop } from '@/shared/data/adapters/gtfsAdapter';
-import type { RailStop } from '../types';
-import { searchStops, MIN_QUERY_LENGTH } from '../reachabilityService';
+import { loadPlaces, type PlaceKind } from '@/shared/data/adapters/osmAdapter';
+import type { SearchHit } from '../reachabilityService';
+import { searchLocations, hitName, MIN_QUERY_LENGTH } from '../reachabilityService';
 
 /**
- * Station and stop search.
+ * Station, stop and place search.
  *
- * AC 1.1.3 — this component performs no geocoding of any kind and issues no network
- * request. A string that looks like an address ("Jalan ...", a postcode, a unit number)
- * is an ordinary non-match and gets no special handling. Do not add an address lookup,
- * a "did you mean" hint, or a geocoding fallback here.
+ * AC 1.1.3 — this component performs no geocoding and issues no network request. It
+ * searches two committed datasets: the transit feed's stations, and a named-place extract
+ * built from OpenStreetMap at build time by `scripts/build-places.mjs`.
+ *
+ * A string that looks like a street address ("Jalan ...", a postcode, a unit number) is an
+ * ordinary non-match, because addresses are not in either dataset. Do not add an address
+ * lookup, a "did you mean" hint, or a geocoding fallback here — that would send every
+ * query to a third party and break a criterion the team has already had to defend. If a
+ * place is missing, re-run the build script and commit the result.
  */
 
-const PLACEHOLDER = 'Search station or stop';
-const NO_MATCH = 'No station or stop matches that name';
-const HELPER = 'Search by station or stop name, or tap the map to choose a starting point.';
+const PLACEHOLDER = 'Search station, stop or place';
+const NO_MATCH = 'No station, stop or place matches that name';
+const HELPER = 'Search by name, or tap the map to choose a starting point.';
+
+const PLACE_ICONS: Record<PlaceKind, typeof MapPin> = {
+  city: Building2,
+  town: Building2,
+  suburb: MapPin,
+  hospital: Stethoscope,
+  university: GraduationCap,
+  mall: ShoppingBag,
+  attraction: Landmark,
+  airport: Plane,
+};
 
 interface LocationSearchProps {
-  onSelect: (stop: RailStop) => void;
-  selected?: RailStop | null;
+  onSelect: (hit: SearchHit) => void;
+  selected?: SearchHit | null;
   compact?: boolean;
 }
 
 export function LocationSearch({ onSelect, selected, compact = false }: LocationSearchProps) {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(selected ? hitName(selected) : '');
   const [focused, setFocused] = useState(false);
   const [highlightedIdx, setHighlightedIdx] = useState(-1);
 
+  // The starting point is shared across screens, so it can change without this field being
+  // touched. Reflecting it means every screen names the location its numbers describe,
+  // instead of showing an empty box beside results for somewhere the user cannot see.
+  //
+  // Clearing on null matters as much as setting on a name: an origin picked by tapping the
+  // map has no name, and leaving the last station's name in the box would label the result
+  // with a place it did not come from.
+  const selectedName = selected ? hitName(selected) : null;
+  useEffect(() => {
+    setQuery(selectedName ?? '');
+  }, [selectedName]);
+
   const stops = useMemo(() => loadRailStops(), []);
-  const results = useMemo(() => searchStops(query, stops), [query, stops]);
+  const places = useMemo(() => loadPlaces(), []);
+  const results = useMemo(
+    () => searchLocations(query, stops, places),
+    [query, stops, places],
+  );
 
   // Below the minimum query length the field is inert: no results, no "no match".
   const searching = query.trim().length >= MIN_QUERY_LENGTH;
 
-  const handleSelect = (stop: RailStop) => {
-    onSelect(stop);
-    // AC 1.1.1 — the exact feed stop name is written into the field.
-    setQuery(stop.name);
+  const handleSelect = (hit: SearchHit) => {
+    onSelect(hit);
+    // AC 1.1.1 — the exact name from the source data is written into the field.
+    setQuery(hitName(hit));
     setFocused(false);
     setHighlightedIdx(-1);
   };
@@ -71,26 +106,15 @@ export function LocationSearch({ onSelect, selected, compact = false }: Location
 
       {focused && (
         <div className="absolute top-full mt-2 left-0 right-0 glass-strong p-2 z-[1000] fade-slide-up max-h-64 overflow-y-auto scrollbar-thin">
-          {results.map((stop, idx) => (
-            <button
-              key={stop.stopId}
+          {results.map((hit, idx) => (
+            <ResultRow
+              key={hit.kind === 'stop' ? hit.stop.stopId : hit.place.placeId}
+              hit={hit}
+              query={query}
+              highlighted={highlightedIdx === idx}
               onMouseEnter={() => setHighlightedIdx(idx)}
-              onClick={() => handleSelect(stop)}
-              className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${
-                highlightedIdx === idx ? 'bg-teal-50' : 'hover:bg-slate-50'
-              }`}
-            >
-              <Train size={16} className="text-blue-500 mt-0.5 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold text-slate-800 truncate">
-                  {highlightName(stop.name, query)}
-                </div>
-                {/* AC 1.1.1 — each row shows the line or lines serving the stop. */}
-                <div className="text-xs text-slate-500 truncate">
-                  {linesForStop(stop).map(line => line.longName).join(' · ')}
-                </div>
-              </div>
-            </button>
+              onClick={() => handleSelect(hit)}
+            />
           ))}
 
           {searching && results.length === 0 && (
@@ -103,6 +127,45 @@ export function LocationSearch({ onSelect, selected, compact = false }: Location
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * One result row.
+ *
+ * A station shows the lines serving it; a place shows what kind of thing it is. The
+ * subtitle is what tells two same-named results apart — there are several malls called
+ * "AEON" and a suburb and a station both called "Subang Jaya".
+ */
+function ResultRow({ hit, query, highlighted, onMouseEnter, onClick }: {
+  hit: SearchHit;
+  query: string;
+  highlighted: boolean;
+  onMouseEnter: () => void;
+  onClick: () => void;
+}) {
+  const isStop = hit.kind === 'stop';
+  const Icon = isStop ? Train : PLACE_ICONS[hit.place.kind];
+  const subtitle = isStop
+    ? linesForStop(hit.stop).map(line => line.longName).join(' · ')
+    : hit.place.kindLabel;
+
+  return (
+    <button
+      onMouseEnter={onMouseEnter}
+      onClick={onClick}
+      className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${
+        highlighted ? 'bg-teal-50' : 'hover:bg-slate-50'
+      }`}
+    >
+      <Icon size={16} className={`mt-0.5 shrink-0 ${isStop ? 'text-blue-500' : 'text-slate-400'}`} />
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-semibold text-slate-800 truncate">
+          {highlightName(hitName(hit), query)}
+        </div>
+        <div className="text-xs text-slate-500 truncate">{subtitle}</div>
+      </div>
+    </button>
   );
 }
 

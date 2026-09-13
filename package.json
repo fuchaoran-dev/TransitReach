@@ -7,6 +7,7 @@
   "dev": "vite",
   "build": "vite build",
   "lint": "eslint .",
+    "data:essential-services": "node scripts/build-essential-services.mjs",
   "preview": "vite preview",
   "typecheck": "tsc --noEmit -p tsconfig.app.json",
   "collect:gtfs-rt": "node scripts/collect-gtfs-rt.mjs"

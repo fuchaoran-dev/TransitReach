@@ -1,13 +1,16 @@
 import { useEffect, useState, useMemo } from 'react';
 import { ArrowRight, Clock, MapPin, Train, Building2, Gauge, Sparkles, TrendingUp, Footprints, Route } from 'lucide-react';
 import { TransitMap, ReachabilityLayer, OriginMarker } from '@/shared/map';
-import { LocationSearch } from '@/features/reachability';
+
+import { LocationSearch, TIME_BUDGET_OPTIONS } from '@/features/reachability';
+import { loadRailStops, loadRailFeedMetadata } from '@/shared/data/adapters/gtfsAdapter';
+  
 import { ServiceMarker } from '@/features/essential-services';
 import { generateReachPolygon, mapAreaToKm2 } from '@/shared/data/mock/reachability';
 import { polygonArea } from '@/shared/lib/spatial';
 import { usePrefersReducedMotion, useCountUp, useScrollReveal } from '@/shared/hooks';
 import { SERVICES, TRANSIT_LINES, CITY_CENTER } from '@/shared/data';
-import type { RailStop } from '@/features/reachability';
+import type { SearchHit } from '@/features/reachability/reachabilityService';
 import type { MapPoint } from '@/shared/types/location';
 import type { PageId } from '@/app/routes';
 
@@ -32,14 +35,29 @@ function findNearbyPreviewStops(
   );
 }
 
+/**
+ * AC 1.4.1 — the headline figures are read from the loaded feed, never typed in.
+ *
+ * The previous values (4 lines, 43 service points, 6 areas mapped) came from the
+ * prototype's fictional dataset and described coverage the application does not have.
+ * Deriving them means rebuilding stops.json or changing the budget options updates the
+ * page, instead of leaving a number that was true once.
+ */
+const HEADLINE_STATS = [
+  { icon: Train, label: 'Rail Lines', value: loadRailFeedMetadata().feeds[0].lines.length, suffix: '', color: '#2563eb' },
+  { icon: MapPin, label: 'Stations', value: loadRailStops().length, suffix: '', color: '#0d9488' },
+  { icon: Clock, label: 'Time Budgets', value: TIME_BUDGET_OPTIONS.length, suffix: '', color: '#8b5cf6' },
+  { icon: Gauge, label: 'Max Reach', value: Math.max(...TIME_BUDGET_OPTIONS), suffix: ' min', color: '#f59e0b' },
+];
+
 interface LandingPageProps {
   onNavigate: (page: PageId) => void;
-  onSearchSelect: (stop: RailStop) => void;
+  onSearchSelect: (hit: SearchHit) => void;
 }
 
 export function LandingPage({ onNavigate, onSearchSelect }: LandingPageProps) {
   const reduced = usePrefersReducedMotion();
-  const [searchResult, setSearchResult] = useState<RailStop | null>(null);
+  const [searchResult, setSearchResult] = useState<SearchHit | null>(null);
   const [showPolygon, setShowPolygon] = useState(false);
   const [showPins, setShowPins] = useState(false);
   const [showWalking, setShowWalking] = useState(false);
@@ -77,9 +95,9 @@ export function LandingPage({ onNavigate, onSearchSelect }: LandingPageProps) {
     [origin]
   );
 
-  const handleSearch = (stop: RailStop) => {
-    setSearchResult(stop);
-    onSearchSelect(stop);
+  const handleSearch = (hit: SearchHit) => {
+    setSearchResult(hit);
+    onSearchSelect(hit);
     setShowPolygon(false);
     setShowPins(false);
     setShowWalking(false);
@@ -112,8 +130,10 @@ export function LandingPage({ onNavigate, onSearchSelect }: LandingPageProps) {
                 See how far you can go in{' '}
                 <span className="bg-gradient-to-r from-teal-600 to-teal-500 bg-clip-text text-transparent">30 minutes</span>
               </h1>
+              {/* AC 1.4.1 — claims only what is loaded. The previous copy promised essential
+                  services and implied bus coverage; neither is in the computation. */}
               <p className="text-lg text-slate-600 leading-relaxed mb-8 max-w-xl">
-                TransitReach maps real transit reachability across Klang Valley — where you can walk, ride, and reach essential services within any time budget.
+                TransitReach maps how far you can actually get across the Klang Valley on rail and on foot, within a time budget you choose. Computed from the published rail timetable and the real walking network — bus and feeder services are not yet included.
               </p>
 
               {/* Search */}
@@ -121,14 +141,12 @@ export function LandingPage({ onNavigate, onSearchSelect }: LandingPageProps) {
                 <LocationSearch onSelect={handleSearch} selected={searchResult} />
               </div>
 
+              {/* The Methodology button was removed with the Method nav entry — its page
+                  belongs to an epic that is not built (AC 1.4.3). */}
               <div className="flex flex-wrap items-center gap-3">
                 <button onClick={() => onNavigate('map')} className="btn-primary inline-flex items-center gap-2">
                   Explore the Map
                   <ArrowRight size={18} />
-                </button>
-                <button onClick={() => onNavigate('methodology')} className="btn-secondary inline-flex items-center gap-2">
-                  <Route size={16} />
-                  Methodology
                 </button>
               </div>
             </div>
@@ -171,13 +189,8 @@ export function LandingPage({ onNavigate, onSearchSelect }: LandingPageProps) {
       {/* Stats bar */}
       <section className="px-4 sm:px-6 lg:px-8 py-8">
         <div ref={statsRef.ref} className={`max-w-[1400px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 ${statsRef.visible ? 'fade-slide-up' : 'opacity-0'}`}>
-          {[
-            { icon: Train, label: 'Transit Lines', value: 4, suffix: '', color: '#2563eb' },
-            { icon: Building2, label: 'Service Points', value: 43, suffix: '', color: '#0d9488' },
-            { icon: MapPin, label: 'Areas Mapped', value: 6, suffix: '', color: '#f59e0b' },
-            { icon: Clock, label: 'Time Budgets', value: 4, suffix: '', color: '#8b5cf6' },
-          ].map((stat, i) => (
-            <StatCard key={i} stat={stat} index={i} />
+          {HEADLINE_STATS.map((stat, i) => (
+            <StatCard key={stat.label} stat={stat} index={i} />
           ))}
         </div>
       </section>
@@ -190,13 +203,16 @@ export function LandingPage({ onNavigate, onSearchSelect }: LandingPageProps) {
             <p className="text-slate-600 max-w-2xl mx-auto">From choosing where to live to planning a new bus route — TransitReach gives you the data to understand access.</p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {/* AC 1.4.3 — features belonging to epics that are not yet built stay visible so
+                the planned scope is legible, but are disabled rather than linking to an
+                unfinished screen. `available` is the single switch; flip it when the epic lands. */}
             {[
-              { icon: MapPin, title: 'Reachability Mapping', desc: 'Draw reachable areas from any point using real transit schedules and walking networks.', color: '#0d9488', page: 'map' as PageId },
-              { icon: Building2, title: 'Essential Services', desc: 'See which hospitals, schools, markets, and government offices fall within reach.', color: '#e11d48', page: 'services' as PageId },
-              { icon: Clock, title: 'Time-of-Day Comparison', desc: 'Compare morning and evening reach to see how access shifts with traffic and schedules.', color: '#2563eb', page: 'time' as PageId },
-              { icon: Route, title: 'Scenario Modelling', desc: 'Test proposed routes or suspend existing ones to see how access changes.', color: '#8b5cf6', page: 'scenario' as PageId },
-              { icon: TrendingUp, title: 'Area Typology', desc: 'Classify neighbourhoods by walkability, transit, and service access scores.', color: '#f59e0b', page: 'typology' as PageId },
-              { icon: Gauge, title: 'Confidence Scoring', desc: 'Every result includes a data-confidence grade so you know what to trust.', color: '#22c55e', page: 'methodology' as PageId },
+              { icon: MapPin, title: 'Reachability Mapping', desc: 'Draw reachable areas from any point using real rail schedules and the walking network.', color: '#0d9488', page: 'map' as PageId, available: true },
+              { icon: Building2, title: 'Essential Services', desc: 'See which hospitals, schools, markets, and government offices fall within reach.', color: '#e11d48', page: 'services' as PageId, available: true },
+              { icon: Clock, title: 'Time-of-Day Comparison', desc: 'Compare real service coverage at 09:00 and 17:00 using the published schedule.', color: '#2563eb', page: 'time' as PageId, available: true },
+              { icon: Route, title: 'Scenario Modelling', desc: 'Test proposed routes or suspend existing ones to see how access changes.', color: '#8b5cf6', page: 'scenario' as PageId, available: false },
+              { icon: TrendingUp, title: 'Area Typology', desc: 'Classify neighbourhoods by walkability, transit, and service access scores.', color: '#f59e0b', page: 'typology' as PageId, available: false },
+              { icon: Gauge, title: 'Confidence Scoring', desc: 'Every result includes a data-confidence grade so you know what to trust.', color: '#22c55e', page: 'methodology' as PageId, available: false },
             ].map((feature, i) => (
               <FeatureCard key={i} feature={feature} index={i} onNavigate={onNavigate} />
             ))}
@@ -236,29 +252,66 @@ function StatCard({ stat, index }: { stat: { icon: typeof Train; label: string; 
   );
 }
 
+/**
+ * AC 1.4.3 — an unavailable feature is disabled, not deleted.
+ *
+ * It stays fully readable so the planned scope is still visible, but it cannot be
+ * activated by click, tap or keyboard, and it is announced as disabled. Rendering it as a
+ * `button` when it is live and a plain `div` when it is not is what keeps it out of the
+ * tab order; `aria-disabled` alone would leave it focusable and clickable.
+ */
 function FeatureCard({ feature, index, onNavigate }: {
-  feature: { icon: typeof MapPin; title: string; desc: string; color: string; page: PageId };
+  feature: { icon: typeof MapPin; title: string; desc: string; color: string; page: PageId; available: boolean };
   index: number;
   onNavigate: (page: PageId) => void;
 }) {
   const Icon = feature.icon;
   const reveal = useScrollReveal<HTMLDivElement>();
-  return (
-    <div
-      ref={reveal.ref}
-      className={`card p-6 card-hover cursor-pointer ${reveal.visible ? 'fade-slide-up' : 'opacity-0'}`}
-      style={{ animationDelay: `${index * 60}ms` }}
-      onClick={() => onNavigate(feature.page)}
-    >
+
+  const body = (
+    <>
       <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: `${feature.color}15` }}>
         <Icon size={24} style={{ color: feature.color }} />
       </div>
       <h3 className="text-lg font-bold text-slate-900 mb-2">{feature.title}</h3>
       <p className="text-sm text-slate-600 leading-relaxed">{feature.desc}</p>
-      <div className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-teal-600 group">
-        Learn more
-        <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+      {feature.available ? (
+        <div className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-teal-600 group">
+          Learn more
+          <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+        </div>
+      ) : (
+        <div className="mt-4 inline-flex items-center px-2 py-1 rounded-md bg-slate-100 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+          Coming soon
+        </div>
+      )}
+    </>
+  );
+
+  const reveals = reveal.visible ? 'fade-slide-up' : 'opacity-0';
+  const delay = { animationDelay: `${index * 60}ms` };
+
+  if (!feature.available) {
+    return (
+      <div
+        ref={reveal.ref}
+        aria-disabled="true"
+        className={`card p-6 opacity-50 cursor-not-allowed select-none ${reveals}`}
+        style={delay}
+      >
+        {body}
       </div>
+    );
+  }
+
+  return (
+    <div ref={reveal.ref} className={reveals} style={delay}>
+      <button
+        onClick={() => onNavigate(feature.page)}
+        className="card p-6 card-hover cursor-pointer w-full h-full text-left"
+      >
+        {body}
+      </button>
     </div>
   );
 }

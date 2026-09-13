@@ -1,15 +1,31 @@
+import { useEffect } from 'react';
+
+
 import {
+  CircleMarker,
   Polyline,
   Tooltip,
+  useMap,
   Marker,
   Popup,
 } from 'react-leaflet';
 
-import L from 'leaflet';
+import L, {
+  latLngBounds,
+} from 'leaflet';
 
 import type {
   FirstMileStopResult,
 } from '../types';
+
+/** Keeps the route clear of the panels overlaying the map's left and right edges. */
+const ROUTE_PADDING: [number, number] = [80, 80];
+
+/**
+ * Close enough to read the streets, far enough not to lose the surroundings.
+ * Without a cap, a 200 m walk fills the screen at building level.
+ */
+const ROUTE_MAX_ZOOM = 16;
 
 interface FirstMileMapLayerProps {
   stops: FirstMileStopResult[];
@@ -83,11 +99,36 @@ export function FirstMileMapLayer({
   selectedStopId,
   onSelect,
 }: FirstMileMapLayerProps) {
+  const map = useMap();
   const selected =
     stops.find(
       item =>
         item.stop.stopId === selectedStopId,
     ) ?? null;
+
+  /*
+   * AC 3.1.4 — bring the chosen walking connection into view.
+   *
+   * Selecting a station drew its route wherever it happened to be, which at the default
+   * origin zoom often meant partly or wholly off-screen, and left the user to find it by
+   * hand.
+   *
+   * `route` is a safe dependency rather than a churning one: `stops` is React state held
+   * by useFirstMile, so it keeps its identity between renders and this looks up the same
+   * object each time. The view therefore moves when the selection changes and at no other
+   * time, which is what keeps it from fighting the user's own panning or BaseMap's
+   * ViewController.
+   */
+  const route = selected?.route ?? null;
+  useEffect(() => {
+    if (!route || route.geometry.length < 2) return;
+
+    // The geometry already runs origin → station, so its extent is the whole walk.
+    map.flyToBounds(
+      latLngBounds(route.geometry.map(point => [point.lat, point.lon])),
+      { padding: ROUTE_PADDING, maxZoom: ROUTE_MAX_ZOOM },
+    );
+  }, [route, map]);
 
   return (
     <>

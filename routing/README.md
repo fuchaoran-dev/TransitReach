@@ -205,6 +205,39 @@ This value is not an implementation detail. AC 1.2.3 requires the walking speed 
 **stated in the interface**, so if you change it here you must change what the app
 displays. Do not let the two drift apart.
 
+## Related: the searchable place set
+
+Not part of the routing engine, but the second upstream data dependency this project has,
+and it must be reproducible the same way.
+
+`scripts/build-places.mjs` fetches named Klang Valley places — suburbs, towns, malls,
+hospitals, universities, attractions, airports — from the **Overpass API**, and writes
+`src/shared/data/places/places.json`, which **is committed**.
+
+```bash
+node scripts/build-places.mjs
+```
+
+Run it manually, sanity-check the per-kind counts it prints, and commit the result. It is
+not wired into `npm run build`, and must not be put in CI: Overpass is a shared public
+service.
+
+**Why it exists.** Mentors asked why only stations could be searched. The obvious answer —
+call a geocoder as the user types — is forbidden by AC 1.1.3 and by the Epic 1 DoD line
+"No geocoding endpoint is called by the application". Doing the lookup once here, at build
+time, and shipping the result satisfies both: the application calls nothing, and named
+places are still searchable. It is also faster (no network in the path), has no rate limit
+to respect, and sends no user's query to a third party.
+
+The output is OpenStreetMap-derived and therefore ODbL, like the tiles. The attribution
+Leaflet already displays covers it.
+
+Two notes for whoever re-runs it:
+- Overpass answers **406** to a request with no `User-Agent`. The script sets one; do not
+  remove it.
+- A 429 or 504 means the shared endpoint is busy. Wait a few minutes rather than retrying
+  in a loop.
+
 ## Known gaps
 
 - **Hosting is unresolved, and is now the critical path.** Netlify serves a static build,

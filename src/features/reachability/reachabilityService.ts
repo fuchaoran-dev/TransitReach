@@ -8,8 +8,9 @@ import {
   DEPARTURE_TIME_IS_PROVISIONAL,
 } from '@/shared/data/adapters/routingAdapter';
 import { polygonArea } from '@/shared/lib/spatial';
+import type { OsmPlace } from '@/shared/data/adapters/osmAdapter';
 import type { MapPoint } from '@/shared/types/location';
-import type { LatLng, RailStop } from './types';
+import type { LatLng, Origin, RailStop } from './types';
 
 /** AC 1.1.1 — the search field stays inert below this length. */
 export const MIN_QUERY_LENGTH = 2;
@@ -18,11 +19,95 @@ export const MIN_QUERY_LENGTH = 2;
 export const MAX_RESULTS = 10;
 
 /**
- * Matches stops for the search field.
+ * One row in the search results: either a station from the transit feed, or a named place
+ * from the committed OpenStreetMap extract.
  *
- * Case-insensitive substring on the stop name only — no fuzzy matching, no phonetic
- * matching, and deliberately not on any other field. Results are ordered by match
- * position (earliest first), then alphabetically, and capped at MAX_RESULTS.
+ * A discriminated union rather than a flattened shape, so a caller cannot read a station's
+ * serving lines off a shopping mall.
+ */
+export type SearchHit =
+  | { kind: 'stop'; stop: RailStop }
+  | { kind: 'place'; place: OsmPlace };
+
+/** The name a hit is matched and displayed by, whichever kind it is. */
+export function hitName(hit: SearchHit): string {
+  return hit.kind === 'stop' ? hit.stop.name : hit.place.name;
+}
+
+/** The coordinate a hit resolves to when selected. */
+export function hitPosition(hit: SearchHit): LatLng {
+  return hit.kind === 'stop'
+    ? { lat: hit.stop.lat, lon: hit.stop.lon }
+    : { lat: hit.place.lat, lon: hit.place.lon };
+}
+
+/**
+ * The starting point a search hit becomes.
+ *
+ * AC 1.4.2 — this is what carries a landing-page selection into the map page without the
+ * visitor typing it again.
+ */
+export function originFromHit(hit: SearchHit): Origin {
+  return hit.kind === 'stop'
+    ? { at: hitPosition(hit), source: 'stop', stop: hit.stop }
+    : { at: hitPosition(hit), source: 'place', place: hit.place };
+}
+
+/**
+ * The search hit an origin came from, or null when it came from a map click or the
+ * device. Used to keep the search field in step with the current starting point.
+ */
+export function hitFromOrigin(origin: Origin | null): SearchHit | null {
+  if (origin?.stop) return { kind: 'stop', stop: origin.stop };
+  if (origin?.place) return { kind: 'place', place: origin.place };
+  return null;
+}
+
+/**
+ * Matches stations and named places for the search field.
+ *
+ * Case-insensitive substring on the name only — no fuzzy matching, no phonetic matching,
+ * and deliberately not on any other field. Results are ordered by match position
+ * (earliest first), then stations before places, then alphabetically, and capped at
+ * MAX_RESULTS across both kinds.
+ *
+ * Stations outrank places at an equal match position because this is a transit tool: for
+ * "subang", the station a rider can board at is a more useful answer than a suburb of the
+ * same name. AC 1.1.1's station behaviour is therefore unchanged by the addition.
+ *
+ * The places come from a build-time extract (see osmAdapter). No lookup service is called
+ * here or anywhere downstream — AC 1.1.3.
+ */
+export function searchLocations(
+  query: string,
+  stops: RailStop[],
+  places: OsmPlace[],
+): SearchHit[] {
+  const needle = query.trim().toLowerCase();
+  if (needle.length < MIN_QUERY_LENGTH) return [];
+
+  const ranked: { hit: SearchHit; at: number; rank: number; name: string }[] = [];
+
+  for (const stop of stops) {
+    const at = stop.name.toLowerCase().indexOf(needle);
+    if (at >= 0) ranked.push({ hit: { kind: 'stop', stop }, at, rank: 0, name: stop.name });
+  }
+  for (const place of places) {
+    const at = place.name.toLowerCase().indexOf(needle);
+    if (at >= 0) ranked.push({ hit: { kind: 'place', place }, at, rank: 1, name: place.name });
+  }
+
+  return ranked
+    .sort((a, b) => a.at - b.at || a.rank - b.rank || a.name.localeCompare(b.name))
+    .slice(0, MAX_RESULTS)
+    .map(({ hit }) => hit);
+}
+
+/**
+ * Matches stops only.
+ *
+ * Retained because the landing page search sets a station as the map page's starting
+ * point, and that handoff is typed to RailStop.
  */
 export function searchStops(query: string, stops: RailStop[]): RailStop[] {
   const needle = query.trim().toLowerCase();

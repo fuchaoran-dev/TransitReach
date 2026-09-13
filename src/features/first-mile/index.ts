@@ -4,6 +4,9 @@ export * from './components/NearbyStopsPanel';
 export * from './hooks/useFirstMile';
 export * from './types';
 
+// The walking threshold only — computeFirstMileAccess stays behind useFirstMile.
+export { DEFAULT_FIRST_MILE_THRESHOLD_MINUTES } from './firstMileService';
+
 export * from './components/LiveTransitMapLayer';
 export * from './components/LiveTransitStatus';
 

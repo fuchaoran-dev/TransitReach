@@ -85,17 +85,24 @@ export function NearbyStopsPanel({
         </div>
       </div>
 
-      {/* Shared time-budget information */}
+      {/*
+        The walking window is the first mile's own limit.
+
+        It used to track the travel-time budget, which meant a 45-minute journey was
+        read as a willingness to walk 45 minutes to a station. Saying what each number
+        governs is the point of this box: one is the walk, the other is the trip.
+      */}
       <div className="rounded-xl bg-teal-50 px-3 py-2.5">
         <div className="text-[10px] font-semibold uppercase tracking-wide text-teal-700 mb-0.5">
           Walking window
         </div>
 
         <p className="text-[11px] text-teal-800 leading-snug">
-          Synced with the selected travel-time budget:{' '}
+          Stations within a{' '}
           <span className="font-bold">
             {thresholdMinutes} min
-          </span>
+          </span>{' '}
+          walk. Your travel-time budget covers the whole journey, not this walk.
         </p>
       </div>
 
@@ -140,8 +147,7 @@ export function NearbyStopsPanel({
               {state.stops.length}{' '}
               station
               {state.stops.length === 1 ? '' : 's'}{' '}
-              accessible within the selected{' '}
-              {thresholdMinutes} min walking window.
+              within a {thresholdMinutes} min walk, nearest first.
               Select a station to view its route.
             </div>
 
@@ -351,11 +357,13 @@ export function NearbyStopsPanel({
               )}
             </div>
 
-            {/* AC 3.2.2 */}
+            {/* AC 3.2.2 — ordering is not ranking, and the distinction is stated
+                rather than assumed: nothing here is marked best, fastest or
+                recommended, and walking effort and service quality stay separate. */}
             <p className="text-[10px] text-slate-400 leading-snug">
               Frequencies are published GTFS headways, not live
-              arrival predictions. Stops are shown for neutral
-              comparison without ranking or recommendation.
+              arrival predictions. Ordered by walking distance —
+              no stop is ranked or recommended over another.
             </p>
           </>
         )}
