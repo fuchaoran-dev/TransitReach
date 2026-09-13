@@ -1,0 +1,1 @@
+export { MeetingPointPage } from './MeetingPointPage';

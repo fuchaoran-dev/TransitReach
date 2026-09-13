@@ -5,4 +5,5 @@ export type PageId =
   | 'time'
   | 'scenario'
   | 'typology'
+  | 'meeting'
   | 'methodology';
