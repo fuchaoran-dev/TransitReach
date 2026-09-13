@@ -6,7 +6,6 @@ import {
   LocationSearch,
   TimeBudgetSelector,
   useReachability,
-  type ReachabilityState,
 } from '@/features/reachability';
 
 import {

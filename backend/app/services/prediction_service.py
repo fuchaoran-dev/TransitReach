@@ -32,4 +32,3 @@ def realtime_is_fresh(observed_at: datetime | None, now: datetime | None = None)
         observed_at = observed_at.replace(tzinfo=timezone.utc)
     reference = now or datetime.now(timezone.utc)
     return timedelta(0) <= reference - observed_at <= REALTIME_FRESHNESS
-

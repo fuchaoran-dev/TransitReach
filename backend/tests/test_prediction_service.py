@@ -20,4 +20,3 @@ class RiskBandTests(unittest.TestCase):
     def test_fresh_realtime_is_usable(self) -> None:
         now = datetime(2026, 4, 1, 8, tzinfo=timezone.utc)
         self.assertTrue(realtime_is_fresh(now - timedelta(seconds=30), now))
-

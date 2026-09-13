@@ -34,4 +34,3 @@ class PipelinePaths:
     selected_observations: Path
     stop_arrivals: Path
     feature_table: Path
-

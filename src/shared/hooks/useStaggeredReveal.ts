@@ -12,13 +12,19 @@ export function useStaggeredReveal(count: number, interval = 60, startDelay = 0)
       return;
     }
     let i = 0;
-    const timer = setInterval(() => {
+    let intervalTimer: ReturnType<typeof setInterval> | undefined;
+    const startTimer = setTimeout(() => {
+      intervalTimer = setInterval(() => {
       i++;
       setVisibleCount(i);
-      if (i >= count) clearInterval(timer);
-    }, interval);
-    return () => clearInterval(timer);
-  }, [count, interval, prefersReduced]);
+        if (i >= count && intervalTimer) clearInterval(intervalTimer);
+      }, interval);
+    }, startDelay);
+    return () => {
+      clearTimeout(startTimer);
+      if (intervalTimer) clearInterval(intervalTimer);
+    };
+  }, [count, interval, prefersReduced, startDelay]);
 
   return visibleCount;
 }

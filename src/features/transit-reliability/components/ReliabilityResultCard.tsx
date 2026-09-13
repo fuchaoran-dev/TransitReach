@@ -40,4 +40,3 @@ export function ReliabilityResultCard({ result }: { result: ReliabilityResponse 
     </section>
   );
 }
-

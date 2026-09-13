@@ -29,4 +29,3 @@ export function useReliabilityPrediction() {
   };
   return { result, loading, error, predict };
 }
-

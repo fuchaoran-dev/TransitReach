@@ -2,9 +2,7 @@ import { useEffect } from 'react';
 
 
 import {
-  CircleMarker,
   Polyline,
-  Tooltip,
   useMap,
   Marker,
   Popup,
@@ -134,10 +132,6 @@ export function FirstMileMapLayer({
     <>
       {/* AC 3.1.4 — all candidate stations */}
       {stops.map(result => {
-        const selectedMarker =
-          result.stop.stopId ===
-          selectedStopId;
-
         return (
           <Marker
             key={result.stop.stopId}

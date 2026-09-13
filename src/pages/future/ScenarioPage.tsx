@@ -3,11 +3,9 @@ import { Route, Plus, Minus, Play, RotateCcw, TrendingUp, TrendingDown, Lightbul
 import { TransitMap, ReachabilityLayer, OriginMarker, HatchArea } from '@/shared/map';
 import { ScenarioRouteOverlay } from './components/ScenarioRouteOverlay';
 import { servicesInPolygon, polygonArea } from '@/shared/lib/spatial';
-import { usePrefersReducedMotion, useCountUp, useStaggeredReveal } from '@/shared/hooks';
+import { usePrefersReducedMotion, useCountUp } from '@/shared/hooks';
 import { generateReachPolygon, mapAreaToKm2 } from '@/shared/data/mock/reachability';
-import type { MapPoint } from '@/shared/types/location';
 import { SERVICES, SCENARIO_ROUTES, TRANSIT_LINES, CITY_CENTER } from '@/shared/data';
-import type { ScenarioRoute } from '@/shared/types/scenario';
 
 type Tab = 'baseline' | 'scenario' | 'difference';
 

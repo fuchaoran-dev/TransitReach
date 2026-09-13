@@ -45,4 +45,3 @@ def resolve_training_source(
     raise NoOperationalDataError(
         "No real historical operational data are available for training" + detail
     )
-

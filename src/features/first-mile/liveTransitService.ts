@@ -130,8 +130,9 @@ function haversineMeters(
  * into simple frontend objects.
  */
 export async function fetchLiveTransitVehicles(
-  _signal?: AbortSignal,
+  signal?: AbortSignal,
 ): Promise<LiveTransitVehicle[]> {
+  signal?.throwIfAborted();
   const now = Date.now();
 
   /*

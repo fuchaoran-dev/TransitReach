@@ -54,4 +54,3 @@ def monotonic_progress_ratio(progress_values: Sequence[float], tolerance_metres:
         for previous, current in zip(progress_values, progress_values[1:])
     )
     return forward / (len(progress_values) - 1)
-
