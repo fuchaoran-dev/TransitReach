@@ -3,9 +3,16 @@ import { Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 
 import type { BusStop } from '../busStopService';
+import { BusStopReliabilityPopup } from '@/features/transit-reliability';
+import type { ReliabilityService } from '@/features/transit-reliability';
 
 interface Props {
   stops: BusStop[];
+  selectedStopId: string | null;
+  onSelect: (stop: BusStop) => void;
+  reliabilityServices: ReliabilityService[];
+  reliabilityLoading: boolean;
+  reliabilityError: string | null;
 }
 
 const busStopIcon =
@@ -51,6 +58,11 @@ const busStopIcon =
 
 export function BusStopMapLayer({
   stops,
+  selectedStopId,
+  onSelect,
+  reliabilityServices,
+  reliabilityLoading,
+  reliabilityError,
 }: Props) {
   return (
     <>
@@ -63,9 +75,18 @@ export function BusStopMapLayer({
               stop.lon,
             ]}
             icon={busStopIcon}
+            zIndexOffset={stop.stopId === selectedStopId ? 900 : 0}
+            eventHandlers={{ click: () => onSelect(stop) }}
           >
             <Popup>
-              <div
+              {stop.stopId === selectedStopId ? (
+                <BusStopReliabilityPopup
+                  stop={stop}
+                  services={reliabilityServices}
+                  catalogLoading={reliabilityLoading}
+                  catalogError={reliabilityError}
+                />
+              ) : <div
                 className="
                   min-w-[170px]
                 "
@@ -135,7 +156,7 @@ export function BusStopMapLayer({
                   via
                   data.gov.my
                 </div>
-              </div>
+              </div>}
             </Popup>
           </Marker>
         ),

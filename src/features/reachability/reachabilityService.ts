@@ -10,6 +10,7 @@ import {
 import { polygonArea } from '@/shared/lib/spatial';
 import type { OsmPlace } from '@/shared/data/adapters/osmAdapter';
 import type { MapPoint } from '@/shared/types/location';
+import type { BusStop } from '@/features/first-mile/busStopService';
 import type { LatLng, Origin, RailStop } from './types';
 
 /** AC 1.1.1 — the search field stays inert below this length. */
@@ -27,18 +28,21 @@ export const MAX_RESULTS = 10;
  */
 export type SearchHit =
   | { kind: 'stop'; stop: RailStop }
+  | { kind: 'bus-stop'; busStop: BusStop }
   | { kind: 'place'; place: OsmPlace };
 
 /** The name a hit is matched and displayed by, whichever kind it is. */
 export function hitName(hit: SearchHit): string {
-  return hit.kind === 'stop' ? hit.stop.name : hit.place.name;
+  if (hit.kind === 'stop') return hit.stop.name;
+  if (hit.kind === 'bus-stop') return hit.busStop.name;
+  return hit.place.name;
 }
 
 /** The coordinate a hit resolves to when selected. */
 export function hitPosition(hit: SearchHit): LatLng {
-  return hit.kind === 'stop'
-    ? { lat: hit.stop.lat, lon: hit.stop.lon }
-    : { lat: hit.place.lat, lon: hit.place.lon };
+  if (hit.kind === 'stop') return { lat: hit.stop.lat, lon: hit.stop.lon };
+  if (hit.kind === 'bus-stop') return { lat: hit.busStop.lat, lon: hit.busStop.lon };
+  return { lat: hit.place.lat, lon: hit.place.lon };
 }
 
 /**
@@ -48,9 +52,11 @@ export function hitPosition(hit: SearchHit): LatLng {
  * visitor typing it again.
  */
 export function originFromHit(hit: SearchHit): Origin {
-  return hit.kind === 'stop'
-    ? { at: hitPosition(hit), source: 'stop', stop: hit.stop }
-    : { at: hitPosition(hit), source: 'place', place: hit.place };
+  if (hit.kind === 'stop') return { at: hitPosition(hit), source: 'stop', stop: hit.stop };
+  if (hit.kind === 'bus-stop') {
+    return { at: hitPosition(hit), source: 'bus-stop', busStop: hit.busStop };
+  }
+  return { at: hitPosition(hit), source: 'place', place: hit.place };
 }
 
 /**
@@ -59,6 +65,7 @@ export function originFromHit(hit: SearchHit): Origin {
  */
 export function hitFromOrigin(origin: Origin | null): SearchHit | null {
   if (origin?.stop) return { kind: 'stop', stop: origin.stop };
+  if (origin?.busStop) return { kind: 'bus-stop', busStop: origin.busStop };
   if (origin?.place) return { kind: 'place', place: origin.place };
   return null;
 }
@@ -81,6 +88,7 @@ export function hitFromOrigin(origin: Origin | null): SearchHit | null {
 export function searchLocations(
   query: string,
   stops: RailStop[],
+  busStops: BusStop[],
   places: OsmPlace[],
 ): SearchHit[] {
   const needle = query.trim().toLowerCase();
@@ -92,9 +100,15 @@ export function searchLocations(
     const at = stop.name.toLowerCase().indexOf(needle);
     if (at >= 0) ranked.push({ hit: { kind: 'stop', stop }, at, rank: 0, name: stop.name });
   }
+  for (const busStop of busStops) {
+    const at = busStop.name.toLowerCase().indexOf(needle);
+    if (at >= 0) {
+      ranked.push({ hit: { kind: 'bus-stop', busStop }, at, rank: 1, name: busStop.name });
+    }
+  }
   for (const place of places) {
     const at = place.name.toLowerCase().indexOf(needle);
-    if (at >= 0) ranked.push({ hit: { kind: 'place', place }, at, rank: 1, name: place.name });
+    if (at >= 0) ranked.push({ hit: { kind: 'place', place }, at, rank: 2, name: place.name });
   }
 
   return ranked
