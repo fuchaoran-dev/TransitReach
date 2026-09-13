@@ -1,6 +1,10 @@
 import rawBusStops
   from '@/shared/data/bus/stops.json';
 
+import type {
+  IsochroneRegion,
+} from '@/shared/data/adapters/routingAdapter';
+
 export interface BusStop {
   stopId: string;
   name: string;
@@ -85,19 +89,109 @@ function haversineMeters(
     )
   );
 }
+function pointInsideRing(
+  point: {
+    lat: number;
+    lon: number;
+  },
+  ring: [number, number][],
+): boolean {
+  if (ring.length < 3) {
+    return false;
+  }
+
+  let inside = false;
+
+  for (
+    let i = 0,
+      j = ring.length - 1;
+    i < ring.length;
+    j = i++
+  ) {
+    // Isochrone coordinates are GeoJSON order:
+    // [longitude, latitude]
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+
+    const intersects =
+      yi > point.lat !==
+        yj > point.lat &&
+      point.lon <
+        ((xj - xi) *
+          (point.lat - yi)) /
+          (yj - yi) +
+          xi;
+
+    if (intersects) {
+      inside = !inside;
+    }
+  }
+
+  return inside;
+}
+
+function pointInsideRegion(
+  point: {
+    lat: number;
+    lon: number;
+  },
+  region: IsochroneRegion,
+): boolean {
+  // Must be inside the outer boundary
+  if (
+    !pointInsideRing(
+      point,
+      region.outer,
+    )
+  ) {
+    return false;
+  }
+
+  // But must NOT be inside one of the
+  // unreachable holes
+  const insideHole =
+    region.holes.some(
+      hole =>
+        pointInsideRing(
+          point,
+          hole,
+        ),
+    );
+
+  return !insideHole;
+}
+
+function pointInsideAnyRegion(
+  point: {
+    lat: number;
+    lon: number;
+  },
+  regions:
+    IsochroneRegion[],
+): boolean {
+  return regions.some(
+    region =>
+      pointInsideRegion(
+        point,
+        region,
+      ),
+  );
+}
 
 export function busStopsNearAccessibleStations(
   accessibleStops:
     AccessibleStopLike[],
+  reachableRegions:
+    IsochroneRegion[],
   radiusMeters =
     BUS_STOP_RADIUS_METERS,
 ): BusStop[] {
   if (
-    accessibleStops.length === 0
+    accessibleStops.length === 0 ||
+    reachableRegions.length === 0
   ) {
     return [];
   }
-
   return BUS_STOPS.flatMap(
     busStop => {
       let nearest =
@@ -128,11 +222,23 @@ export function busStopsNearAccessibleStations(
             distance;
         }
       }
-
       if (
         nearest >
         radiusMeters
       ) {
+        return [];
+      }
+
+      const insideReachableArea =
+        pointInsideAnyRegion(
+          {
+            lat: busStop.lat,
+            lon: busStop.lon,
+          },
+          reachableRegions,
+        );
+
+      if (!insideReachableArea) {
         return [];
       }
 

@@ -1,12 +1,18 @@
 import { useEffect } from 'react';
 
+
 import {
   CircleMarker,
   Polyline,
   Tooltip,
   useMap,
+  Marker,
+  Popup,
 } from 'react-leaflet';
-import { latLngBounds } from 'leaflet';
+
+import L, {
+  latLngBounds,
+} from 'leaflet';
 
 import type {
   FirstMileStopResult,
@@ -26,6 +32,67 @@ interface FirstMileMapLayerProps {
   selectedStopId: string | null;
   onSelect: (stopId: string) => void;
 }
+
+function stationIcon(
+  selected: boolean,
+) {
+  return L.divIcon({
+    className:
+      'first-mile-station-marker',
+
+    html: `
+      <div
+        style="
+          width: ${selected ? 34 : 28}px;
+          height: ${selected ? 34 : 28}px;
+          border-radius: 8px;
+          background: ${
+            selected
+              ? '#0f766e'
+              : '#ffffff'
+          };
+          border: 3px solid #0f766e;
+          box-shadow:
+            0 2px 8px rgba(0,0,0,0.28);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: ${
+            selected ? 18 : 15
+          }px;
+        "
+      >
+        <span
+          style="
+            filter: ${
+              selected
+                ? 'brightness(0) invert(1)'
+                : 'none'
+            };
+          "
+        >
+          🚉
+        </span>
+      </div>
+    `,
+
+    iconSize: [
+      selected ? 34 : 28,
+      selected ? 34 : 28,
+    ],
+
+    iconAnchor: [
+      selected ? 17 : 14,
+      selected ? 17 : 14,
+    ],
+
+    popupAnchor: [
+      0,
+      selected ? -18 : -15,
+    ],
+  });
+}
+
 
 export function FirstMileMapLayer({
   stops,
@@ -72,25 +139,16 @@ export function FirstMileMapLayer({
           selectedStopId;
 
         return (
-          <CircleMarker
+          <Marker
             key={result.stop.stopId}
-            center={[
+            position={[
               result.stop.lat,
               result.stop.lon,
             ]}
-            radius={
-              selectedMarker ? 8 : 6
-            }
-            pathOptions={{
-              color: selectedMarker
-                ? '#0d9488'
-                : '#475569',
-              fillColor: '#ffffff',
-              fillOpacity: 1,
-              weight: selectedMarker
-                ? 3
-                : 2,
-            }}
+            icon={stationIcon(
+              result.stop.stopId ===
+                selectedStopId,
+            )}
             eventHandlers={{
               click: () =>
                 onSelect(
@@ -98,24 +156,18 @@ export function FirstMileMapLayer({
                 ),
             }}
           >
-            <Tooltip>
+            <Popup>
               <div>
                 <strong>
                   {result.stop.name}
                 </strong>
-                <br />
-                {Math.round(
-                  result.route.distanceMeters,
-                )}{' '}
-                m ·{' '}
-                {Math.ceil(
-                  result.route.durationSeconds /
-                    60,
-                )}{' '}
-                min walk
+
+                <div>
+                  Accessible station
+                </div>
               </div>
-            </Tooltip>
-          </CircleMarker>
+            </Popup>
+          </Marker>
         );
       })}
 
