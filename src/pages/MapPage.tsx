@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
 import {ChevronDown, Crosshair, Maximize2, Minimize2, X,} from 'lucide-react';import { Tooltip } from '@/shared/ui';
 import {
   BaseMap,
@@ -8,12 +9,14 @@ import {
   type RailStop,
   type ReachabilityState,
 } from '@/features/reachability';
+
 import {
   formatCoord,
   STUDY_AREA_BUFFER_KM,
   BUDGET_COMPONENTS,
   BUDGET_ASSUMPTIONS,
 } from '@/features/reachability/reachabilityService';
+
 import { linesForStop } from '@/shared/data/adapters/gtfsAdapter';
 
 // Epic3
@@ -22,13 +25,17 @@ import {
   NearbyStopsPanel,
   LiveTransitMapLayer,
   LiveTransitStatus,
+  StationReachabilityLayer,
+  SelectedRailLineLayer,
   BusStopMapLayer,
   busStopsNearAccessibleStations,
   useFirstMile,
   useLiveTransit,
+  useStationReachability
 } from '@/features/first-mile';
 
 import {MapAnalysisPanel,type MapAnalysisTab,} from './components/MapAnalysisPanel';
+
 
 interface MapPageProps {
   initialLocation: RailStop | null;
@@ -38,7 +45,110 @@ interface MapPageProps {
 export function MapPage({ initialLocation, onToast }: MapPageProps) {
   const [configOpen, setConfigOpen] = useState(true);
   const reach = useReachability(initialLocation, onToast);
+  const [selectedRouteId,setSelectedRouteId] = useState<string | null>(null);
   const firstMile = useFirstMile(reach.origin?.at ?? null, reach.timeBudget,);
+  const selectedStation =
+    firstMile.state.status ===
+      'ready' &&
+    firstMile.selectedStopId
+      ? firstMile.state.stops.find(
+          result =>
+            result.stop.stopId ===
+            firstMile.selectedStopId,
+        ) ?? null
+      : null;
+
+  const selectedRailLine =
+    selectedStation
+      ? selectedStation.lines.find(
+          line =>
+            line.routeId ===
+            selectedRouteId,
+        ) ?? null
+      : null;
+  useEffect(() => {
+    if (!selectedStation) {
+      setSelectedRouteId(
+        null,
+      );
+
+      return;
+    }
+
+    const currentlyValid =
+      selectedStation.lines.some(
+        line =>
+          line.routeId ===
+          selectedRouteId,
+      );
+
+    if (currentlyValid) {
+      return;
+    }
+
+    /*
+    * If there is only one line,
+    * automatically show it when
+    * the station is selected.
+    */
+    if (
+      selectedStation
+        .lines.length === 1
+    ) {
+      setSelectedRouteId(
+        selectedStation
+          .lines[0]
+          .routeId,
+      );
+
+      return;
+    }
+
+    /*
+    * Interchange station:
+    * user must choose which line.
+    */
+    setSelectedRouteId(
+      null,
+    );
+  }, [
+    selectedStation,
+    selectedRouteId,
+  ]);
+
+  const stationOrigin =
+    selectedStation
+      ? {
+          lat:
+            selectedStation
+              .stop.lat,
+
+          lon:
+            selectedStation
+              .stop.lon,
+        }
+      : null;
+
+  const walkingMinutes =
+  selectedStation
+    ? Math.ceil(
+        selectedStation.route.durationSeconds / 60,
+      )
+    : 0;
+
+  const remainingBudget =
+    Math.max(
+      0,
+      reach.timeBudget - walkingMinutes,
+    );
+  const stationReachability =
+    useStationReachability(
+      remainingBudget > 0
+        ? stationOrigin
+        : null,
+      remainingBudget,
+    );
+
   const accessibleStops =
   firstMile.state.status ===
   'ready'
@@ -82,6 +192,27 @@ export function MapPage({ initialLocation, onToast }: MapPageProps) {
             reach.selectPoint
           }
         >
+          {stationReachability.status ===
+            'ready' && (
+            <StationReachabilityLayer
+              regions={
+                stationReachability
+                  .regions
+              }
+            />
+          )}
+          <SelectedRailLineLayer
+            routeId={
+              selectedRailLine
+                ?.routeId ??
+              null
+            }
+            color={
+              selectedRailLine
+                ?.color ??
+              null
+            }
+          />
           {firstMile.state.status ===
             'ready' && (
             <FirstMileMapLayer
@@ -125,6 +256,13 @@ export function MapPage({ initialLocation, onToast }: MapPageProps) {
         reachState={reach.state}
         firstMileState={
           firstMile.state
+        }
+        selectedRouteId={
+          selectedRouteId
+        }
+
+        onSelectRoute={
+          setSelectedRouteId
         }
         timeBudget={
           reach.timeBudget

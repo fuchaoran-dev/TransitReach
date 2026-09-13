@@ -15,12 +15,26 @@ import {
 } from '@/shared/data/adapters/gtfsAdapter';
 
 interface NearbyStopsPanelProps {
-  state: FirstMileState;
-  thresholdMinutes: number;
-  selectedStopId: string | null;
+  state:
+    FirstMileState;
+
+  thresholdMinutes:
+    number;
+
+  selectedStopId:
+    string | null;
 
   onSelectStop: (
-    stopId: string | null,
+    stopId:
+      string | null,
+  ) => void;
+
+  selectedRouteId:
+    string | null;
+
+  onSelectRoute: (
+    routeId:
+      string | null,
   ) => void;
 }
 
@@ -39,6 +53,8 @@ export function NearbyStopsPanel({
   thresholdMinutes,
   selectedStopId,
   onSelectStop,
+  selectedRouteId,
+  onSelectRoute,
 }: NearbyStopsPanelProps) {
   if (state.status === 'idle') {
     return (
@@ -130,82 +146,209 @@ export function NearbyStopsPanel({
             </div>
 
             <div className="space-y-2">
-              {state.stops.map(result => {
-                const selected =
-                  selectedStopId ===
-                  result.stop.stopId;
+              {state.stops.map(
+                result => {
+                  const selected =
+                    selectedStopId ===
+                    result.stop.stopId;
 
-                return (
-                  <button
-                    key={result.stop.stopId}
-                    type="button"
-                    onClick={() =>
-                      onSelectStop(
+                  return (
+                    <div
+                      key={
+                        result.stop.stopId
+                      }
+                      className={`w-full rounded-xl border transition ${
                         selected
-                          ? null
-                          : result.stop.stopId,
-                      )
-                    }
-                    className={`w-full text-left rounded-xl border p-3 transition ${
-                      selected
-                        ? 'border-teal-400 bg-teal-50/80'
-                        : 'border-slate-200 bg-white/70 hover:border-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="font-semibold text-sm text-slate-800">
-                          {result.stop.name}
-                        </div>
-
-                        <div className="mt-2 space-y-2">
-                          {result.lines.map(line => (
+                          ? 'border-teal-400 bg-teal-50/80'
+                          : 'border-slate-200 bg-white/70'
+                      }`}
+                    >
+                      {/* Station selection */}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onSelectStop(
+                            selected
+                              ? null
+                              : result
+                                  .stop
+                                  .stopId,
+                          )
+                        }
+                        className="
+                          w-full
+                          text-left
+                          p-3
+                          pb-2
+                        "
+                      >
+                        <div
+                          className="
+                            flex
+                            items-start
+                            justify-between
+                            gap-3
+                          "
+                        >
+                          <div
+                            className="
+                              min-w-0
+                            "
+                          >
                             <div
-                              key={line.routeId}
-                              className="flex items-start gap-2"
+                              className="
+                                font-semibold
+                                text-sm
+                                text-slate-800
+                              "
                             >
-                              <Train
-                                size={12}
-                                className="text-teal-600 shrink-0 mt-0.5"
-                              />
-
-                              <div className="min-w-0">
-                                <div className="text-[11px] font-semibold text-slate-700">
-                                  {line.longName}
-                                </div>
-
-                                <div className="text-[10px] text-slate-500 mt-0.5">
-                                  {displayModeForLine(line)}
-                                  {' · '}
-                                  {formatLineFrequency(line)}
-                                </div>
-                              </div>
+                              {
+                                result
+                                  .stop
+                                  .name
+                              }
                             </div>
-                          ))}
-                        </div>
-                      </div>
+                          </div>
 
-                      <div className="text-right shrink-0">
-                        <div className="text-sm font-bold text-slate-800">
-                          {Math.ceil(
-                            result.route
-                              .durationSeconds /
-                              60,
-                          )}{' '}
-                          min
-                        </div>
+                          <div
+                            className="
+                              text-right
+                              shrink-0
+                            "
+                          >
+                            <div
+                              className="
+                                text-sm
+                                font-bold
+                                text-slate-800
+                              "
+                            >
+                              {Math.ceil(
+                                result
+                                  .route
+                                  .durationSeconds /
+                                  60,
+                              )}{' '}
+                              min
+                            </div>
 
-                        <div className="text-[11px] text-slate-500">
-                          {formatDistance(
-                            result.route
-                              .distanceMeters,
-                          )}
+                            <div
+                              className="
+                                text-[11px]
+                                text-slate-500
+                              "
+                            >
+                              {formatDistance(
+                                result
+                                  .route
+                                  .distanceMeters,
+                              )}
+                            </div>
+                          </div>
                         </div>
+                      </button>
+
+                      {/* Rail line choices */}
+                      <div
+                        className="
+                          px-3
+                          pb-3
+                          space-y-1.5
+                        "
+                      >
+                        {result.lines.map(
+                          line => {
+                            const routeSelected =
+                              selected &&
+                              selectedRouteId ===
+                                line.routeId;
+
+                            return (
+                              <button
+                                key={
+                                  line.routeId
+                                }
+                                type="button"
+                                onClick={() => {
+                                  /*
+                                  * Selecting a line
+                                  * also selects its
+                                  * station.
+                                  */
+                                  if (!selected) {
+                                    onSelectStop(
+                                      result
+                                        .stop
+                                        .stopId,
+                                    );
+                                  }
+
+                                  onSelectRoute(
+                                    routeSelected
+                                      ? null
+                                      : line
+                                          .routeId,
+                                  );
+                                }}
+                                className={`w-full flex items-start gap-2 rounded-lg px-2 py-2 text-left transition ${
+                                  routeSelected
+                                    ? 'bg-white ring-2 ring-teal-400'
+                                    : 'bg-white/60 hover:bg-white'
+                                }`}
+                              >
+                                <Train
+                                  size={13}
+                                  className="
+                                    text-teal-600
+                                    shrink-0
+                                    mt-0.5
+                                  "
+                                />
+
+                                <div
+                                  className="
+                                    min-w-0
+                                  "
+                                >
+                                  <div
+                                    className="
+                                      text-[11px]
+                                      font-semibold
+                                      text-slate-700
+                                    "
+                                  >
+                                    {
+                                      line.longName
+                                    }
+                                  </div>
+
+                                  <div
+                                    className="
+                                      text-[10px]
+                                      text-slate-500
+                                      mt-0.5
+                                    "
+                                  >
+                                    {displayModeForLine(
+                                      line,
+                                    )}
+
+                                    {' · '}
+
+                                    {formatLineFrequency(
+                                      line,
+                                    )}
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          },
+                        )}
                       </div>
                     </div>
-                  </button>
-                );
-              })}
+                  );
+                },
+              )}
             </div>
 
             {/* AC 3.2.2 */}

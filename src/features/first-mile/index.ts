@@ -1,4 +1,3 @@
-export * from './components/WalkingRouteLayer';
 export * from './components/FirstMileMapLayer';
 export * from './components/NearbyStopsPanel';
 
@@ -15,3 +14,8 @@ export * from './liveTransitService';
 export * from './components/BusStopMapLayer';
 
 export * from './busStopService';
+
+export {useStationReachability} from './hooks/useStationReachability';
+
+export {StationReachabilityLayer} from './components/StationReachabilityLayer';
+export {SelectedRailLineLayer} from './components/SelectedRailLineLayer';

@@ -32,11 +32,19 @@ interface MapAnalysisPanelProps {
   reachState: ReachabilityState;
   firstMileState: FirstMileState;
   timeBudget: number;
+  selectedRouteId:
+  string | null;
+
+  onSelectRoute: (
+    routeId:
+      string | null,
+  ) => void;
 
   selectedStopId: string | null;
-  onSelectStop: (stopId: string) => void;
+  onSelectStop: (stopId: string | null) => void;
 
   onRetryReachability: () => void;
+  
 
   activeTab: MapAnalysisTab;
   onTabChange: (tab: MapAnalysisTab) => void;
@@ -62,6 +70,8 @@ export function MapAnalysisPanel({
   onRetryReachability,
   activeTab,
   onTabChange,
+  selectedRouteId,
+  onSelectRoute
 }: MapAnalysisPanelProps) {
   const [helpOpen, setHelpOpen] = useState(false);
 
@@ -252,6 +262,13 @@ export function MapAnalysisPanel({
               thresholdMinutes={timeBudget}
               selectedStopId={selectedStopId}
               onSelectStop={onSelectStop}
+              selectedRouteId={
+              selectedRouteId
+            }
+
+            onSelectRoute={
+              onSelectRoute
+            }
             />
           )}
         </div>
