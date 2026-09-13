@@ -6,7 +6,6 @@ import {
   Route,
   TrendingUp,
   BookOpen,
-  Activity,
   type LucideIcon,
 } from 'lucide-react';
 import type { PageId } from './routes';
@@ -31,7 +30,6 @@ export const NAV_ITEMS: NavItem[] = [
   // that merging it into the map panel removed.
   { id: 'services', label: 'Services', icon: Building2, hidden: true },
   { id: 'time', label: 'Time', icon: Clock },
-  { id: 'reliability', label: 'Reliability', icon: Activity },
   { id: 'scenario', label: 'Scenarios', icon: Route, hidden: true },
   { id: 'typology', label: 'Typology', icon: TrendingUp, hidden: true },
   { id: 'methodology', label: 'Method', icon: BookOpen, hidden: true },

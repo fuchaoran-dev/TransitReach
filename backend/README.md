@@ -108,9 +108,12 @@ status is decided in the versioned registry with its scope and validation disclo
 ## Current capabilities
 
 The revised AI MVP enables 114 Rapid KL bus routes and 1,864 route-stop choices with at
-least 20 comparable historical events. Ampang, Kelana Jaya, Sri Petaling and Shah Alam
-LRT; Kajang and Putrajaya MRT; and BRT Sunway remain visible but return
-`insufficient_historical_operational_data`.
+least 20 comparable historical events. Bus stops are searchable with the shared map
+search, and selecting a bus-stop marker automatically requests the current historical
+delay estimate. The map popup shows the expected delay, risk band, likely range,
+explanation factors, model type and training period. The former standalone Reliability
+page and navigation entry have been removed so this information stays in the user's map
+workflow. Stops without sufficient matched history return an explicit unavailable state.
 
 ## Acceptance criteria status
 

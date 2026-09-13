@@ -25,6 +25,11 @@ interface AccessibleStopLike {
 const BUS_STOPS =
   rawBusStops as BusStop[];
 
+/** All committed Rapid KL bus stops, used by search and focused map selection. */
+export function loadBusStops(): BusStop[] {
+  return BUS_STOPS;
+}
+
 export const BUS_STOP_RADIUS_METERS =
   1500;
 
