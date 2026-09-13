@@ -1,10 +1,19 @@
+import { useMemo, useState } from 'react';
 import { Users } from 'lucide-react';
-import { TimeBudgetSelector } from '@/features/reachability';
+import { BaseMap, TimeBudgetSelector } from '@/features/reachability';
+import { isInStudyArea } from '@/features/reachability/reachabilityService';
+import type { Origin } from '@/features/reachability/types';
+import { MyStartingPoint } from './components/MyStartingPoint';
 import { ParticipantList } from './components/ParticipantList';
+import { ParticipantMarkers } from './components/ParticipantMarkers';
 import { RoomLobby } from './components/RoomLobby';
 import { ShareLink } from './components/ShareLink';
 import { useMeetingRoom } from './hooks/useMeetingRoom';
-import { ROOM_ERROR_MESSAGES } from './types';
+import { ROOM_ERROR_MESSAGES, type StartingPoint } from './types';
+
+/** AC 1.1.2's wording, as on the reachability map. */
+const OUTSIDE_AREA = 'Selected point is outside the covered area';
+const PLACE_OUTSIDE_AREA = 'That place is outside the covered area';
 
 /**
  * Epic 6 — Multi-person Meeting Point Optimizer.
@@ -19,6 +28,84 @@ import { ROOM_ERROR_MESSAGES } from './types';
 export function MeetingPointPage() {
   const meeting = useMeetingRoom();
   const { view } = meeting;
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const me = view.status === 'ready'
+    ? view.participants.find(participant => participant.userId === meeting.myUserId) ?? null
+    : null;
+
+  // Keyed on the coordinate, not the participant object: every realtime reload builds new
+  // objects, and a fresh origin would make the map re-centre each time someone else moves.
+  const lat = me?.at?.lat;
+  const lon = me?.at?.lon;
+  const source = me?.source;
+  const myOrigin = useMemo<Origin | null>(
+    () => (lat !== undefined && lon !== undefined && source ? { at: { lat, lon }, source } : null),
+    [lat, lon, source],
+  );
+
+  if (view.status === 'ready') {
+    /** AC 1.1.2 — out of area, the previous point is kept rather than cleared. */
+    const choose = (point: StartingPoint) => {
+      if (!isInStudyArea(point.at)) {
+        setNotice(point.source === 'map' ? OUTSIDE_AREA : PLACE_OUTSIDE_AREA);
+        return;
+      }
+      setNotice(null);
+      void meeting.setMyPoint(point);
+    };
+
+    return (
+      // Same frame as the reachability map: top-16 rather than pt-16, so the map cannot slide
+      // under the navbar.
+      <div className="fixed left-0 right-0 bottom-0 top-16 overflow-hidden">
+        <div className="absolute inset-0">
+          <BaseMap origin={myOrigin} regions={null} onMapClick={at => choose({ at, source: 'map', label: null })}>
+            <ParticipantMarkers participants={view.participants} myUserId={meeting.myUserId} />
+          </BaseMap>
+        </div>
+
+        <div className="absolute top-4 left-4 sm:left-6 z-[500] w-[340px] max-w-[calc(100vw-2rem)] max-h-[calc(100%-2rem)]">
+          <div className="glass p-4 space-y-5 max-h-[calc(100vh-6rem)] overflow-y-auto overflow-x-hidden scrollbar-thin">
+            <div className="flex items-center gap-2 text-teal-700 font-semibold text-sm">
+              <Users size={16} />
+              Meet up
+            </div>
+
+            <ShareLink code={view.room.code} />
+
+            <MyStartingPoint
+              me={me}
+              notice={notice}
+              onSearchSelect={choose}
+              onClear={() => {
+                setNotice(null);
+                void meeting.setMyPoint(null);
+              }}
+            />
+
+            <div>
+              <div className="text-sm font-bold text-slate-900 mb-2">Travel time budget</div>
+              <TimeBudgetSelector value={view.room.timeBudget} onChange={budget => void meeting.changeBudget(budget)} />
+              <p className="text-xs text-slate-500 mt-2">Shared by everyone in the room, and anyone can change it.</p>
+            </div>
+
+            <ParticipantList participants={view.participants} myUserId={meeting.myUserId} />
+
+            {meeting.error && (
+              <p role="alert" className="text-sm text-rose-600">
+                {ROOM_ERROR_MESSAGES[meeting.error]}
+              </p>
+            )}
+
+            <button className="btn-secondary" disabled={meeting.busy} onClick={() => void meeting.leave()}>
+              Leave room
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <main className="pt-24 pb-16 px-4 sm:px-6 max-w-5xl mx-auto">
@@ -54,30 +141,6 @@ export function MeetingPointPage() {
           onCreate={nickname => void meeting.create(nickname)}
           onJoin={(code, nickname) => void meeting.join(code, nickname)}
         />
-      )}
-
-      {view.status === 'ready' && (
-        <section className="glass p-6 space-y-6 max-w-xl">
-          <ShareLink code={view.room.code} />
-
-          <div>
-            <div className="text-sm font-bold text-slate-900 mb-2">Travel time budget</div>
-            <TimeBudgetSelector value={view.room.timeBudget} onChange={budget => void meeting.changeBudget(budget)} />
-            <p className="text-xs text-slate-500 mt-2">Shared by everyone in the room, and anyone can change it.</p>
-          </div>
-
-          <ParticipantList participants={view.participants} myUserId={meeting.myUserId} />
-
-          {meeting.error && (
-            <p role="alert" className="text-sm text-rose-600">
-              {ROOM_ERROR_MESSAGES[meeting.error]}
-            </p>
-          )}
-
-          <button className="btn-secondary" disabled={meeting.busy} onClick={() => void meeting.leave()}>
-            Leave room
-          </button>
-        </section>
       )}
     </main>
   );
