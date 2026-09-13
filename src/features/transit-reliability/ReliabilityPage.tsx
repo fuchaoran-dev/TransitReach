@@ -41,7 +41,7 @@ export function ReliabilityPage() {
       <header className="mb-8">
         <div className="flex items-center gap-2 text-teal-700 font-semibold text-sm"><Activity size={18} />AI transit reliability</div>
         <h1 className="text-3xl sm:text-4xl font-extrabold mt-2">Plan for uncertainty, not promises.</h1>
-        <p className="text-slate-600 mt-3 max-w-3xl">This MVP predicts historical delay risk for three Rapid KL bus routes using a chronologically evaluated CatBoost model trained on GPS-derived stop arrivals.</p>
+        <p className="text-slate-600 mt-3 max-w-3xl">This MVP predicts historical delay risk for 114 quality-gated Rapid KL bus routes using a chronologically evaluated CatBoost model trained on GPS-derived stop arrivals.</p>
       </header>
       <div className="grid lg:grid-cols-[1fr_0.9fr] gap-6">
         <form className="glass p-6 space-y-5" onSubmit={event => { event.preventDefault(); void predict({ mode, lineId, stopId, datetime }); }}>
