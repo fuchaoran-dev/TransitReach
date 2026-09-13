@@ -22,16 +22,13 @@ import { linesForStop } from '@/shared/data/adapters/gtfsAdapter';
 // Epic3
 import {
   FirstMileMapLayer,
-  NearbyStopsPanel,
   LiveTransitMapLayer,
   LiveTransitStatus,
-  StationReachabilityLayer,
   SelectedRailLineLayer,
   BusStopMapLayer,
   busStopsNearAccessibleStations,
   useFirstMile,
   useLiveTransit,
-  useStationReachability,
   DEFAULT_FIRST_MILE_THRESHOLD_MINUTES,
   type FirstMileStopResult,
 } from '@/features/first-mile';
@@ -112,34 +109,6 @@ useEffect(() => {
   }
 }, [selectedStation]);
 
-const stationOrigin =
-  selectedStation
-    ? {
-        lat: selectedStation.stop.lat,
-        lon: selectedStation.stop.lon,
-      }
-    : null;
-
-const walkingMinutes =
-  selectedStation
-    ? Math.ceil(
-        selectedStation.route.durationSeconds / 60,
-      )
-    : 0;
-
-const remainingBudget = Math.max(
-  0,
-  reach.timeBudget - walkingMinutes,
-);
-
-const stationReachability =
-  useStationReachability(
-    remainingBudget > 0
-      ? stationOrigin
-      : null,
-    remainingBudget,
-  );
-
   const liveTransit =
     useLiveTransit(
       accessibleStops,
@@ -172,77 +141,51 @@ const stationReachability =
     // the padding box, so padding here would let the map slide under the navbar.
     <div className="fixed left-0 right-0 bottom-0 top-16 overflow-hidden">
       <div className="absolute inset-0">
-        <BaseMap
-          origin={reach.origin}
-          regions={
-            reach.state.status ===
-            'ready'
-              ? reach.state
-                  .result.regions
-              : null
-          }
-          onMapClick={
-            reach.selectPoint
-          }
-          services={services.displayed}
-          selectedServiceId={services.selected?.id ?? null}
-          onServiceSelect={services.select}
-        >
-          {stationReachability.status ===
-            'ready' && (
-            <StationReachabilityLayer
-              regions={
-                stationReachability
-                  .regions
-              }
-            />
-          )}
-          <SelectedRailLineLayer
-            routeId={
-              selectedRailLine
-                ?.routeId ??
-              null
+          <BaseMap
+            origin={reach.origin}
+            regions={
+              reach.state.status === 'ready'
+                ? reach.state.result.regions
+                : null
             }
-            color={
-              selectedRailLine
-                ?.color ??
-              null
+            onMapClick={reach.selectPoint}
+            services={services.displayed}
+            selectedServiceId={
+              services.selected?.id ?? null
             }
-          />
-          {firstMile.state.status ===
-            'ready' && (
-            <FirstMileMapLayer
-              stops={
-                firstMile.state
-                  .stops
+            onServiceSelect={services.select}
+          >
+            <SelectedRailLineLayer
+              routeId={
+                selectedRailLine?.routeId ?? null
               }
-              selectedStopId={
-                firstMile
-                  .selectedStopId
-              }
-              onSelect={
-                firstMile
-                  .setSelectedStopId
+              color={
+                selectedRailLine?.color ?? null
               }
             />
-          )}
-          {nearbyBusStops.length >
-            0 && (
-            <BusStopMapLayer
-              stops={
-                nearbyBusStops
-              }
-            />
-          )}
-          {liveTransit.status !==
-            'idle' && (
-            <LiveTransitMapLayer
-              vehicles={
-                liveTransit.vehicles
-              }
-            />
-          )}
-        </BaseMap>
+
+            {firstMile.state.status === 'ready' && (
+              <FirstMileMapLayer
+                stops={firstMile.state.stops}
+                selectedStopId={
+                  firstMile.selectedStopId
+                }
+                onSelect={handleSelectStop}
+              />
+            )}
+
+            {nearbyBusStops.length > 0 && (
+              <BusStopMapLayer
+                stops={nearbyBusStops}
+              />
+            )}
+
+            {liveTransit.status !== 'idle' && (
+              <LiveTransitMapLayer
+                vehicles={liveTransit.vehicles}
+              />
+            )}
+          </BaseMap>
         <LiveTransitStatus
           state={liveTransit}
         />
