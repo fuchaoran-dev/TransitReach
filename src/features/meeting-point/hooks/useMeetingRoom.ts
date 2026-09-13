@@ -88,11 +88,17 @@ export function useMeetingRoom() {
       .then(id => {
         if (cancelled) return;
         setMyUserId(id);
-        unsubscribe = subscribeToRoom(client, code, deletedId => {
-          if (deletedId === undefined || knownIds.has(deletedId)) void reload();
-        });
-        // Not left to the subscription alone: if realtime cannot connect, the room still loads.
+        // Loaded directly as well as on subscription, so the room still loads if realtime cannot
+        // connect — and a realtime failure costs live updates, not the room.
         void reload();
+        subscribeToRoom(client, code, deletedId => {
+          if (deletedId === undefined || knownIds.has(deletedId)) void reload();
+        })
+          .then(stop => {
+            if (cancelled) stop();
+            else unsubscribe = stop;
+          })
+          .catch(reason => console.error('Meeting room live updates are unavailable:', reason));
       })
       .catch(() => {
         if (cancelled) return;

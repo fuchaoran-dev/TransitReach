@@ -117,19 +117,34 @@ export async function leaveRoom(client: SupabaseClient, code: string, userId: st
 
 /**
  * Calls `onChange` whenever the room or its participants change, and once more each time the
- * channel (re)subscribes, so anything missed while disconnected does not stay stale.
+ * server confirms it is streaming database changes, so nothing missed while disconnected stays
+ * stale.
+ *
+ * That confirmation is the `system` message rather than the `SUBSCRIBED` status, which only
+ * means the channel joined; the database stream is set up after it.
+ *
+ * The realtime connection is handed the user's access token before the channel joins. Supabase
+ * passes it over asynchronously after sign-in, and a channel that joins first is evaluated as
+ * the `anon` role, which may read nothing here: its filters are rejected with "invalid column
+ * for filter", and any event that does arrive has its row withheld. Measured against the
+ * project — the first subscription after a sign-in failed, later ones on the same client did
+ * not, whichever column the filter named.
  *
  * The caller reloads rather than patching state from event payloads: a room holds a handful of
- * rows, and DELETE events cannot be filtered by room and carry only the primary key. They are
- * passed through as `deletedId` so the caller can ignore deletions from other rooms.
+ * rows. DELETE events cannot be filtered and carry only the primary key, so they are passed
+ * through as `deletedId` for the caller to ignore deletions from other rooms.
  *
  * @returns an unsubscribe function.
  */
-export function subscribeToRoom(
+export async function subscribeToRoom(
   client: SupabaseClient,
   code: string,
   onChange: (deletedId?: string) => void,
-): () => void {
+): Promise<() => void> {
+  const { data } = await client.auth.getSession();
+  if (!data.session) throw new Error('Subscribing to a room requires a signed-in session.');
+  await client.realtime.setAuth(data.session.access_token);
+
   const changed = () => onChange();
   const channel = client
     .channel(`meeting-room:${code}`)
@@ -139,9 +154,12 @@ export function subscribeToRoom(
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'meeting_participants' }, payload =>
       onChange((payload.old as { id?: string }).id),
     )
-    .subscribe(status => {
-      if (status === 'SUBSCRIBED') changed();
-    });
+    .on('system', {}, message => {
+      if (message.extension !== 'postgres_changes') return;
+      if (message.status === 'ok') onChange();
+      else console.error('Meeting room live updates are unavailable:', message.message);
+    })
+    .subscribe();
 
   return () => {
     void client.removeChannel(channel);
