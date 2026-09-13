@@ -14,7 +14,7 @@ import { MethodologyPage } from '@/pages/MethodologyPage';
 import { DEFAULT_TIME_BUDGET } from '@/features/reachability';
 import { originFromHit, type SearchHit } from '@/features/reachability/reachabilityService';
 import type { Origin } from '@/features/reachability/types';
-import { MeetingPointPage } from '@/features/meeting-point';
+import { MeetingPointPage, hasRoomLink } from '@/features/meeting-point';
 
 /**
  * The journey state, held here rather than on each screen.
@@ -29,7 +29,8 @@ import { MeetingPointPage } from '@/features/meeting-point';
  * Departure times stay on the comparison screen, because two of them are specific to it.
  */
 function App() {
-  const [activePage, setActivePage] = useState<PageId>('landing');
+  // Epic 6 — a meeting-room link (`?meet=<code>`) opens straight onto the meeting screen.
+  const [activePage, setActivePage] = useState<PageId>(() => (hasRoomLink() ? 'meeting' : 'landing'));
   const [origin, setOrigin] = useState<Origin | null>(null);
   const [timeBudget, setTimeBudget] = useState(DEFAULT_TIME_BUDGET);
   const [analysisTab, setAnalysisTab] = useState<MapAnalysisTab>('first-mile');

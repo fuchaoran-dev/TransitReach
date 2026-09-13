@@ -31,3 +31,17 @@ export interface Participant {
   /** The station or place name, when the point came from search. */
   label: string | null;
 }
+
+/** The name shown for a participant: their nickname, or their place in join order. */
+export function participantName(participant: Participant, index: number): string {
+  return participant.nickname ?? `Person ${index + 1}`;
+}
+
+export type RoomError = 'invalid_code' | 'not_found' | 'full' | 'unavailable';
+
+export const ROOM_ERROR_MESSAGES: Record<RoomError, string> = {
+  invalid_code: 'Room codes are 8 letters and numbers. Check the code and try again.',
+  not_found: 'That room does not exist or has expired. Rooms last 24 hours.',
+  full: `That room is full. A room holds up to ${MAX_PARTICIPANTS} people.`,
+  unavailable: 'Could not reach the room service. Try again.',
+};
