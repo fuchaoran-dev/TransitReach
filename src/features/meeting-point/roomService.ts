@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { MeetingRoom, Participant } from './types';
+import type { MeetingRoom, Participant, StartingPoint } from './types';
 
 export class RoomNotFoundError extends Error {
   constructor() {
@@ -29,6 +29,7 @@ interface ParticipantRow {
   lon: number | null;
   source: Participant['source'];
   label: string | null;
+  colour_slot: number;
 }
 
 const toRoom = (row: RoomRow): MeetingRoom => ({
@@ -44,6 +45,7 @@ const toParticipant = (row: ParticipantRow): Participant => ({
   at: row.lat === null || row.lon === null ? null : { lat: row.lat, lon: row.lon },
   source: row.source,
   label: row.label,
+  colourSlot: row.colour_slot,
 });
 
 /** Returns this device's anonymous user id, signing in first if there is no session. */
@@ -87,7 +89,7 @@ export async function loadRoom(
     client.from('meeting_rooms').select('code, time_budget, expires_at').eq('code', code).maybeSingle(),
     client
       .from('meeting_participants')
-      .select('id, user_id, nickname, lat, lon, source, label')
+      .select('id, user_id, nickname, lat, lon, source, label, colour_slot')
       .eq('room_code', code)
       .order('joined_at'),
   ]);
@@ -103,6 +105,27 @@ export async function loadRoom(
 
 export async function setRoomBudget(client: SupabaseClient, code: string, budget: number): Promise<void> {
   const { error } = await client.from('meeting_rooms').update({ time_budget: budget }).eq('code', code);
+  if (error) throw error;
+}
+
+/** Sets this device's starting point, or clears it with null. RLS confines the write to the caller's own row. */
+export async function setMyPoint(
+  client: SupabaseClient,
+  code: string,
+  userId: string,
+  point: StartingPoint | null,
+): Promise<void> {
+  const { error } = await client
+    .from('meeting_participants')
+    .update({
+      lat: point?.at.lat ?? null,
+      lon: point?.at.lon ?? null,
+      source: point?.source ?? null,
+      label: point?.label ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('room_code', code)
+    .eq('user_id', userId);
   if (error) throw error;
 }
 

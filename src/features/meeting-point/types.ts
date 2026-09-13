@@ -30,6 +30,15 @@ export interface Participant {
   source: Exclude<Origin['source'], 'device'> | null;
   /** The station or place name, when the point came from search. */
   label: string | null;
+  /** 0–5, held for as long as this participant stays; see participantColours.ts. */
+  colourSlot: number;
+}
+
+/** A starting point as a participant sets it. */
+export interface StartingPoint {
+  at: LatLng;
+  source: NonNullable<Participant['source']>;
+  label: string | null;
 }
 
 /** The name shown for a participant: their nickname, or their place in join order. */

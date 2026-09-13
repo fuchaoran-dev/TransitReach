@@ -9,10 +9,11 @@ import {
   loadRoom,
   RoomFullError,
   RoomNotFoundError,
+  setMyPoint as saveMyPoint,
   setRoomBudget,
   subscribeToRoom,
 } from '../roomService';
-import type { MeetingRoom, Participant, RoomError } from '../types';
+import type { MeetingRoom, Participant, RoomError, StartingPoint } from '../types';
 
 export type MeetingRoomView =
   | { status: 'unconfigured' }
@@ -179,5 +180,25 @@ export function useMeetingRoom() {
     }
   };
 
-  return { view, myUserId, error, busy, create, join, leave, changeBudget };
+  /** Sets or clears (null) this device's starting point; applied locally at once, like the budget. */
+  const setMyPoint = async (point: StartingPoint | null) => {
+    if (!supabase || view.status !== 'ready' || !myUserId) return;
+    setError(null);
+    setView({
+      ...view,
+      participants: view.participants.map(participant =>
+        participant.userId === myUserId
+          ? { ...participant, at: point?.at ?? null, source: point?.source ?? null, label: point?.label ?? null }
+          : participant,
+      ),
+    });
+    try {
+      await saveMyPoint(supabase, view.room.code, myUserId, point);
+    } catch (reason) {
+      setError(toRoomError(reason));
+      void reloadRef.current?.();
+    }
+  };
+
+  return { view, myUserId, error, busy, create, join, leave, changeBudget, setMyPoint };
 }

@@ -28,14 +28,43 @@ create table if not exists public.meeting_participants (
   lat        double precision,
   lon        double precision,
   -- No 'device': a room shares the point with everyone in it.
-  source     text check (source in ('stop', 'place', 'map')),
+  source     text check (source in ('stop', 'bus-stop', 'place', 'map')),
   label      text check (char_length(label) <= 120),
+  -- Fixed for as long as the participant stays, so a colour follows the person rather than
+  -- their position in the list. Must match the palette in participantColours.ts.
+  colour_slot smallint not null check (colour_slot between 0 and 5),
   joined_at  timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (room_code, user_id),
   -- A starting point is all or nothing.
   check ((lat is null) = (lon is null) and (lat is null) = (source is null))
 );
+
+-- ---------------------------------------------------------------- migrations
+-- Bring a project created from an earlier version of this file up to date. Each statement is
+-- a no-op on a fresh install.
+
+-- Bus stops became selectable starting points.
+alter table public.meeting_participants drop constraint if exists meeting_participants_source_check;
+alter table public.meeting_participants
+  add constraint meeting_participants_source_check check (source in ('stop', 'bus-stop', 'place', 'map'));
+
+-- Participants gained a fixed colour slot; existing rows are numbered in join order.
+alter table public.meeting_participants add column if not exists colour_slot smallint;
+update public.meeting_participants p
+set colour_slot = numbered.slot
+from (
+  select id, (row_number() over (partition by room_code order by joined_at) - 1)::smallint as slot
+  from public.meeting_participants
+  where colour_slot is null
+) numbered
+where p.id = numbered.id;
+alter table public.meeting_participants alter column colour_slot set not null;
+alter table public.meeting_participants drop constraint if exists meeting_participants_colour_slot_check;
+alter table public.meeting_participants
+  add constraint meeting_participants_colour_slot_check check (colour_slot between 0 and 5);
+create unique index if not exists meeting_participants_room_colour_slot
+  on public.meeting_participants (room_code, colour_slot);
 
 -- ---------------------------------------------------------------- functions
 
@@ -86,8 +115,8 @@ begin
     end;
   end loop;
 
-  insert into public.meeting_participants (room_code, user_id, nickname)
-  values (new_code, auth.uid(), nullif(trim(p_nickname), ''));
+  insert into public.meeting_participants (room_code, user_id, nickname, colour_slot)
+  values (new_code, auth.uid(), nullif(trim(p_nickname), ''), 0);
 
   return new_code;
 end;
@@ -127,8 +156,21 @@ begin
     raise exception 'room_full';
   end if;
 
-  insert into public.meeting_participants (room_code, user_id, nickname)
-  values (room.code, auth.uid(), nullif(trim(p_nickname), ''));
+  -- The lowest colour slot nobody in the room holds, so a colour freed by someone leaving is
+  -- reused instead of everyone who joined later shifting along.
+  insert into public.meeting_participants (room_code, user_id, nickname, colour_slot)
+  values (
+    room.code,
+    auth.uid(),
+    nullif(trim(p_nickname), ''),
+    (
+      select min(slot)
+      from generate_series(0, 5) as slot
+      where slot not in (
+        select colour_slot from public.meeting_participants where room_code = room.code
+      )
+    )
+  );
 end;
 $$;
 
