@@ -12,7 +12,7 @@
 # If the routing server moves, change the address here and redeploy. No code change.
 /otp/*    http://203.101.230.213:8080/otp/:splat    200
 /gtfs-rt/rapid-bus-kl https://api.data.gov.my/gtfs-realtime/vehicle-position/prasarana/?category=rapid-bus-kl 200
+/api/reliability/* https://transitreach-reliability-api.onrender.com/api/reliability/:splat 200
 
 # SPA fallback — must remain last.
 /*        /index.html                               200
-

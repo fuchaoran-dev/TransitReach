@@ -1,9 +1,9 @@
-import { useState, useMemo } from 'react';
-import { TrendingUp, Footprints, Train, Building2, Route, MapPin, Users, Layers } from 'lucide-react';
+import { useState } from 'react';
+import { TrendingUp, Footprints, Train, Building2, Route, MapPin, Users } from 'lucide-react';
 import { TransitMap } from '@/shared/map';
 import { AreaCluster } from './components/AreaCluster';
-import { Drawer, Tooltip } from '@/shared/ui';
-import { usePrefersReducedMotion, useCountUp, useScrollReveal, useAnimatedWidth, useStaggeredReveal } from '@/shared/hooks';
+import { Drawer } from '@/shared/ui';
+import { usePrefersReducedMotion, useCountUp, useAnimatedWidth, useStaggeredReveal } from '@/shared/hooks';
 import { AREA_PROFILES } from '@/shared/data';
 import type { AreaProfile } from '@/shared/types/area';
 
@@ -260,7 +260,7 @@ function AreaProfileDetail({ area }: { area: AreaProfile }) {
   );
 }
 
-function ScoreBar({ label, value, icon: Icon, color, delay }: { label: string; value: number; icon: typeof Footprints; color: string; delay: number }) {
+function ScoreBar({ label, value, icon: Icon, color }: { label: string; value: number; icon: typeof Footprints; color: string; delay: number }) {
   const width = useAnimatedWidth(value, 500);
   return (
     <div>
@@ -281,7 +281,7 @@ function ScoreBar({ label, value, icon: Icon, color, delay }: { label: string; v
   );
 }
 
-function FeatureBar({ label, value, delay }: { label: string; value: number; delay: number }) {
+function FeatureBar({ label, value }: { label: string; value: number; delay: number }) {
   const width = useAnimatedWidth(value, 400);
   return (
     <div>
