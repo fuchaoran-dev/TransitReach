@@ -1,9 +1,10 @@
 import { useEffect, useState, useMemo } from 'react';
 import { ArrowRight, Clock, MapPin, Train, Building2, Gauge, Sparkles, TrendingUp, Footprints, Route } from 'lucide-react';
 import { TransitMap, ReachabilityLayer, OriginMarker } from '@/shared/map';
+
 import { LocationSearch, TIME_BUDGET_OPTIONS } from '@/features/reachability';
 import { loadRailStops, loadRailFeedMetadata } from '@/shared/data/adapters/gtfsAdapter';
-import { WalkingRouteLayer } from '@/features/first-mile';
+  
 import { ServiceMarker } from '@/features/essential-services';
 import { generateReachPolygon, mapAreaToKm2 } from '@/shared/data/mock/reachability';
 import { polygonArea } from '@/shared/lib/spatial';
@@ -156,7 +157,6 @@ export function LandingPage({ onNavigate, onSearchSelect }: LandingPageProps) {
                 <TransitMap showTransit={true} showRoads={true} />
                 {/* Overlays */}
                 <svg viewBox="0 0 1000 700" className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="xMidYMid slice">
-                  {showWalking && <WalkingRouteLayer origin={origin} stops={nearby.slice(0, 5)} animate={!reduced} />}
                   {showPolygon && <ReachabilityLayer points={polygon} color="#14b8a6" fillOpacity={0.15} animate={!reduced} />}
                   {showPins && reachableServices.slice(0, 8).map((s, i) => (
                     <ServiceMarker key={s.id} service={s} animateIn={!reduced} index={i} />

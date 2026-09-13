@@ -1,13 +1,57 @@
 import {
   CircleMarker,
+  Marker,
   Popup,
 } from 'react-leaflet';
+
+import L from 'leaflet';
 
 import type { BusStop } from '../busStopService';
 
 interface Props {
   stops: BusStop[];
 }
+
+const busStopIcon =
+  L.divIcon({
+    className:
+      'bus-stop-marker',
+
+    html: `
+      <div
+        style="
+          width: 22px;
+          height: 22px;
+          border-radius: 50%;
+          background: #ffffff;
+          border: 2px solid #2563eb;
+          box-shadow:
+            0 1px 5px rgba(0,0,0,0.25);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 13px;
+        "
+      >
+        🚏
+      </div>
+    `,
+
+    iconSize: [
+      22,
+      22,
+    ],
+
+    iconAnchor: [
+      11,
+      11,
+    ],
+
+    popupAnchor: [
+      0,
+      -12,
+    ],
+  });
 
 export function BusStopMapLayer({
   stops,
@@ -16,27 +60,13 @@ export function BusStopMapLayer({
     <>
       {stops.map(
         stop => (
-          <CircleMarker
+          <Marker
             key={stop.stopId}
-
-            center={[
+            position={[
               stop.lat,
               stop.lon,
             ]}
-
-            radius={4}
-
-            pathOptions={{
-              color:
-                '#2563eb',
-
-              weight: 1.5,
-
-              fillColor:
-                '#ffffff',
-
-              fillOpacity: 1,
-            }}
+            icon={busStopIcon}
           >
             <Popup>
               <div
@@ -87,14 +117,11 @@ export function BusStopMapLayer({
                       text-slate-500
                     "
                   >
-                    {
-                      Math.round(
-                        stop
-                          .distanceToAccessibleStationMeters,
-                      )
-                    }{' '}
-                    m from an
-                    accessible
+                    {Math.round(
+                      stop
+                        .distanceToAccessibleStationMeters,
+                    )}{' '}
+                    m from an accessible
                     station
                   </div>
                 )}
@@ -114,7 +141,7 @@ export function BusStopMapLayer({
                 </div>
               </div>
             </Popup>
-          </CircleMarker>
+          </Marker>
         ),
       )}
     </>

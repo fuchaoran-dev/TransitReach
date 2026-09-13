@@ -31,24 +31,35 @@ export type MapAnalysisTab =
 interface MapAnalysisPanelProps {
   reachState: ReachabilityState;
   firstMileState: FirstMileState;
-  /**
-   * The first-mile walking limit — not the journey budget, which the headline above
-   * reports. Named for what it is, because the two were the same value and should
-   * never have been.
+
+  /*
+   * First-mile walking limit.
+   * This is separate from the total journey budget.
    */
   walkThresholdMinutes: number;
 
+  selectedRouteId: string | null;
+
+  onSelectRoute: (
+    routeId: string | null,
+  ) => void;
+
   selectedStopId: string | null;
-  onSelectStop: (stopId: string) => void;
+
+  onSelectStop: (
+    stopId: string | null,
+  ) => void;
 
   onRetryReachability: () => void;
 
-  /** Essential-services coverage for the same origin (Epic 5), shown in its own tab. */
   services: MapServicesModel;
   hasOrigin: boolean;
 
   activeTab: MapAnalysisTab;
-  onTabChange: (tab: MapAnalysisTab) => void;
+
+  onTabChange: (
+    tab: MapAnalysisTab,
+  ) => void;
 }
 
 /**
@@ -80,6 +91,8 @@ export function MapAnalysisPanel({
   hasOrigin,
   activeTab,
   onTabChange,
+  selectedRouteId,
+  onSelectRoute
 }: MapAnalysisPanelProps) {
   const [helpOpen, setHelpOpen] = useState(false);
   const [walkingNoteDismissedFor, setWalkingNoteDismissedFor] =
@@ -324,6 +337,13 @@ export function MapAnalysisPanel({
               thresholdMinutes={walkThresholdMinutes}
               selectedStopId={selectedStopId}
               onSelectStop={onSelectStop}
+              selectedRouteId={
+              selectedRouteId
+            }
+
+            onSelectRoute={
+              onSelectRoute
+            }
             />
           )}
 

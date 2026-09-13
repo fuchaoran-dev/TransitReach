@@ -8,6 +8,7 @@ import {
   useReachability,
   type ReachabilityState,
 } from '@/features/reachability';
+
 import {
   formatCoord,
   STUDY_AREA_BUFFER_KM,
@@ -21,9 +22,9 @@ import { linesForStop } from '@/shared/data/adapters/gtfsAdapter';
 // Epic3
 import {
   FirstMileMapLayer,
-  NearbyStopsPanel,
   LiveTransitMapLayer,
   LiveTransitStatus,
+  SelectedRailLineLayer,
   BusStopMapLayer,
   busStopsNearAccessibleStations,
   useFirstMile,
@@ -48,29 +49,65 @@ interface MapPageProps {
 
 export function MapPage({ journey, onToast, analysisTab, onAnalysisTabChange }: MapPageProps) {
   const [configOpen, setConfigOpen] = useState(true);
-  const reach = useReachability({
-    origin: journey.origin,
-    onOriginChange: journey.onOriginChange,
-    timeBudget: journey.timeBudget,
-    onTimeBudgetChange: journey.onTimeBudgetChange,
-    onToast,
-  });
-  // The walk gets its own limit, not the journey budget. Passing the budget in here meant
-  // a 45-minute journey was read as a willingness to walk 45 minutes to a station, and the
-  // panel listed every station inside that radius as "accessible".
-  const firstMile = useFirstMile(
-    reach.origin?.at ?? null,
-    DEFAULT_FIRST_MILE_THRESHOLD_MINUTES,
-  );
+const reach = useReachability({
+  origin: journey.origin,
+  onOriginChange: journey.onOriginChange,
+  timeBudget: journey.timeBudget,
+  onTimeBudgetChange: journey.onTimeBudgetChange,
+  onToast,
+});
 
-  // Memoised, and falling back to a module-level constant rather than a fresh []. A new
-  // array literal here is a new identity on every render, and this value is a dependency
-  // of useLiveTransit's effect — which sets state, causing the next render, and so on.
-  // That loop ran continuously on this page at roughly 57 warnings a second.
-  const accessibleStops = useMemo(
-    () => (firstMile.state.status === 'ready' ? firstMile.state.stops : NO_STOPS),
-    [firstMile.state],
-  );
+const [selectedRouteId, setSelectedRouteId] =
+  useState<string | null>(null);
+
+const firstMile = useFirstMile(
+  reach.origin?.at ?? null,
+  DEFAULT_FIRST_MILE_THRESHOLD_MINUTES,
+);
+
+const accessibleStops = useMemo(
+  () =>
+    firstMile.state.status === 'ready'
+      ? firstMile.state.stops
+      : NO_STOPS,
+  [firstMile.state],
+);
+
+const selectedStation =
+  firstMile.state.status === 'ready' &&
+  firstMile.selectedStopId
+    ? firstMile.state.stops.find(
+        result =>
+          result.stop.stopId ===
+          firstMile.selectedStopId,
+      ) ?? null
+    : null;
+
+const selectedRailLine =
+  selectedStation
+    ? selectedStation.lines.find(
+        line =>
+          line.routeId ===
+          selectedRouteId,
+      ) ?? null
+    : null;
+
+const handleSelectStop = (
+  stopId: string | null,
+) => {
+  setSelectedRouteId(null);
+  firstMile.setSelectedStopId(stopId);
+};
+
+/*
+ * If useFirstMile clears the selected station
+ * because the origin changes, clear the rail too.
+ */
+useEffect(() => {
+  if (!selectedStation) {
+    setSelectedRouteId(null);
+  }
+}, [selectedStation]);
 
   const liveTransit =
     useLiveTransit(
@@ -78,12 +115,21 @@ export function MapPage({ journey, onToast, analysisTab, onAnalysisTabChange }: 
       firstMile.state.status ===
         'ready',
     );
-  const nearbyBusStops = useMemo(
-    () => busStopsNearAccessibleStations(accessibleStops),
-    [accessibleStops],
-  );
+  const nearbyBusStops = useMemo(() => {
+    const reachableRegions =
+      reach.state.status === 'ready'
+        ? reach.state.result.regions
+        : [];
 
-  // Computed only while its tab is open — see the note in useMapServices.
+    return busStopsNearAccessibleStations(
+      accessibleStops,
+      reachableRegions,
+    );
+  }, [
+    accessibleStops,
+    reach.state,
+  ]);
+
   const services = useMapServices(
     reach.origin?.at ?? null,
     journey.timeBudget,
@@ -95,56 +141,51 @@ export function MapPage({ journey, onToast, analysisTab, onAnalysisTabChange }: 
     // the padding box, so padding here would let the map slide under the navbar.
     <div className="fixed left-0 right-0 bottom-0 top-16 overflow-hidden">
       <div className="absolute inset-0">
-        <BaseMap
-          origin={reach.origin}
-          regions={
-            reach.state.status ===
-            'ready'
-              ? reach.state
-                  .result.regions
-              : null
-          }
-          onMapClick={
-            reach.selectPoint
-          }
-          services={services.displayed}
-          selectedServiceId={services.selected?.id ?? null}
-          onServiceSelect={services.select}
-        >
-          {firstMile.state.status ===
-            'ready' && (
-            <FirstMileMapLayer
-              stops={
-                firstMile.state
-                  .stops
+          <BaseMap
+            origin={reach.origin}
+            regions={
+              reach.state.status === 'ready'
+                ? reach.state.result.regions
+                : null
+            }
+            onMapClick={reach.selectPoint}
+            services={services.displayed}
+            selectedServiceId={
+              services.selected?.id ?? null
+            }
+            onServiceSelect={services.select}
+          >
+            <SelectedRailLineLayer
+              routeId={
+                selectedRailLine?.routeId ?? null
               }
-              selectedStopId={
-                firstMile
-                  .selectedStopId
-              }
-              onSelect={
-                firstMile
-                  .setSelectedStopId
+              color={
+                selectedRailLine?.color ?? null
               }
             />
-          )}
-          {nearbyBusStops.length >
-            0 && (
-            <BusStopMapLayer
-              stops={
-                nearbyBusStops
-              }
-            />
-          )}
-          {liveTransit.status !==
-            'idle' && (
-            <LiveTransitMapLayer
-              vehicles={
-                liveTransit.vehicles
-              }
-            />
-          )}
-        </BaseMap>
+
+            {firstMile.state.status === 'ready' && (
+              <FirstMileMapLayer
+                stops={firstMile.state.stops}
+                selectedStopId={
+                  firstMile.selectedStopId
+                }
+                onSelect={handleSelectStop}
+              />
+            )}
+
+            {nearbyBusStops.length > 0 && (
+              <BusStopMapLayer
+                stops={nearbyBusStops}
+              />
+            )}
+
+            {liveTransit.status !== 'idle' && (
+              <LiveTransitMapLayer
+                vehicles={liveTransit.vehicles}
+              />
+            )}
+          </BaseMap>
         <LiveTransitStatus
           state={liveTransit}
         />
@@ -152,26 +193,45 @@ export function MapPage({ journey, onToast, analysisTab, onAnalysisTabChange }: 
 
       <MapAnalysisPanel
         reachState={reach.state}
+
         firstMileState={
           firstMile.state
         }
+
+        selectedRouteId={
+          selectedRouteId
+        }
+
+        onSelectRoute={
+          setSelectedRouteId
+        }
+
         walkThresholdMinutes={
           DEFAULT_FIRST_MILE_THRESHOLD_MINUTES
         }
+
         selectedStopId={
           firstMile.selectedStopId
         }
+
         onSelectStop={
-          firstMile.setSelectedStopId
+          handleSelectStop
         }
+
         onRetryReachability={
           reach.retry
         }
+
         services={services}
-        hasOrigin={Boolean(reach.origin)}
+
+        hasOrigin={
+          Boolean(reach.origin)
+        }
+
         activeTab={
           analysisTab
         }
+
         onTabChange={
           onAnalysisTabChange
         }
