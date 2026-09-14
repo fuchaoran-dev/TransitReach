@@ -43,10 +43,20 @@ const MAX_CONCURRENT = 2;
  * dropped connection would otherwise block the whole group's answer until someone noticed and
  * tapped Retry on their own device. Only after these are used up is the person asked to retry.
  *
- * A timeout is not retried automatically: it has already waited the full limit, and repeating
- * it would add load to an engine that is struggling.
  */
 const AUTO_RETRY_DELAYS_MS = [1500, 5000];
+
+/**
+ * Delay before the single automatic retry of an area that timed out.
+ *
+ * A timeout was at first left to the person, on the reasoning that it meant an overloaded
+ * engine that a retry would only load further. The evidence said otherwise: on 14 September
+ * four requests hung on a connection that never opened (the dev proxy logged `connect
+ * ETIMEDOUT`) and surfaced as 15 s timeouts, while the engine answered other requests in about
+ * two seconds. A dropped connection that hangs, rather than failing fast, reaches the app as a
+ * timeout. One retry recovers that case; a second would start to look like load.
+ */
+const TIMEOUT_RETRY_DELAY_MS = 1000;
 
 const areaKey = (at: LatLng, budgetMinutes: number) => `${at.lat},${at.lon},${budgetMinutes}`;
 
@@ -90,13 +100,12 @@ export function useParticipantAreas(participants: Participant[], budgets: number
         .catch(error => {
           // A timeout also arrives as an abort of the inner request, so it is checked before
           // the cancelled case; a cancelled job records nothing.
-          if (error instanceof RoutingTimeoutError) {
-            record(job.key, { status: 'timedout', limitMs: error.limitMs });
-            return;
-          }
-          if (controller.signal.aborted) return;
+          const timedOut = error instanceof RoutingTimeoutError;
+          if (!timedOut && controller.signal.aborted) return;
 
-          const delay = AUTO_RETRY_DELAYS_MS[job.attempt];
+          const delay = timedOut
+            ? job.attempt === 0 ? TIMEOUT_RETRY_DELAY_MS : undefined
+            : AUTO_RETRY_DELAYS_MS[job.attempt];
           if (delay !== undefined) {
             waiting.current.set(
               job.key,
@@ -106,6 +115,10 @@ export function useParticipantAreas(participants: Participant[], budgets: number
                 pump();
               }, delay),
             );
+            return;
+          }
+          if (timedOut) {
+            record(job.key, { status: 'timedout', limitMs: (error as RoutingTimeoutError).limitMs });
             return;
           }
           console.error('Participant reachability failed', error);

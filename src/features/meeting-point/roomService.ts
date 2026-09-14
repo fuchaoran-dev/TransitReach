@@ -48,8 +48,7 @@ const toParticipant = (row: ParticipantRow): Participant => ({
   colourSlot: row.colour_slot,
 });
 
-/** Returns this device's anonymous user id, signing in first if there is no session. */
-export async function ensureSignedIn(client: SupabaseClient): Promise<string> {
+async function signIn(client: SupabaseClient): Promise<string> {
   const { data } = await client.auth.getSession();
   if (data.session) return data.session.user.id;
 
@@ -57,6 +56,26 @@ export async function ensureSignedIn(client: SupabaseClient): Promise<string> {
   if (error) throw error;
   if (!signedIn.user) throw new Error('Anonymous sign-in returned no user.');
   return signedIn.user.id;
+}
+
+let signingIn: Promise<string> | null = null;
+
+/**
+ * Returns this device's anonymous user id, signing in first if there is no session.
+ *
+ * Calls made while a sign-in is under way share it. Opening a room link starts a sign-in (to
+ * check membership), and a quick tap on Join used to start a second before the first had stored
+ * its session — two anonymous users on one device. The room row belonged to one and the page's
+ * identity was the other, so every later write matched no row and silently changed nothing: a
+ * starting point that reached nobody, not even the person who set it. Seen in a browser test on
+ * 14 September as two `auth/signup` calls in the same instant, then a starting-point update that
+ * returned 204 and saved nothing.
+ */
+export function ensureSignedIn(client: SupabaseClient): Promise<string> {
+  signingIn ??= signIn(client).finally(() => {
+    signingIn = null;
+  });
+  return signingIn;
 }
 
 /** Creates a room with the caller as its first participant, and returns its code. */
@@ -115,7 +134,7 @@ export async function setMyPoint(
   userId: string,
   point: StartingPoint | null,
 ): Promise<void> {
-  const { error } = await client
+  const { data, error } = await client
     .from('meeting_participants')
     .update({
       lat: point?.at.lat ?? null,
@@ -125,8 +144,12 @@ export async function setMyPoint(
       updated_at: new Date().toISOString(),
     })
     .eq('room_code', code)
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .select('id');
   if (error) throw error;
+  // Row-level security turns a write to a row that is not the caller's into a no-op that still
+  // reports success. Treat "nothing updated" as the failure it is, rather than a saved point.
+  if (!data || data.length === 0) throw new Error('No participant row was updated.');
 }
 
 export async function leaveRoom(client: SupabaseClient, code: string, userId: string): Promise<void> {
