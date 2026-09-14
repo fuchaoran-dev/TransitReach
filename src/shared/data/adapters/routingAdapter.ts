@@ -302,6 +302,61 @@ export async function computeReachability(
   };
 }
 
+/**
+ * Travel time from one origin to every point around it, as OTP's TravelTime surface: a GeoTIFF
+ * of seconds per pixel (about 200 m), with unreachable pixels holding the int32 minimum.
+ *
+ * Epic 6 ranks meeting places with it. One surface per person times any number of places
+ * locally, where a `plan` query per place would cost a request for every person and every place —
+ * 120 for six people and twenty places, on an engine already measured stalling under bursts.
+ *
+ * Same modes, departure time and time limit as `computeReachability`, so a surface and an
+ * isochrone from the same point describe the same journeys.
+ */
+export async function fetchTravelTimeSurface(
+  origin: { lat: number; lon: number },
+  budgetMinutes: number,
+  signal: AbortSignal,
+  departureTime = DEPARTURE_TIME,
+): Promise<ArrayBuffer> {
+  const url =
+    `${BASE_URL}/otp/traveltime/surface?location=${origin.lat},${origin.lon}` +
+    `&time=${encodeURIComponent(departureTime)}` +
+    `&modes=${TRANSIT_MODES}&arriveBy=false&cutoff=${budgetMinutes}M`;
+
+  // As in computeReachability: the caller's abort and the time limit both cancel the request,
+  // and `timedOut` tells the two apart once it has rejected.
+  const inner = new AbortController();
+  let timedOut = false;
+  const abortInner = () => inner.abort();
+  signal.addEventListener('abort', abortInner);
+  const timer = setTimeout(() => {
+    timedOut = true;
+    inner.abort();
+  }, COMPUTATION_TIMEOUT_MS);
+
+  try {
+    let response: Response;
+    try {
+      response = await fetch(url, { signal: inner.signal });
+    } catch (error) {
+      if (timedOut || signal.aborted) throw error;
+      throw new RoutingUnavailableError('Could not reach the routing service.', error);
+    }
+    if (!response.ok) {
+      throw new RoutingUnavailableError(`Routing service returned ${response.status}.`);
+    }
+    return await response.arrayBuffer();
+  } catch (error) {
+    if (timedOut) throw new RoutingTimeoutError(COMPUTATION_TIMEOUT_MS);
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener('abort', abortInner);
+    inner.abort();
+  }
+}
+
 interface OtpPlanResponse {
   plan?: { itineraries?: Array<{ duration?: number }> };
   error?: { message?: string };
