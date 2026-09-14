@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TIME_BUDGET_OPTIONS } from '@/features/reachability';
 import { intersectAreas, type OverlapPolygon } from '../overlapService';
 import type { Participant } from '../types';
-import { useParticipantAreas, type AreaState } from './useParticipantAreas';
+import { useParticipantAreas, type AreaState, type SurfaceState } from './useParticipantAreas';
 
 /** Where the group stands on "is there somewhere we can all reach?" at one budget. */
 export type Outcome =
@@ -55,6 +55,9 @@ function outcomeAt(located: Participant[], budgetMinutes: number, areaFor: AreaL
  * is worked out before anyone asks for it: by the time "Use 45 min" is tapped, those areas are
  * already cached and the new budget draws at once.
  *
+ * Travel-time surfaces, which rank places inside the common ground, are requested only once
+ * there is common ground to rank — one per person at the budget on screen.
+ *
  * People without a starting point are left out of the comparison rather than blocking it, and
  * the caller names them, so a result for three people is never read as a result for four.
  */
@@ -66,7 +69,8 @@ export function useCommonGround(participants: Participant[], budgetMinutes: numb
     () => [budgetMinutes, ...probes.filter(probe => probe > budgetMinutes)],
     [budgetMinutes, probes],
   );
-  const areas = useParticipantAreas(participants, budgets);
+  const [surfaceBudget, setSurfaceBudget] = useState<number | null>(null);
+  const areas = useParticipantAreas(participants, budgets, surfaceBudget);
 
   const { outcome, suggestion, wantedProbes } = useMemo(() => {
     const current = outcomeAt(located, budgetMinutes, areas.areaFor);
@@ -94,12 +98,27 @@ export function useCommonGround(participants: Participant[], budgetMinutes: numb
     );
   }, [wantedKey]);
 
+  // Surfaces follow the common ground: requested once it exists, and no longer asked for — so
+  // cancelled if still running — when it goes.
+  const wantedSurfaceBudget = outcome.status === 'found' ? budgetMinutes : null;
+  useEffect(() => {
+    setSurfaceBudget(wantedSurfaceBudget);
+  }, [wantedSurfaceBudget]);
+
   const areaFor = useCallback(
     (participant: Participant) => areas.areaFor(participant, budgetMinutes),
     [areas, budgetMinutes],
   );
+  const surfaceFor = useCallback(
+    (participant: Participant): SurfaceState | null => areas.surfaceFor(participant, budgetMinutes),
+    [areas, budgetMinutes],
+  );
   const retry = useCallback(
     (participant: Participant) => areas.retry(participant, budgetMinutes),
+    [areas, budgetMinutes],
+  );
+  const retrySurface = useCallback(
+    (participant: Participant) => areas.retrySurface(participant, budgetMinutes),
     [areas, budgetMinutes],
   );
   /** Retries whichever look-ahead areas failed. */
@@ -114,7 +133,9 @@ export function useCommonGround(participants: Participant[], budgetMinutes: numb
 
   return {
     areaFor,
+    surfaceFor,
     retry,
+    retrySurface,
     retrySuggestion,
     outcome,
     suggestion,

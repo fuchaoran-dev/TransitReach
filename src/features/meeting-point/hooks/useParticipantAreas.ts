@@ -2,11 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   computeReachability,
   DEPARTURE_TIME,
+  fetchTravelTimeSurface,
   RoutingTimeoutError,
   TRAVEL_MODE,
   type IsochroneRegion,
 } from '@/shared/data/adapters/routingAdapter';
 import type { LatLng } from '@/features/reachability/types';
+import { decodeTravelTimeSurface, type TravelTimeSurface } from '../travelTimeSurface';
 import type { Participant } from '../types';
 
 export type AreaState =
@@ -16,10 +18,20 @@ export type AreaState =
   /** Exceeded the routing time limit; reported as that, not as a generic failure. */
   | { status: 'timedout'; limitMs: number };
 
+export type SurfaceState =
+  | { status: 'computing' }
+  | { status: 'ready'; surface: TravelTimeSurface }
+  | { status: 'failed' }
+  | { status: 'timedout'; limitMs: number };
+
+type JobKind = 'area' | 'surface';
 type FinishedArea = Exclude<AreaState, { status: 'computing' }>;
+type FinishedSurface = Exclude<SurfaceState, { status: 'computing' }>;
+type Finished = FinishedArea | FinishedSurface;
 
 interface Job {
   key: string;
+  kind: JobKind;
   at: LatLng;
   budgetMinutes: number;
   /** How many automatic retries this job has already had. */
@@ -27,27 +39,27 @@ interface Job {
 }
 
 /**
- * Areas computed at once.
+ * Jobs run at once.
  *
- * Each area is two OTP requests (with transit, and walking only), and the shared engine is a
- * two-core instance that has been measured stalling under bursts — 17.5 s for one isochrone
- * against a normal 1.4 s. Six people arriving together would otherwise send it twelve at once.
+ * An area job is two OTP requests (with transit, and walking only); a surface job is one. The
+ * shared engine is a two-core instance that has been measured stalling under bursts — 17.5 s for
+ * one isochrone against a normal 1.4 s — so both kinds share this one limit rather than each
+ * having its own.
  */
 const MAX_CONCURRENT = 2;
 
 /**
- * Delays before each automatic retry of an area that failed outright.
+ * Delays before each automatic retry of a job that failed outright.
  *
  * The routing engine's host drops a share of new connections — 2 in 12 and 1 in 129 attempts in
  * two probes from one machine, each a connection that never opened while the next one did. One
  * dropped connection would otherwise block the whole group's answer until someone noticed and
  * tapped Retry on their own device. Only after these are used up is the person asked to retry.
- *
  */
 const AUTO_RETRY_DELAYS_MS = [1500, 5000];
 
 /**
- * Delay before the single automatic retry of an area that timed out.
+ * Delay before the single automatic retry of a job that timed out.
  *
  * A timeout was at first left to the person, on the reasoning that it meant an overloaded
  * engine that a retry would only load further. The evidence said otherwise: on 14 September
@@ -58,31 +70,44 @@ const AUTO_RETRY_DELAYS_MS = [1500, 5000];
  */
 const TIMEOUT_RETRY_DELAY_MS = 1000;
 
-const areaKey = (at: LatLng, budgetMinutes: number) => `${at.lat},${at.lon},${budgetMinutes}`;
+const jobKey = (kind: JobKind, at: LatLng, budgetMinutes: number) =>
+  `${kind}:${at.lat},${at.lon},${budgetMinutes}`;
+
+function runJob(job: Job, signal: AbortSignal): Promise<Finished> {
+  if (job.kind === 'area') {
+    return computeReachability(job.at, job.budgetMinutes, signal, DEPARTURE_TIME, TRAVEL_MODE).then(
+      ({ result, walkingOnly }): FinishedArea => ({ status: 'ready', regions: result.regions, walkingOnly }),
+    );
+  }
+  return fetchTravelTimeSurface(job.at, job.budgetMinutes, signal).then(
+    (buffer): FinishedSurface => ({ status: 'ready', surface: decodeTravelTimeSurface(buffer) }),
+  );
+}
 
 /**
- * Each participant's reachable area, at each of the budgets asked for.
+ * Each participant's reachable area at each of the budgets asked for, and — when a surface
+ * budget is given — each participant's travel-time surface at it.
  *
- * Every browser in the room computes every area itself; nothing large goes through the
- * database, and nobody waits on another person's device. Results are cached by point and
- * budget for the life of the page, so switching the budget back or a realtime reload never
- * recomputes what is already known. Work nobody needs any more — someone moved, left, or a
- * budget stopped being asked for — is cancelled instead of being left to occupy the engine.
+ * Every browser in the room computes these itself; nothing large goes through the database, and
+ * nobody waits on another person's device. Results are cached by kind, point and budget for the
+ * life of the page, so switching the budget back or a realtime reload never recomputes what is
+ * already known. Work nobody needs any more — someone moved, left, or a budget stopped being
+ * asked for — is cancelled instead of being left to occupy the engine.
  *
- * Queue order is budget first, then participant: the first budget is the one on screen, and
- * later ones are look-ahead. Within a budget, pass the viewer first — theirs is the area they
- * are waiting on.
+ * Queue order is areas before surfaces, budget first, then participant: the first budget is the
+ * one on screen, later ones are look-ahead, and surfaces only matter once areas have produced
+ * common ground. Within a budget, pass the viewer first — theirs is the result they wait on.
  */
-export function useParticipantAreas(participants: Participant[], budgets: number[]) {
-  const [finished, setFinished] = useState<ReadonlyMap<string, FinishedArea>>(() => new Map());
-  const finishedRef = useRef(new Map<string, FinishedArea>());
+export function useParticipantAreas(participants: Participant[], budgets: number[], surfaceBudget: number | null) {
+  const [finished, setFinished] = useState<ReadonlyMap<string, Finished>>(() => new Map());
+  const finishedRef = useRef(new Map<string, Finished>());
   const running = useRef(new Map<string, AbortController>());
   /** Jobs sitting out an automatic-retry delay, by key. */
   const waiting = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const queue = useRef<Job[]>([]);
 
-  const record = useCallback((key: string, area: FinishedArea | null) => {
-    if (area) finishedRef.current.set(key, area);
+  const record = useCallback((key: string, result: Finished | null) => {
+    if (result) finishedRef.current.set(key, result);
     else finishedRef.current.delete(key);
     setFinished(new Map(finishedRef.current));
   }, []);
@@ -93,10 +118,8 @@ export function useParticipantAreas(participants: Participant[], budgets: number
       const controller = new AbortController();
       running.current.set(job.key, controller);
 
-      computeReachability(job.at, job.budgetMinutes, controller.signal, DEPARTURE_TIME, TRAVEL_MODE)
-        .then(({ result, walkingOnly }) =>
-          record(job.key, { status: 'ready', regions: result.regions, walkingOnly }),
-        )
+      runJob(job, controller.signal)
+        .then(result => record(job.key, result))
         .catch(error => {
           // A timeout also arrives as an abort of the inner request, so it is checked before
           // the cancelled case; a cancelled job records nothing.
@@ -121,7 +144,10 @@ export function useParticipantAreas(participants: Participant[], budgets: number
             record(job.key, { status: 'timedout', limitMs: (error as RoutingTimeoutError).limitMs });
             return;
           }
-          console.error('Participant reachability failed', error);
+          console.error(
+            job.kind === 'area' ? 'Participant reachability failed' : 'Participant travel-time surface failed',
+            error,
+          );
           record(job.key, { status: 'failed' });
         })
         .finally(() => {
@@ -136,13 +162,15 @@ export function useParticipantAreas(participants: Participant[], budgets: number
 
   useEffect(() => {
     const needed = new Map<string, Job>();
-    for (const budgetMinutes of budgetsKey.split(',').map(Number)) {
+    const need = (kind: JobKind, budgetMinutes: number) => {
       for (const participant of participants) {
         if (!participant.at) continue;
-        const key = areaKey(participant.at, budgetMinutes);
-        if (!needed.has(key)) needed.set(key, { key, at: participant.at, budgetMinutes, attempt: 0 });
+        const key = jobKey(kind, participant.at, budgetMinutes);
+        if (!needed.has(key)) needed.set(key, { key, kind, at: participant.at, budgetMinutes, attempt: 0 });
       }
-    }
+    };
+    for (const budgetMinutes of budgetsKey.split(',').map(Number)) need('area', budgetMinutes);
+    if (surfaceBudget !== null) need('surface', surfaceBudget);
 
     queue.current = queue.current.filter(job => needed.has(job.key));
     for (const [key, controller] of running.current) {
@@ -163,8 +191,13 @@ export function useParticipantAreas(participants: Participant[], budgets: number
         queue.current.some(queued => queued.key === job.key);
       if (!known) queue.current.push(job);
     }
+    // Keep waiting work in `needed` order: areas for the budget on screen, then look-ahead, then
+    // surfaces. Without this, look-ahead queued for a budget the room has just left stayed ahead of
+    // the areas it now asked for — on a slow engine that held a budget change up past 90 seconds.
+    const order = new Map([...needed.keys()].map((key, index) => [key, index]));
+    queue.current.sort((a, b) => (order.get(a.key) ?? 0) - (order.get(b.key) ?? 0));
     pump();
-  }, [participants, budgetsKey, pump]);
+  }, [participants, budgetsKey, surfaceBudget, pump]);
 
   useEffect(() => {
     const jobs = running.current;
@@ -181,24 +214,45 @@ export function useParticipantAreas(participants: Participant[], budgets: number
   const areaFor = useCallback(
     (participant: Participant, budgetMinutes: number): AreaState | null => {
       if (!participant.at) return null;
-      return finished.get(areaKey(participant.at, budgetMinutes)) ?? { status: 'computing' };
+      return (finished.get(jobKey('area', participant.at, budgetMinutes)) as FinishedArea | undefined) ?? {
+        status: 'computing',
+      };
     },
     [finished],
   );
 
-  /** Re-runs the same point and budget, with a fresh set of automatic retries; nobody re-enters anything. */
-  const retry = useCallback(
-    (participant: Participant, budgetMinutes: number) => {
+  /** As `areaFor`, for travel-time surfaces. */
+  const surfaceFor = useCallback(
+    (participant: Participant, budgetMinutes: number): SurfaceState | null => {
+      if (!participant.at) return null;
+      return (finished.get(jobKey('surface', participant.at, budgetMinutes)) as FinishedSurface | undefined) ?? {
+        status: 'computing',
+      };
+    },
+    [finished],
+  );
+
+  /** Re-runs the same job with a fresh set of automatic retries; nobody re-enters anything. */
+  const retryJob = useCallback(
+    (kind: JobKind, participant: Participant, budgetMinutes: number) => {
       if (!participant.at) return;
-      const key = areaKey(participant.at, budgetMinutes);
+      const key = jobKey(kind, participant.at, budgetMinutes);
       record(key, null);
       const pending =
         running.current.has(key) || waiting.current.has(key) || queue.current.some(job => job.key === key);
-      if (!pending) queue.current.push({ key, at: participant.at, budgetMinutes, attempt: 0 });
+      if (!pending) queue.current.push({ key, kind, at: participant.at, budgetMinutes, attempt: 0 });
       pump();
     },
     [record, pump],
   );
+  const retry = useCallback(
+    (participant: Participant, budgetMinutes: number) => retryJob('area', participant, budgetMinutes),
+    [retryJob],
+  );
+  const retrySurface = useCallback(
+    (participant: Participant, budgetMinutes: number) => retryJob('surface', participant, budgetMinutes),
+    [retryJob],
+  );
 
-  return { areaFor, retry };
+  return { areaFor, surfaceFor, retry, retrySurface };
 }
