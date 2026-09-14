@@ -22,6 +22,8 @@ interface Job {
   key: string;
   at: LatLng;
   budgetMinutes: number;
+  /** How many automatic retries this job has already had. */
+  attempt: number;
 }
 
 /**
@@ -33,24 +35,40 @@ interface Job {
  */
 const MAX_CONCURRENT = 2;
 
+/**
+ * Delays before each automatic retry of an area that failed outright.
+ *
+ * The routing engine's host drops a share of new connections — 2 in 12 and 1 in 129 attempts in
+ * two probes from one machine, each a connection that never opened while the next one did. One
+ * dropped connection would otherwise block the whole group's answer until someone noticed and
+ * tapped Retry on their own device. Only after these are used up is the person asked to retry.
+ *
+ * A timeout is not retried automatically: it has already waited the full limit, and repeating
+ * it would add load to an engine that is struggling.
+ */
+const AUTO_RETRY_DELAYS_MS = [1500, 5000];
+
 const areaKey = (at: LatLng, budgetMinutes: number) => `${at.lat},${at.lon},${budgetMinutes}`;
 
 /**
- * Each participant's reachable area at the room's budget.
+ * Each participant's reachable area, at each of the budgets asked for.
  *
  * Every browser in the room computes every area itself; nothing large goes through the
  * database, and nobody waits on another person's device. Results are cached by point and
  * budget for the life of the page, so switching the budget back or a realtime reload never
- * recomputes what is already known. Work nobody needs any more — someone moved, left, or the
- * budget changed — is cancelled instead of being left to occupy the engine.
+ * recomputes what is already known. Work nobody needs any more — someone moved, left, or a
+ * budget stopped being asked for — is cancelled instead of being left to occupy the engine.
  *
- * `participants` is also the queue order: pass the viewer first, since that is the area they
+ * Queue order is budget first, then participant: the first budget is the one on screen, and
+ * later ones are look-ahead. Within a budget, pass the viewer first — theirs is the area they
  * are waiting on.
  */
-export function useParticipantAreas(participants: Participant[], budgetMinutes: number) {
+export function useParticipantAreas(participants: Participant[], budgets: number[]) {
   const [finished, setFinished] = useState<ReadonlyMap<string, FinishedArea>>(() => new Map());
   const finishedRef = useRef(new Map<string, FinishedArea>());
   const running = useRef(new Map<string, AbortController>());
+  /** Jobs sitting out an automatic-retry delay, by key. */
+  const waiting = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const queue = useRef<Job[]>([]);
 
   const record = useCallback((key: string, area: FinishedArea | null) => {
@@ -74,10 +92,24 @@ export function useParticipantAreas(participants: Participant[], budgetMinutes: 
           // the cancelled case; a cancelled job records nothing.
           if (error instanceof RoutingTimeoutError) {
             record(job.key, { status: 'timedout', limitMs: error.limitMs });
-          } else if (!controller.signal.aborted) {
-            console.error('Participant reachability failed', error);
-            record(job.key, { status: 'failed' });
+            return;
           }
+          if (controller.signal.aborted) return;
+
+          const delay = AUTO_RETRY_DELAYS_MS[job.attempt];
+          if (delay !== undefined) {
+            waiting.current.set(
+              job.key,
+              setTimeout(() => {
+                waiting.current.delete(job.key);
+                queue.current.push({ ...job, attempt: job.attempt + 1 });
+                pump();
+              }, delay),
+            );
+            return;
+          }
+          console.error('Participant reachability failed', error);
+          record(job.key, { status: 'failed' });
         })
         .finally(() => {
           if (running.current.get(job.key) === controller) running.current.delete(job.key);
@@ -86,12 +118,17 @@ export function useParticipantAreas(participants: Participant[], budgetMinutes: 
     }
   }, [record]);
 
+  // Compared as a string, so a caller building a fresh array each render does not re-run this.
+  const budgetsKey = budgets.join(',');
+
   useEffect(() => {
     const needed = new Map<string, Job>();
-    for (const participant of participants) {
-      if (!participant.at) continue;
-      const key = areaKey(participant.at, budgetMinutes);
-      if (!needed.has(key)) needed.set(key, { key, at: participant.at, budgetMinutes });
+    for (const budgetMinutes of budgetsKey.split(',').map(Number)) {
+      for (const participant of participants) {
+        if (!participant.at) continue;
+        const key = areaKey(participant.at, budgetMinutes);
+        if (!needed.has(key)) needed.set(key, { key, at: participant.at, budgetMinutes, attempt: 0 });
+      }
     }
 
     queue.current = queue.current.filter(job => needed.has(job.key));
@@ -100,45 +137,54 @@ export function useParticipantAreas(participants: Participant[], budgetMinutes: 
       controller.abort();
       running.current.delete(key);
     }
+    for (const [key, timer] of waiting.current) {
+      if (needed.has(key)) continue;
+      clearTimeout(timer);
+      waiting.current.delete(key);
+    }
     for (const job of needed.values()) {
       const known =
         finishedRef.current.has(job.key) ||
         running.current.has(job.key) ||
+        waiting.current.has(job.key) ||
         queue.current.some(queued => queued.key === job.key);
       if (!known) queue.current.push(job);
     }
     pump();
-  }, [participants, budgetMinutes, pump]);
+  }, [participants, budgetsKey, pump]);
 
   useEffect(() => {
     const jobs = running.current;
+    const timers = waiting.current;
     return () => {
       for (const controller of jobs.values()) controller.abort();
       jobs.clear();
+      for (const timer of timers.values()) clearTimeout(timer);
+      timers.clear();
     };
   }, []);
 
-  /** Null for a participant with no starting point yet. */
+  /** Null for a participant with no starting point yet. Still 'computing' while an automatic retry waits. */
   const areaFor = useCallback(
-    (participant: Participant): AreaState | null => {
+    (participant: Participant, budgetMinutes: number): AreaState | null => {
       if (!participant.at) return null;
       return finished.get(areaKey(participant.at, budgetMinutes)) ?? { status: 'computing' };
     },
-    [finished, budgetMinutes],
+    [finished],
   );
 
-  /** Re-runs the same point and budget; nobody re-enters anything. */
+  /** Re-runs the same point and budget, with a fresh set of automatic retries; nobody re-enters anything. */
   const retry = useCallback(
-    (participant: Participant) => {
+    (participant: Participant, budgetMinutes: number) => {
       if (!participant.at) return;
       const key = areaKey(participant.at, budgetMinutes);
       record(key, null);
-      if (!running.current.has(key) && !queue.current.some(job => job.key === key)) {
-        queue.current.push({ key, at: participant.at, budgetMinutes });
-      }
+      const pending =
+        running.current.has(key) || waiting.current.has(key) || queue.current.some(job => job.key === key);
+      if (!pending) queue.current.push({ key, at: participant.at, budgetMinutes, attempt: 0 });
       pump();
     },
-    [budgetMinutes, record, pump],
+    [record, pump],
   );
 
   return { areaFor, retry };

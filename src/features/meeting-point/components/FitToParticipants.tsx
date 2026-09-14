@@ -19,6 +19,7 @@ function parsePoints(key: string): [number, number][] {
   return key ? key.split('|').map(point => point.split(',').map(Number) as [number, number]) : [];
 }
 
+/** Frames these [lat, lon] points, clear of the side panel. */
 function frame(map: LeafletMap, points: [number, number][]) {
   if (points.length === 0) return;
   // The map mounts inside a page transition; measure the container as it is now.
@@ -60,6 +61,21 @@ export function FitToParticipants({ participants, request }: FitToParticipantsPr
 
   useEffect(() => {
     if (request > 0) frame(map, parsePoints(latestKey.current));
+  }, [map, request]);
+
+  return null;
+}
+
+/** Frames an arbitrary set of [lat, lon] points each time `request` changes — the overlap's "Show on map". */
+export function FitToArea({ points, request }: { points: [number, number][]; request: number }) {
+  const map = useMap();
+  const latest = useRef(points);
+  useEffect(() => {
+    latest.current = points;
+  });
+
+  useEffect(() => {
+    if (request > 0) frame(map, latest.current);
   }, [map, request]);
 
   return null;

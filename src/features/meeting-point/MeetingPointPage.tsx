@@ -4,15 +4,18 @@ import { BaseMap, DEFAULT_TIME_BUDGET, TimeBudgetSelector } from '@/features/rea
 import { isInStudyArea, MODES_NOT_LOADED, WALK_SPEED_KMH } from '@/features/reachability/reachabilityService';
 import type { Origin } from '@/features/reachability/types';
 import { DEPARTURE_TIME_IS_PROVISIONAL, DEPARTURE_TIME_LABEL } from '@/shared/data/adapters/routingAdapter';
-import { FitToParticipants } from './components/FitToParticipants';
+import { CommonGroundSummary } from './components/CommonGroundSummary';
+import { FitToArea, FitToParticipants } from './components/FitToParticipants';
 import { MyStartingPoint } from './components/MyStartingPoint';
+import { OverlapLayer } from './components/OverlapLayer';
 import { ParticipantAreasLayer } from './components/ParticipantAreasLayer';
 import { ParticipantList } from './components/ParticipantList';
 import { ParticipantMarkers } from './components/ParticipantMarkers';
 import { RoomLobby } from './components/RoomLobby';
 import { ShareLink } from './components/ShareLink';
+import { useCommonGround } from './hooks/useCommonGround';
 import { useMeetingRoom } from './hooks/useMeetingRoom';
-import { useParticipantAreas } from './hooks/useParticipantAreas';
+import { overlapPoints } from './overlapService';
 import { ROOM_ERROR_MESSAGES, type Participant, type StartingPoint } from './types';
 
 /** AC 1.1.2's wording, as on the reachability map. */
@@ -37,6 +40,7 @@ export function MeetingPointPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [fitRequest, setFitRequest] = useState(0);
+  const [overlapFitRequest, setOverlapFitRequest] = useState(0);
 
   const participants = view.status === 'ready' ? view.participants : NO_PARTICIPANTS;
   const budgetMinutes = view.status === 'ready' ? view.room.timeBudget : DEFAULT_TIME_BUDGET;
@@ -46,7 +50,9 @@ export function MeetingPointPage() {
     () => [...participants].sort((a, b) => Number(b.userId === myUserId) - Number(a.userId === myUserId)),
     [participants, myUserId],
   );
-  const areas = useParticipantAreas(queueOrder, budgetMinutes);
+  const common = useCommonGround(queueOrder, budgetMinutes);
+  const overlapPolygons = common.outcome.status === 'found' ? common.outcome.polygons : null;
+  const overlapFramePoints = useMemo(() => (overlapPolygons ? overlapPoints(overlapPolygons) : []), [overlapPolygons]);
 
   const me = participants.find(participant => participant.userId === myUserId) ?? null;
 
@@ -86,11 +92,13 @@ export function MeetingPointPage() {
             <ParticipantAreasLayer
               participants={participants}
               myUserId={myUserId}
-              areaFor={areas.areaFor}
+              areaFor={common.areaFor}
               focusedId={activeFocus}
             />
+            {overlapPolygons && <OverlapLayer polygons={overlapPolygons} />}
             <ParticipantMarkers participants={participants} myUserId={myUserId} />
             <FitToParticipants participants={participants} request={fitRequest} />
+            <FitToArea points={overlapFramePoints} request={overlapFitRequest} />
           </BaseMap>
         </div>
 
@@ -119,14 +127,26 @@ export function MeetingPointPage() {
               <p className="text-xs text-slate-500 mt-2">Shared by everyone in the room, and anyone can change it.</p>
             </div>
 
+            <CommonGroundSummary
+              participants={participants}
+              budgetMinutes={budgetMinutes}
+              outcome={common.outcome}
+              suggestion={common.suggestion}
+              counted={common.counted}
+              notCounted={common.notCounted}
+              onUseBudget={budget => void meeting.changeBudget(budget)}
+              onShowOnMap={() => setOverlapFitRequest(count => count + 1)}
+              onRetrySuggestion={common.retrySuggestion}
+            />
+
             <ParticipantList
               participants={participants}
               myUserId={myUserId}
               budgetMinutes={budgetMinutes}
-              areaFor={areas.areaFor}
+              areaFor={common.areaFor}
               focusedId={activeFocus}
               onFocus={setFocusedId}
-              onRetry={areas.retry}
+              onRetry={common.retry}
               onShowEveryone={() => setFitRequest(count => count + 1)}
             />
 
