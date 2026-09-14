@@ -1,19 +1,25 @@
 import { useMemo, useState } from 'react';
 import { Users } from 'lucide-react';
-import { BaseMap, TimeBudgetSelector } from '@/features/reachability';
-import { isInStudyArea } from '@/features/reachability/reachabilityService';
+import { BaseMap, DEFAULT_TIME_BUDGET, TimeBudgetSelector } from '@/features/reachability';
+import { isInStudyArea, MODES_NOT_LOADED, WALK_SPEED_KMH } from '@/features/reachability/reachabilityService';
 import type { Origin } from '@/features/reachability/types';
+import { DEPARTURE_TIME_IS_PROVISIONAL, DEPARTURE_TIME_LABEL } from '@/shared/data/adapters/routingAdapter';
+import { FitToParticipants } from './components/FitToParticipants';
 import { MyStartingPoint } from './components/MyStartingPoint';
+import { ParticipantAreasLayer } from './components/ParticipantAreasLayer';
 import { ParticipantList } from './components/ParticipantList';
 import { ParticipantMarkers } from './components/ParticipantMarkers';
 import { RoomLobby } from './components/RoomLobby';
 import { ShareLink } from './components/ShareLink';
 import { useMeetingRoom } from './hooks/useMeetingRoom';
-import { ROOM_ERROR_MESSAGES, type StartingPoint } from './types';
+import { useParticipantAreas } from './hooks/useParticipantAreas';
+import { ROOM_ERROR_MESSAGES, type Participant, type StartingPoint } from './types';
 
 /** AC 1.1.2's wording, as on the reachability map. */
 const OUTSIDE_AREA = 'Selected point is outside the covered area';
 const PLACE_OUTSIDE_AREA = 'That place is outside the covered area';
+
+const NO_PARTICIPANTS: Participant[] = [];
 
 /**
  * Epic 6 — Multi-person Meeting Point Optimizer.
@@ -27,12 +33,22 @@ const PLACE_OUTSIDE_AREA = 'That place is outside the covered area';
  */
 export function MeetingPointPage() {
   const meeting = useMeetingRoom();
-  const { view } = meeting;
+  const { view, myUserId } = meeting;
   const [notice, setNotice] = useState<string | null>(null);
+  const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [fitRequest, setFitRequest] = useState(0);
 
-  const me = view.status === 'ready'
-    ? view.participants.find(participant => participant.userId === meeting.myUserId) ?? null
-    : null;
+  const participants = view.status === 'ready' ? view.participants : NO_PARTICIPANTS;
+  const budgetMinutes = view.status === 'ready' ? view.room.timeBudget : DEFAULT_TIME_BUDGET;
+
+  // The viewer's own area is queued first: it is the one they are waiting on.
+  const queueOrder = useMemo(
+    () => [...participants].sort((a, b) => Number(b.userId === myUserId) - Number(a.userId === myUserId)),
+    [participants, myUserId],
+  );
+  const areas = useParticipantAreas(queueOrder, budgetMinutes);
+
+  const me = participants.find(participant => participant.userId === myUserId) ?? null;
 
   // Keyed on the coordinate, not the participant object: every realtime reload builds new
   // objects, and a fresh origin would make the map re-centre each time someone else moves.
@@ -43,6 +59,12 @@ export function MeetingPointPage() {
     () => (lat !== undefined && lon !== undefined && source ? { at: { lat, lon }, source } : null),
     [lat, lon, source],
   );
+
+  // A focused person who leaves or clears their point stops being focused, rather than
+  // leaving every area faded around a gap.
+  const activeFocus = participants.some(participant => participant.id === focusedId && participant.at)
+    ? focusedId
+    : null;
 
   if (view.status === 'ready') {
     /** AC 1.1.2 — out of area, the previous point is kept rather than cleared. */
@@ -61,7 +83,14 @@ export function MeetingPointPage() {
       <div className="fixed left-0 right-0 bottom-0 top-16 overflow-hidden">
         <div className="absolute inset-0">
           <BaseMap origin={myOrigin} regions={null} onMapClick={at => choose({ at, source: 'map', label: null })}>
-            <ParticipantMarkers participants={view.participants} myUserId={meeting.myUserId} />
+            <ParticipantAreasLayer
+              participants={participants}
+              myUserId={myUserId}
+              areaFor={areas.areaFor}
+              focusedId={activeFocus}
+            />
+            <ParticipantMarkers participants={participants} myUserId={myUserId} />
+            <FitToParticipants participants={participants} request={fitRequest} />
           </BaseMap>
         </div>
 
@@ -86,11 +115,28 @@ export function MeetingPointPage() {
 
             <div>
               <div className="text-sm font-bold text-slate-900 mb-2">Travel time budget</div>
-              <TimeBudgetSelector value={view.room.timeBudget} onChange={budget => void meeting.changeBudget(budget)} />
+              <TimeBudgetSelector value={budgetMinutes} onChange={budget => void meeting.changeBudget(budget)} />
               <p className="text-xs text-slate-500 mt-2">Shared by everyone in the room, and anyone can change it.</p>
             </div>
 
-            <ParticipantList participants={view.participants} myUserId={meeting.myUserId} />
+            <ParticipantList
+              participants={participants}
+              myUserId={myUserId}
+              budgetMinutes={budgetMinutes}
+              areaFor={areas.areaFor}
+              focusedId={activeFocus}
+              onFocus={setFocusedId}
+              onRetry={areas.retry}
+              onShowEveryone={() => setFitRequest(count => count + 1)}
+            />
+
+            {/* What the shapes rest on, stated beside them rather than behind a control. */}
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Areas are modelled, not exact boundaries: leaving {DEPARTURE_TIME_LABEL}, walking at{' '}
+              {WALK_SPEED_KMH} km/h, on rail and BRT timetables.{' '}
+              {DEPARTURE_TIME_IS_PROVISIONAL && 'Reach differs at other times of day. '}
+              {MODES_NOT_LOADED}
+            </p>
 
             {meeting.error && (
               <p role="alert" className="text-sm text-rose-600">
