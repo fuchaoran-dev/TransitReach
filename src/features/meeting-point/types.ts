@@ -46,6 +46,11 @@ export function participantName(participant: Participant, index: number): string
   return participant.nickname ?? `Person ${index + 1}`;
 }
 
+/** "Alice", "Alice and Bob", "Alice, Bob and Carol". */
+export function joinNames(names: string[]): string {
+  return names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
 export type RoomError = 'invalid_code' | 'not_found' | 'full' | 'unavailable';
 
 export const ROOM_ERROR_MESSAGES: Record<RoomError, string> = {

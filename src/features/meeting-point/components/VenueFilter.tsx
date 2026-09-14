@@ -25,7 +25,7 @@ export function VenueFilter({ venues, selected, onToggle }: VenueFilterProps) {
 
   return (
     <div className="space-y-2">
-      <div className="text-sm font-bold text-slate-900">Places to meet inside it</div>
+      <div className="text-sm font-bold text-slate-900">Kinds of place in the shared area</div>
       <div role="group" aria-label="Kinds of place to show on the map" className="flex flex-wrap gap-1.5">
         {VENUE_TYPES.map(type => {
           const count = counts.get(type.id) ?? 0;

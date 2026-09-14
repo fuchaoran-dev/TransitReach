@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Users } from 'lucide-react';
 import { BaseMap, DEFAULT_TIME_BUDGET, TimeBudgetSelector } from '@/features/reachability';
 import { isInStudyArea, MODES_NOT_LOADED, WALK_SPEED_KMH } from '@/features/reachability/reachabilityService';
@@ -11,21 +11,26 @@ import { OverlapLayer } from './components/OverlapLayer';
 import { ParticipantAreasLayer } from './components/ParticipantAreasLayer';
 import { ParticipantList } from './components/ParticipantList';
 import { ParticipantMarkers } from './components/ParticipantMarkers';
+import { FocusOnPlace, RankedPlaceMarkers } from './components/RankedPlaceMarkers';
+import { RankedPlaces } from './components/RankedPlaces';
 import { RoomLobby } from './components/RoomLobby';
 import { ShareLink } from './components/ShareLink';
-import { VenueFilter } from './components/VenueFilter';
 import { VenueMarkers } from './components/VenueMarkers';
+import { rankPlaces } from './fairnessRanking';
 import { useCommonGround } from './hooks/useCommonGround';
 import { useMeetingRoom } from './hooks/useMeetingRoom';
 import { overlapPoints } from './overlapService';
-import { venuesInOverlap, type VenueType } from './venueService';
 import { ROOM_ERROR_MESSAGES, type Participant, type StartingPoint } from './types';
+import { venuesInOverlap, type VenueType } from './venueService';
 
 /** AC 1.1.2's wording, as on the reachability map. */
 const OUTSIDE_AREA = 'Selected point is outside the covered area';
 const PLACE_OUTSIDE_AREA = 'That place is outside the covered area';
 
 const NO_PARTICIPANTS: Participant[] = [];
+
+/** A group wants a handful of good options, not hundreds of restaurants at once. */
+const RANK_PAGE_SIZE = 20;
 
 /**
  * Epic 6 — Multi-person Meeting Point Optimizer.
@@ -34,8 +39,7 @@ const NO_PARTICIPANTS: Participant[] = [];
  * own device. Mentors rejected the alternative, where one person enters everyone's location:
  * it asks that person to know where everyone else is.
  *
- * The nav entry stays hidden until the meeting-point result is built (AC 1.4.3); until then
- * the page is reached through a room link, `?meet=<code>`, or `?meet` for the lobby.
+ * Reached from the navigation, the landing page, or a room link (`?meet=<code>`).
  */
 export function MeetingPointPage() {
   const meeting = useMeetingRoom();
@@ -48,7 +52,7 @@ export function MeetingPointPage() {
   const participants = view.status === 'ready' ? view.participants : NO_PARTICIPANTS;
   const budgetMinutes = view.status === 'ready' ? view.room.timeBudget : DEFAULT_TIME_BUDGET;
 
-  // The viewer's own area is queued first: it is the one they are waiting on.
+  // The viewer's own results are queued first: they are the ones this viewer is waiting on.
   const queueOrder = useMemo(
     () => [...participants].sort((a, b) => Number(b.userId === myUserId) - Number(a.userId === myUserId)),
     [participants, myUserId],
@@ -72,6 +76,21 @@ export function MeetingPointPage() {
       else next.add(type);
       return next;
     });
+
+  // US 6.2 — the chosen kinds of place, fairest first, once everyone's travel times are known.
+  const ranking = useMemo(
+    () => (overlapPolygons && venueTypes.size > 0 ? rankPlaces(shownVenues, common.counted, common.surfaceFor) : null),
+    [overlapPolygons, venueTypes, shownVenues, common.counted, common.surfaceFor],
+  );
+  const [visibleCount, setVisibleCount] = useState(RANK_PAGE_SIZE);
+  useEffect(() => {
+    setVisibleCount(RANK_PAGE_SIZE);
+  }, [venueTypes, budgetMinutes]);
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+  const rankedPlaces = ranking?.status === 'ready' ? ranking.places : [];
+  const listedPlaces = rankedPlaces.slice(0, visibleCount);
+  // A selection that is no longer in the ranking — someone moved, the budget changed — lapses.
+  const selectedPlace = rankedPlaces.find(place => place.venue.id === selectedPlaceId)?.venue ?? null;
 
   const me = participants.find(participant => participant.userId === myUserId) ?? null;
 
@@ -116,14 +135,16 @@ export function MeetingPointPage() {
             />
             {overlapPolygons && <OverlapLayer polygons={overlapPolygons} />}
             {overlapPolygons && <VenueMarkers venues={shownVenues} />}
+            <RankedPlaceMarkers places={listedPlaces} selectedId={selectedPlace?.id ?? null} onSelect={setSelectedPlaceId} />
             <ParticipantMarkers participants={participants} myUserId={myUserId} />
             <FitToParticipants participants={participants} request={fitRequest} />
             <FitToArea points={overlapFramePoints} request={overlapFitRequest} />
+            <FocusOnPlace place={selectedPlace} />
           </BaseMap>
         </div>
 
         <div className="absolute top-4 left-4 sm:left-6 z-[500] w-[340px] max-w-[calc(100vw-2rem)] max-h-[calc(100%-2rem)]">
-          <div className="glass p-4 space-y-5 max-h-[calc(100vh-6rem)] overflow-y-auto overflow-x-hidden scrollbar-thin">
+          <div className="glass p-4 space-y-5 max-h-[calc(45vh-2rem)] lg:max-h-[calc(100vh-6rem)] overflow-y-auto overflow-x-hidden scrollbar-thin">
             <div className="flex items-center gap-2 text-teal-700 font-semibold text-sm">
               <Users size={16} />
               Meet up
@@ -159,10 +180,6 @@ export function MeetingPointPage() {
               onRetrySuggestion={common.retrySuggestion}
             />
 
-            {overlapPolygons && (
-              <VenueFilter venues={venuesInside} selected={venueTypes} onToggle={toggleVenueType} />
-            )}
-
             <ParticipantList
               participants={participants}
               myUserId={myUserId}
@@ -193,6 +210,24 @@ export function MeetingPointPage() {
             </button>
           </div>
         </div>
+
+        <RankedPlaces
+          participants={participants}
+          counted={common.counted}
+          myUserId={myUserId}
+          budgetMinutes={budgetMinutes}
+          hasCommonGround={Boolean(overlapPolygons)}
+          venuesInside={venuesInside}
+          venueTypes={venueTypes}
+          onToggleVenueType={toggleVenueType}
+          ranking={ranking}
+          visibleCount={visibleCount}
+          pageSize={RANK_PAGE_SIZE}
+          onShowMore={() => setVisibleCount(count => count + RANK_PAGE_SIZE)}
+          selectedId={selectedPlace?.id ?? null}
+          onSelect={setSelectedPlaceId}
+          onRetrySurface={common.retrySurface}
+        />
       </div>
     );
   }

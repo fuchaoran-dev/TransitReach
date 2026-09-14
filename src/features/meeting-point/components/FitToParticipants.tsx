@@ -1,11 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { useMap } from 'react-leaflet';
 import { latLngBounds, type Map as LeafletMap } from 'leaflet';
+import { panelPadding } from '../mapFraming';
 import type { Participant } from '../types';
 
-/** Room for the side panel, which covers the left of the map on a wide screen. */
-const PANEL_CLEARANCE_PX = 380;
-const WIDE_MAP_PX = 700;
 /** Two people at one station should not zoom the map to building level. */
 const FIT_MAX_ZOOM = 14;
 
@@ -19,17 +17,12 @@ function parsePoints(key: string): [number, number][] {
   return key ? key.split('|').map(point => point.split(',').map(Number) as [number, number]) : [];
 }
 
-/** Frames these [lat, lon] points, clear of the side panel. */
+/** Frames these [lat, lon] points, clear of the panels. */
 function frame(map: LeafletMap, points: [number, number][]) {
   if (points.length === 0) return;
   // The map mounts inside a page transition; measure the container as it is now.
   map.invalidateSize();
-  const wide = map.getSize().x > WIDE_MAP_PX;
-  map.fitBounds(latLngBounds(points), {
-    paddingTopLeft: [wide ? PANEL_CLEARANCE_PX : 24, 48],
-    paddingBottomRight: [48, 48],
-    maxZoom: FIT_MAX_ZOOM,
-  });
+  map.fitBounds(latLngBounds(points), { ...panelPadding(map), maxZoom: FIT_MAX_ZOOM });
 }
 
 /**

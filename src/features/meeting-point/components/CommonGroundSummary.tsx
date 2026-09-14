@@ -1,5 +1,5 @@
 import type { Outcome, Suggestion } from '../hooks/useCommonGround';
-import { participantName, type Participant } from '../types';
+import { joinNames, participantName, type Participant } from '../types';
 
 interface CommonGroundSummaryProps {
   /** Everyone in the room, in list order — used for names. */
@@ -12,11 +12,6 @@ interface CommonGroundSummaryProps {
   onUseBudget: (budgetMinutes: number) => void;
   onShowOnMap: () => void;
   onRetrySuggestion: () => void;
-}
-
-/** "Alice", "Alice and Bob", "Alice, Bob and Carol". */
-function joinNames(names: string[]): string {
-  return names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
 
 /**
