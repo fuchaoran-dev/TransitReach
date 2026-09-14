@@ -4,19 +4,20 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-  "dev": "vite",
-  "build": "vite build",
-  "lint": "eslint .",
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
     "data:essential-services": "node scripts/build-essential-services.mjs",
-  "preview": "vite preview",
-  "typecheck": "tsc --noEmit -p tsconfig.app.json",
-  "collect:gtfs-rt": "node scripts/collect-gtfs-rt.mjs"
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "collect:gtfs-rt": "node scripts/collect-gtfs-rt.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
     "gtfs-realtime-bindings": "^2.2.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.446.0",
+    "polygon-clipping": "^0.15.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-leaflet": "^4.2.1"
@@ -39,4 +40,3 @@
     "vite": "^5.4.2"
   }
 }
-
