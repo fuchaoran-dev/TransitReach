@@ -1,16 +1,28 @@
 import {
-  CircleMarker,
   Marker,
   Popup,
+  useMap,
 } from 'react-leaflet';
 
 import L from 'leaflet';
 
-import type { BusStop } from '../busStopService';
+import {
+  useEffect,
+  useState,
+} from 'react';
+
+import type {
+  BusStop,
+} from '../busStopService';
+
 
 interface Props {
   stops: BusStop[];
 }
+
+
+const MIN_BUS_STOP_ZOOM = 17;
+
 
 const busStopIcon =
   L.divIcon({
@@ -53,20 +65,59 @@ const busStopIcon =
     ],
   });
 
+
 export function BusStopMapLayer({
   stops,
 }: Props) {
+  const map = useMap();
+
+  const [zoom, setZoom] =
+    useState(() => map.getZoom());
+
+  useEffect(() => {
+    const handleZoomEnd = () => {
+      setZoom(
+        map.getZoom(),
+      );
+    };
+
+    map.on(
+      'zoomend',
+      handleZoomEnd,
+    );
+
+    return () => {
+      map.off(
+        'zoomend',
+        handleZoomEnd,
+      );
+    };
+  }, [map]);
+
+
+  if (
+    zoom <
+    MIN_BUS_STOP_ZOOM
+  ) {
+    return null;
+  }
+
+
   return (
     <>
       {stops.map(
         stop => (
           <Marker
-            key={stop.stopId}
+            key={
+              stop.stopId
+            }
             position={[
               stop.lat,
               stop.lon,
             ]}
-            icon={busStopIcon}
+            icon={
+              busStopIcon
+            }
           >
             <Popup>
               <div
