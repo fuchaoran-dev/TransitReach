@@ -40,6 +40,8 @@ import { originFromHit } from '@/features/reachability/reachabilityService';
 
 import {MapAnalysisPanel,type MapAnalysisTab,} from './components/MapAnalysisPanel';
 import { useMapServices } from './components/useMapServices';
+import { JourneyMapLayer, useJourneyInspection } from '@/features/interchange';
+import type { ServiceLocation } from '@/shared/types/service';
 
 /** One shared empty array, so "no stops yet" keeps a stable identity between renders. */
 const NO_STOPS: FirstMileStopResult[] = [];
@@ -167,8 +169,28 @@ useEffect(() => {
   const services = useMapServices(
     reach.origin?.at ?? null,
     journey.timeBudget,
-    analysisTab === 'services',
+    analysisTab === 'services' || analysisTab === 'transfers',
   );
+
+  const journeyInspection = useJourneyInspection(
+    reach.origin?.at ?? null,
+    services.selected,
+    journey.timeBudget,
+    analysisTab === 'transfers',
+  );
+
+  const inspectingJourney = journeyInspection.selectedJourney !== null;
+
+  const handleServiceSelect = (service: ServiceLocation) => {
+    // Selecting a service keeps the user in the Services tab. The map focuses the
+    // selected service and the detail card below provides the explicit Journey action.
+    services.select(service);
+  };
+
+  const handleJourneyForService = (service: ServiceLocation) => {
+    services.select(service);
+    onAnalysisTabChange('transfers');
+  };
 
   return (
     // top-16 rather than pt-16: an absolutely positioned child resolves inset-0 against
@@ -178,59 +200,67 @@ useEffect(() => {
           <BaseMap
             origin={reach.origin}
             regions={
-              reach.state.status === 'ready'
-                ? reach.state.result.regions
-                : null
+              inspectingJourney
+                ? null
+                : reach.state.status === 'ready'
+                  ? reach.state.result.regions
+                  : null
             }
             onMapClick={point => {
               setSelectedBusStop(null);
               reach.selectPoint(point);
             }}
-            services={services.displayed}
+            services={inspectingJourney ? [] : services.displayed}
             selectedServiceId={
               services.selected?.id ?? null
             }
-            onServiceSelect={services.select}
+            selectedService={services.selected}
+            onServiceSelect={handleServiceSelect}
           >
-            <SelectedRailLineLayer
-              routeId={
-                selectedRailLine?.routeId ?? null
-              }
-              color={
-                selectedRailLine?.color ?? null
-              }
-            />
-
-            {firstMile.state.status === 'ready' && (
-              <FirstMileMapLayer
-                stops={firstMile.state.stops}
-                selectedStopId={
-                  firstMile.selectedStopId
-                }
-                onSelect={handleSelectStop}
+            {inspectingJourney && services.selected ? (
+              <JourneyMapLayer
+                journey={journeyInspection.selectedJourney!}
+                destination={services.selected}
               />
-            )}
+            ) : (
+              <>
+                <SelectedRailLineLayer
+                  routeId={selectedRailLine?.routeId ?? null}
+                  color={selectedRailLine?.color ?? null}
+                />
 
-            {displayedBusStops.length > 0 && (
-              <BusStopMapLayer
-                stops={displayedBusStops}
-                selectedStopId={selectedBusStop?.stopId ?? null}
-                onSelect={setSelectedBusStop}
-                reliabilityServices={reliabilityServices}
-                reliabilityLoading={reliabilityLoading}
-                reliabilityError={reliabilityError}
-              />
-            )}
+                {firstMile.state.status === 'ready' && (
+                  <FirstMileMapLayer
+                    stops={firstMile.state.stops}
+                    selectedStopId={firstMile.selectedStopId}
+                    onSelect={handleSelectStop}
+                  />
+                )}
 
-            {liveTransit.status !== 'idle' && (
-              <LiveTransitMapLayer
-                vehicles={liveTransit.vehicles}
-              />
+                {displayedBusStops.length > 0 && (
+                  <BusStopMapLayer
+                    stops={displayedBusStops}
+                    selectedStopId={selectedBusStop?.stopId ?? null}
+                    onSelect={setSelectedBusStop}
+                    reliabilityServices={reliabilityServices}
+                    reliabilityLoading={reliabilityLoading}
+                    reliabilityError={reliabilityError}
+                  />
+                )}
+
+                {liveTransit.status !== 'idle' && (
+                  <LiveTransitMapLayer
+                    vehicles={liveTransit.vehicles}
+                  />
+                )}
+              </>
             )}
           </BaseMap>
-        <LiveTransitStatus
-          state={liveTransit}
-        />
+        {!inspectingJourney && (
+          <LiveTransitStatus
+            state={liveTransit}
+          />
+        )}
       </div>
 
       <MapAnalysisPanel
@@ -265,6 +295,12 @@ useEffect(() => {
         }
 
         services={services}
+
+        journeys={journeyInspection}
+
+        onServiceSelect={handleServiceSelect}
+
+        onJourneyForService={handleJourneyForService}
 
         hasOrigin={
           Boolean(reach.origin)

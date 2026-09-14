@@ -1,6 +1,7 @@
 import { BusFront, Search } from 'lucide-react';
 import { ServiceDetail, ServiceFilters, ServiceList } from '@/features/essential-services';
 import { loadEssentialServicesMetadata } from '@/shared/data/adapters/essentialServicesAdapter';
+import type { ServiceLocation } from '@/shared/types/service';
 import type { MapServicesModel } from './useMapServices';
 
 /**
@@ -13,9 +14,13 @@ import type { MapServicesModel } from './useMapServices';
 export function MapServicesContent({
   model,
   hasOrigin,
+  onServiceSelect,
+  onJourney,
 }: {
   model: MapServicesModel;
   hasOrigin: boolean;
+  onServiceSelect?: (service: ServiceLocation) => void;
+  onJourney?: (service: ServiceLocation) => void;
 }) {
   const metadata = loadEssentialServicesMetadata();
 
@@ -109,7 +114,12 @@ export function MapServicesContent({
         )
       )}
 
-      {model.selected && <ServiceDetail service={model.selected} />}
+      {model.selected && (
+        <ServiceDetail
+          service={model.selected}
+          onJourney={onJourney}
+        />
+      )}
 
       {/* Suppressed while awaiting a choice: ServiceList's empty state reads "No services
           found — try a longer travel time", which would contradict the prompt above by
@@ -120,7 +130,7 @@ export function MapServicesContent({
           hoveredService={null}
           selectedService={model.selected}
           onHover={() => undefined}
-          onSelect={model.select}
+          onSelect={onServiceSelect ?? model.select}
         />
       )}
     </div>
