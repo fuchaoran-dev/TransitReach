@@ -1,10 +1,27 @@
-import { Marker, Popup } from 'react-leaflet';
+import {
+  Marker,
+  Popup,
+  useMap,
+} from 'react-leaflet';
 
 import L from 'leaflet';
 
-import type { BusStop } from '../busStopService';
-import { BusStopReliabilityPopup } from '@/features/transit-reliability';
-import type { ReliabilityService } from '@/features/transit-reliability';
+import {
+  useEffect,
+  useState,
+} from 'react';
+
+import type {
+  BusStop,
+} from '../busStopService';
+
+import {
+  BusStopReliabilityPopup,
+} from '@/features/transit-reliability';
+
+import type {
+  ReliabilityService,
+} from '@/features/transit-reliability';
 
 interface Props {
   stops: BusStop[];
@@ -14,6 +31,10 @@ interface Props {
   reliabilityLoading: boolean;
   reliabilityError: string | null;
 }
+
+
+const MIN_BUS_STOP_ZOOM = 17;
+
 
 const busStopIcon =
   L.divIcon({
@@ -56,6 +77,7 @@ const busStopIcon =
     ],
   });
 
+
 export function BusStopMapLayer({
   stops,
   selectedStopId,
@@ -64,6 +86,40 @@ export function BusStopMapLayer({
   reliabilityLoading,
   reliabilityError,
 }: Props) {
+  const map = useMap();
+
+  const [zoom, setZoom] =
+    useState(() => map.getZoom());
+
+  useEffect(() => {
+    const handleZoomEnd = () => {
+      setZoom(
+        map.getZoom(),
+      );
+    };
+
+    map.on(
+      'zoomend',
+      handleZoomEnd,
+    );
+
+    return () => {
+      map.off(
+        'zoomend',
+        handleZoomEnd,
+      );
+    };
+  }, [map]);
+
+
+  if (
+    zoom <
+    MIN_BUS_STOP_ZOOM
+  ) {
+    return null;
+  }
+
+
   return (
     <>
       {stops.map(
@@ -75,8 +131,15 @@ export function BusStopMapLayer({
               stop.lon,
             ]}
             icon={busStopIcon}
-            zIndexOffset={stop.stopId === selectedStopId ? 900 : 0}
-            eventHandlers={{ click: () => onSelect(stop) }}
+            zIndexOffset={
+              stop.stopId === selectedStopId
+                ? 900
+                : 0
+            }
+            eventHandlers={{
+              click: () =>
+                onSelect(stop),
+            }}
           >
             <Popup>
               {stop.stopId === selectedStopId ? (
