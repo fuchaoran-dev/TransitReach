@@ -31,7 +31,7 @@ export const NAV_ITEMS: NavItem[] = [
   // that merging it into the map panel removed.
   { id: 'services', label: 'Services', icon: Building2, hidden: true },
   { id: 'time', label: 'Time', icon: Clock },
-  { id: 'meeting', label: 'Meet', icon: Users, hidden: true },
+  { id: 'meeting', label: 'Meet', icon: Users },
   { id: 'scenario', label: 'Scenarios', icon: Route, hidden: true },
   { id: 'typology', label: 'Typology', icon: TrendingUp, hidden: true },
   { id: 'methodology', label: 'Method', icon: BookOpen, hidden: true },
