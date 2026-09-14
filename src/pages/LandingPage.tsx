@@ -9,31 +9,9 @@ import { ServiceMarker } from '@/features/essential-services';
 import { generateReachPolygon, mapAreaToKm2 } from '@/shared/data/mock/reachability';
 import { polygonArea } from '@/shared/lib/spatial';
 import { usePrefersReducedMotion, useCountUp, useScrollReveal } from '@/shared/hooks';
-import { SERVICES, TRANSIT_LINES, CITY_CENTER } from '@/shared/data';
+import { SERVICES, CITY_CENTER } from '@/shared/data';
 import type { SearchHit } from '@/features/reachability/reachabilityService';
-import type { MapPoint } from '@/shared/types/location';
 import type { PageId } from '@/app/routes';
-
-/**
- * Landing-page visual preview only.
- *
- * This uses the prototype SVG's {x, y} coordinates and must not be used
- * for Epic 3 first-mile results. Real first-mile distance/time is routed
- * through OTP over the OSM pedestrian network.
- */
-function findNearbyPreviewStops(
-  origin: MapPoint,
-  stops: MapPoint[],
-  radius = 80,
-): MapPoint[] {
-  return stops.filter(
-    stop =>
-      Math.hypot(
-        stop.x - origin.x,
-        stop.y - origin.y,
-      ) <= radius,
-  );
-}
 
 /**
  * AC 1.4.1 — the headline figures are read from the loaded feed, never typed in.
@@ -60,16 +38,14 @@ export function LandingPage({ onNavigate, onSearchSelect }: LandingPageProps) {
   const [searchResult, setSearchResult] = useState<SearchHit | null>(null);
   const [showPolygon, setShowPolygon] = useState(false);
   const [showPins, setShowPins] = useState(false);
-  const [showWalking, setShowWalking] = useState(false);
   const heroRef = useScrollReveal<HTMLDivElement>();
   const statsRef = useScrollReveal<HTMLDivElement>();
 
   // Animate the hero map preview on load
   useEffect(() => {
-    const t1 = setTimeout(() => setShowWalking(true), 300);
     const t2 = setTimeout(() => setShowPolygon(true), 600);
     const t3 = setTimeout(() => setShowPins(true), 1000);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    return () => { clearTimeout(t2); clearTimeout(t3); };
   }, []);
 
   // The hero preview stays on the prototype canvas, so it cannot follow a real stop
@@ -78,15 +54,6 @@ export function LandingPage({ onNavigate, onSearchSelect }: LandingPageProps) {
   const polygon = useMemo(() => generateReachPolygon(origin, 30, 42), [origin]);
   const areaKm2 = useMemo(() => mapAreaToKm2(polygonArea(polygon)), [polygon]);
 
-  const allStops = useMemo(() => {
-    const stops: MapPoint[] = [];
-    TRANSIT_LINES.forEach(line => line.stops.forEach(stop => stops.push(stop.pos)));
-    return stops;
-  }, []);
-  const nearby = useMemo(
-    () => findNearbyPreviewStops(origin, allStops, 70),
-    [origin, allStops],
-  );
   const reachableServices = useMemo(
     () => SERVICES.filter(s => {
       const dx = s.pos.x - origin.x, dy = s.pos.y - origin.y;
@@ -100,8 +67,6 @@ export function LandingPage({ onNavigate, onSearchSelect }: LandingPageProps) {
     onSearchSelect(hit);
     setShowPolygon(false);
     setShowPins(false);
-    setShowWalking(false);
-    setTimeout(() => setShowWalking(true), 100);
     setTimeout(() => setShowPolygon(true), 400);
     setTimeout(() => setShowPins(true), 800);
   };

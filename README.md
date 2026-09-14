@@ -1,4 +1,10 @@
 TransitReach
+
+## Epic 7 reliability
+
+The AI transit reliability feature has a separate FastAPI service and a data-gated ML
+pipeline. Setup, data provenance, training commands, current service capabilities and
+acceptance-criteria coverage are documented in [`backend/README.md`](backend/README.md).
 # Epic 5 data and routing
 
 The Essential Services page uses a committed, reproducible extract of real OpenStreetMap

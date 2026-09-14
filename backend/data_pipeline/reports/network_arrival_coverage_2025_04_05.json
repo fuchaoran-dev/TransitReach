@@ -1,0 +1,1107 @@
+{
+  "routes": {
+    "P0010": {
+      "status": "eligible",
+      "observations": 145729,
+      "service_days": 37,
+      "events": 83946,
+      "training_eligible": 6430,
+      "rejected": 77516
+    },
+    "P0020": {
+      "status": "eligible",
+      "observations": 54687,
+      "service_days": 37,
+      "events": 36374,
+      "training_eligible": 3160,
+      "rejected": 33214
+    },
+    "P0030": {
+      "status": "eligible",
+      "observations": 37087,
+      "service_days": 37,
+      "events": 26832,
+      "training_eligible": 1752,
+      "rejected": 25080
+    },
+    "P0040": {
+      "status": "eligible",
+      "observations": 49506,
+      "service_days": 37,
+      "events": 28644,
+      "training_eligible": 2161,
+      "rejected": 26483
+    },
+    "P0050": {
+      "status": "eligible",
+      "observations": 61307,
+      "service_days": 37,
+      "events": 41370,
+      "training_eligible": 2015,
+      "rejected": 39355
+    },
+    "P0060": {
+      "status": "eligible",
+      "observations": 79327,
+      "service_days": 37,
+      "events": 43460,
+      "training_eligible": 2340,
+      "rejected": 41120
+    },
+    "P1010": {
+      "status": "eligible",
+      "observations": 67285,
+      "service_days": 37,
+      "events": 32947,
+      "training_eligible": 1300,
+      "rejected": 31647
+    },
+    "P1020": {
+      "status": "eligible",
+      "observations": 48836,
+      "service_days": 37,
+      "events": 30128,
+      "training_eligible": 938,
+      "rejected": 29190
+    },
+    "P1030": {
+      "status": "eligible",
+      "observations": 51493,
+      "service_days": 37,
+      "events": 38724,
+      "training_eligible": 1382,
+      "rejected": 37342
+    },
+    "P1040": {
+      "status": "eligible",
+      "observations": 33373,
+      "service_days": 37,
+      "events": 9340,
+      "training_eligible": 727,
+      "rejected": 8613
+    },
+    "P1050": {
+      "status": "eligible",
+      "observations": 65424,
+      "service_days": 37,
+      "events": 24581,
+      "training_eligible": 1064,
+      "rejected": 23517
+    },
+    "P1060": {
+      "status": "eligible",
+      "observations": 45359,
+      "service_days": 37,
+      "events": 70805,
+      "training_eligible": 1803,
+      "rejected": 69002
+    },
+    "P1080": {
+      "status": "eligible",
+      "observations": 33695,
+      "service_days": 37,
+      "events": 35541,
+      "training_eligible": 1232,
+      "rejected": 34309
+    },
+    "R0200": {
+      "status": "insufficient_observations",
+      "observations": 4501,
+      "service_days": 36
+    },
+    "S0030": {
+      "status": "eligible",
+      "observations": 82918,
+      "service_days": 37,
+      "events": 55384,
+      "training_eligible": 2083,
+      "rejected": 53301
+    },
+    "S0040": {
+      "status": "insufficient_arrivals",
+      "observations": 47518,
+      "service_days": 37,
+      "events": 18123,
+      "training_eligible": 337,
+      "rejected": 17786
+    },
+    "S0060": {
+      "status": "eligible",
+      "observations": 29309,
+      "service_days": 37,
+      "events": 12126,
+      "training_eligible": 657,
+      "rejected": 11469
+    },
+    "S0070": {
+      "status": "eligible",
+      "observations": 108063,
+      "service_days": 37,
+      "events": 65712,
+      "training_eligible": 2130,
+      "rejected": 63582
+    },
+    "S0100": {
+      "status": "eligible",
+      "observations": 25908,
+      "service_days": 37,
+      "events": 5574,
+      "training_eligible": 589,
+      "rejected": 4985
+    },
+    "S1030": {
+      "status": "insufficient_arrivals",
+      "observations": 27097,
+      "service_days": 37,
+      "events": 20180,
+      "training_eligible": 397,
+      "rejected": 19783
+    },
+    "S1040": {
+      "status": "insufficient_arrivals",
+      "observations": 19889,
+      "service_days": 37,
+      "events": 14720,
+      "training_eligible": 473,
+      "rejected": 14247
+    },
+    "S1050": {
+      "status": "eligible",
+      "observations": 31926,
+      "service_days": 37,
+      "events": 29547,
+      "training_eligible": 959,
+      "rejected": 28588
+    },
+    "S1060": {
+      "status": "insufficient_arrivals",
+      "observations": 62736,
+      "service_days": 37,
+      "events": 3960,
+      "training_eligible": 285,
+      "rejected": 3675
+    },
+    "S1070": {
+      "status": "insufficient_arrivals",
+      "observations": 64642,
+      "service_days": 37,
+      "events": 21565,
+      "training_eligible": 360,
+      "rejected": 21205
+    },
+    "S1140": {
+      "status": "eligible",
+      "observations": 47936,
+      "service_days": 37,
+      "events": 35647,
+      "training_eligible": 999,
+      "rejected": 34648
+    },
+    "S1170": {
+      "status": "eligible",
+      "observations": 42915,
+      "service_days": 37,
+      "events": 35178,
+      "training_eligible": 599,
+      "rejected": 34579
+    },
+    "S1190": {
+      "status": "eligible",
+      "observations": 60076,
+      "service_days": 37,
+      "events": 33550,
+      "training_eligible": 831,
+      "rejected": 32719
+    },
+    "S1390": {
+      "status": "insufficient_arrivals",
+      "observations": 29053,
+      "service_days": 37,
+      "events": 9135,
+      "training_eligible": 280,
+      "rejected": 8855
+    },
+    "S1490": {
+      "status": "insufficient_arrivals",
+      "observations": 30958,
+      "service_days": 37,
+      "events": 23712,
+      "training_eligible": 402,
+      "rejected": 23310
+    },
+    "S2060": {
+      "status": "insufficient_arrivals",
+      "observations": 15025,
+      "service_days": 37,
+      "events": 10152,
+      "training_eligible": 254,
+      "rejected": 9898
+    },
+    "S3020": {
+      "status": "insufficient_arrivals",
+      "observations": 41955,
+      "service_days": 37,
+      "events": 13072,
+      "training_eligible": 421,
+      "rejected": 12651
+    },
+    "S3030": {
+      "status": "insufficient_arrivals",
+      "observations": 22158,
+      "service_days": 37,
+      "events": 12192,
+      "training_eligible": 422,
+      "rejected": 11770
+    },
+    "S3040": {
+      "status": "eligible",
+      "observations": 22716,
+      "service_days": 37,
+      "events": 13780,
+      "training_eligible": 523,
+      "rejected": 13257
+    },
+    "S4020": {
+      "status": "eligible",
+      "observations": 98411,
+      "service_days": 37,
+      "events": 62286,
+      "training_eligible": 2287,
+      "rejected": 59999
+    },
+    "S4030": {
+      "status": "eligible",
+      "observations": 76920,
+      "service_days": 37,
+      "events": 126585,
+      "training_eligible": 1594,
+      "rejected": 124991
+    },
+    "S4040": {
+      "status": "eligible",
+      "observations": 89820,
+      "service_days": 37,
+      "events": 56967,
+      "training_eligible": 2897,
+      "rejected": 54070
+    },
+    "S4050": {
+      "status": "eligible",
+      "observations": 70601,
+      "service_days": 37,
+      "events": 8536,
+      "training_eligible": 506,
+      "rejected": 8030
+    },
+    "S4060": {
+      "status": "eligible",
+      "observations": 86043,
+      "service_days": 37,
+      "events": 41200,
+      "training_eligible": 1504,
+      "rejected": 39696
+    },
+    "S4080": {
+      "status": "eligible",
+      "observations": 67723,
+      "service_days": 37,
+      "events": 35568,
+      "training_eligible": 1250,
+      "rejected": 34318
+    },
+    "S4100": {
+      "status": "eligible",
+      "observations": 56711,
+      "service_days": 37,
+      "events": 29792,
+      "training_eligible": 822,
+      "rejected": 28970
+    },
+    "S5010": {
+      "status": "insufficient_arrivals",
+      "observations": 9846,
+      "service_days": 37,
+      "events": 8562,
+      "training_eligible": 54,
+      "rejected": 8508
+    },
+    "S6060": {
+      "status": "insufficient_arrivals",
+      "observations": 20565,
+      "service_days": 37,
+      "events": 4434,
+      "training_eligible": 239,
+      "rejected": 4195
+    },
+    "T2000": {
+      "status": "eligible",
+      "observations": 35909,
+      "service_days": 37,
+      "events": 12825,
+      "training_eligible": 1187,
+      "rejected": 11638
+    },
+    "T2010": {
+      "status": "eligible",
+      "observations": 83945,
+      "service_days": 37,
+      "events": 45356,
+      "training_eligible": 2627,
+      "rejected": 42729
+    },
+    "T2020": {
+      "status": "eligible",
+      "observations": 34402,
+      "service_days": 37,
+      "events": 27387,
+      "training_eligible": 916,
+      "rejected": 26471
+    },
+    "T2220": {
+      "status": "eligible",
+      "observations": 66250,
+      "service_days": 37,
+      "events": 36800,
+      "training_eligible": 1737,
+      "rejected": 35063
+    },
+    "T2230": {
+      "status": "eligible",
+      "observations": 35719,
+      "service_days": 37,
+      "events": 24380,
+      "training_eligible": 1513,
+      "rejected": 22867
+    },
+    "T2240": {
+      "status": "eligible",
+      "observations": 27224,
+      "service_days": 37,
+      "events": 19818,
+      "training_eligible": 944,
+      "rejected": 18874
+    },
+    "T2500": {
+      "status": "eligible",
+      "observations": 63372,
+      "service_days": 37,
+      "events": 39648,
+      "training_eligible": 1775,
+      "rejected": 37873
+    },
+    "T2510": {
+      "status": "eligible",
+      "observations": 20477,
+      "service_days": 37,
+      "events": 12673,
+      "training_eligible": 694,
+      "rejected": 11979
+    },
+    "T3008": {
+      "status": "eligible",
+      "observations": 55141,
+      "service_days": 37,
+      "events": 38484,
+      "training_eligible": 2136,
+      "rejected": 36348
+    },
+    "T3018": {
+      "status": "eligible",
+      "observations": 30130,
+      "service_days": 37,
+      "events": 43011,
+      "training_eligible": 865,
+      "rejected": 42146
+    },
+    "T3028": {
+      "status": "eligible",
+      "observations": 36746,
+      "service_days": 37,
+      "events": 35601,
+      "training_eligible": 1707,
+      "rejected": 33894
+    },
+    "T3030": {
+      "status": "eligible",
+      "observations": 18583,
+      "service_days": 35,
+      "events": 11477,
+      "training_eligible": 726,
+      "rejected": 10751
+    },
+    "T3048": {
+      "status": "eligible",
+      "observations": 46991,
+      "service_days": 37,
+      "events": 30576,
+      "training_eligible": 1749,
+      "rejected": 28827
+    },
+    "T3500": {
+      "status": "eligible",
+      "observations": 63673,
+      "service_days": 37,
+      "events": 36001,
+      "training_eligible": 1632,
+      "rejected": 34369
+    },
+    "T3510": {
+      "status": "eligible",
+      "observations": 47847,
+      "service_days": 37,
+      "events": 33323,
+      "training_eligible": 1275,
+      "rejected": 32048
+    },
+    "T4068": {
+      "status": "eligible",
+      "observations": 82289,
+      "service_days": 37,
+      "events": 92565,
+      "training_eligible": 1234,
+      "rejected": 91331
+    },
+    "T4500": {
+      "status": "eligible",
+      "observations": 71303,
+      "service_days": 37,
+      "events": 39390,
+      "training_eligible": 1982,
+      "rejected": 37408
+    },
+    "T5800": {
+      "status": "eligible",
+      "observations": 48080,
+      "service_days": 37,
+      "events": 28000,
+      "training_eligible": 1343,
+      "rejected": 26657
+    },
+    "T5810": {
+      "status": "eligible",
+      "observations": 27546,
+      "service_days": 37,
+      "events": 17556,
+      "training_eligible": 581,
+      "rejected": 16975
+    },
+    "T6000": {
+      "status": "eligible",
+      "observations": 35604,
+      "service_days": 37,
+      "events": 15295,
+      "training_eligible": 1661,
+      "rejected": 13634
+    },
+    "T6010": {
+      "status": "insufficient_arrivals",
+      "observations": 12060,
+      "service_days": 29,
+      "events": 15500,
+      "training_eligible": 66,
+      "rejected": 15434
+    },
+    "T6028": {
+      "status": "eligible",
+      "observations": 18369,
+      "service_days": 37,
+      "events": 19140,
+      "training_eligible": 509,
+      "rejected": 18631
+    },
+    "T6030": {
+      "status": "insufficient_arrivals",
+      "observations": 16434,
+      "service_days": 37,
+      "events": 13684,
+      "training_eligible": 386,
+      "rejected": 13298
+    },
+    "T6040": {
+      "status": "insufficient_arrivals",
+      "observations": 32141,
+      "service_days": 37,
+      "events": 26912,
+      "training_eligible": 102,
+      "rejected": 26810
+    },
+    "T6050": {
+      "status": "eligible",
+      "observations": 16782,
+      "service_days": 37,
+      "events": 13248,
+      "training_eligible": 692,
+      "rejected": 12556
+    },
+    "T6400": {
+      "status": "eligible",
+      "observations": 71423,
+      "service_days": 37,
+      "events": 44194,
+      "training_eligible": 3261,
+      "rejected": 40933
+    },
+    "T7158": {
+      "status": "insufficient_arrivals",
+      "observations": 9864,
+      "service_days": 35,
+      "events": 11899,
+      "training_eligible": 201,
+      "rejected": 11698
+    },
+    "T7538": {
+      "status": "eligible",
+      "observations": 27609,
+      "service_days": 37,
+      "events": 35196,
+      "training_eligible": 826,
+      "rejected": 34370
+    },
+    "T7548": {
+      "status": "insufficient_arrivals",
+      "observations": 18563,
+      "service_days": 37,
+      "events": 22214,
+      "training_eligible": 407,
+      "rejected": 21807
+    },
+    "T7568": {
+      "status": "insufficient_arrivals",
+      "observations": 24940,
+      "service_days": 37,
+      "events": 16216,
+      "training_eligible": 391,
+      "rejected": 15825
+    },
+    "T7740": {
+      "status": "insufficient_arrivals",
+      "observations": 33665,
+      "service_days": 37,
+      "events": 10875,
+      "training_eligible": 363,
+      "rejected": 10512
+    },
+    "T7760": {
+      "status": "eligible",
+      "observations": 36647,
+      "service_days": 37,
+      "events": 19788,
+      "training_eligible": 1359,
+      "rejected": 18429
+    },
+    "T7800": {
+      "status": "eligible",
+      "observations": 31470,
+      "service_days": 37,
+      "events": 17342,
+      "training_eligible": 1210,
+      "rejected": 16132
+    },
+    "T7810": {
+      "status": "eligible",
+      "observations": 24260,
+      "service_days": 37,
+      "events": 13328,
+      "training_eligible": 1177,
+      "rejected": 12151
+    },
+    "T7820": {
+      "status": "eligible",
+      "observations": 29030,
+      "service_days": 37,
+      "events": 40920,
+      "training_eligible": 1148,
+      "rejected": 39772
+    },
+    "T7860": {
+      "status": "eligible",
+      "observations": 30270,
+      "service_days": 37,
+      "events": 26202,
+      "training_eligible": 1448,
+      "rejected": 24754
+    },
+    "T7870": {
+      "status": "eligible",
+      "observations": 30647,
+      "service_days": 37,
+      "events": 20125,
+      "training_eligible": 1310,
+      "rejected": 18815
+    },
+    "T7880": {
+      "status": "insufficient_arrivals",
+      "observations": 14832,
+      "service_days": 36,
+      "events": 5140,
+      "training_eligible": 0,
+      "rejected": 5140
+    },
+    "T7890": {
+      "status": "eligible",
+      "observations": 67411,
+      "service_days": 37,
+      "events": 42174,
+      "training_eligible": 4733,
+      "rejected": 37441
+    },
+    "T7900": {
+      "status": "eligible",
+      "observations": 30293,
+      "service_days": 37,
+      "events": 27016,
+      "training_eligible": 1060,
+      "rejected": 25956
+    },
+    "T7910": {
+      "status": "eligible",
+      "observations": 34832,
+      "service_days": 37,
+      "events": 22950,
+      "training_eligible": 1116,
+      "rejected": 21834
+    },
+    "T8500": {
+      "status": "eligible",
+      "observations": 21768,
+      "service_days": 37,
+      "events": 24160,
+      "training_eligible": 752,
+      "rejected": 23408
+    },
+    "U1510": {
+      "status": "eligible",
+      "observations": 81188,
+      "service_days": 37,
+      "events": 39400,
+      "training_eligible": 2223,
+      "rejected": 37177
+    },
+    "U1700": {
+      "status": "eligible",
+      "observations": 99179,
+      "service_days": 37,
+      "events": 45818,
+      "training_eligible": 2842,
+      "rejected": 42976
+    },
+    "U1710": {
+      "status": "eligible",
+      "observations": 129198,
+      "service_days": 37,
+      "events": 103254,
+      "training_eligible": 3897,
+      "rejected": 99357
+    },
+    "U1730": {
+      "status": "eligible",
+      "observations": 266558,
+      "service_days": 37,
+      "events": 218526,
+      "training_eligible": 13293,
+      "rejected": 205233
+    },
+    "U1800": {
+      "status": "eligible",
+      "observations": 60764,
+      "service_days": 37,
+      "events": 46456,
+      "training_eligible": 2852,
+      "rejected": 43604
+    },
+    "U1900": {
+      "status": "eligible",
+      "observations": 184866,
+      "service_days": 37,
+      "events": 103495,
+      "training_eligible": 10299,
+      "rejected": 93196
+    },
+    "U1910": {
+      "status": "eligible",
+      "observations": 29905,
+      "service_days": 37,
+      "events": 29440,
+      "training_eligible": 849,
+      "rejected": 28591
+    },
+    "U2000": {
+      "status": "eligible",
+      "observations": 114379,
+      "service_days": 37,
+      "events": 151058,
+      "training_eligible": 2936,
+      "rejected": 148122
+    },
+    "U2010": {
+      "status": "eligible",
+      "observations": 30679,
+      "service_days": 37,
+      "events": 40685,
+      "training_eligible": 543,
+      "rejected": 40142
+    },
+    "U2020": {
+      "status": "eligible",
+      "observations": 250370,
+      "service_days": 37,
+      "events": 178413,
+      "training_eligible": 10026,
+      "rejected": 168387
+    },
+    "U2200": {
+      "status": "eligible",
+      "observations": 136373,
+      "service_days": 37,
+      "events": 86219,
+      "training_eligible": 5556,
+      "rejected": 80663
+    },
+    "U2220": {
+      "status": "eligible",
+      "observations": 48063,
+      "service_days": 37,
+      "events": 24804,
+      "training_eligible": 1144,
+      "rejected": 23660
+    },
+    "U2500": {
+      "status": "eligible",
+      "observations": 341324,
+      "service_days": 37,
+      "events": 283599,
+      "training_eligible": 18206,
+      "rejected": 265393
+    },
+    "U2510": {
+      "status": "eligible",
+      "observations": 105652,
+      "service_days": 37,
+      "events": 59697,
+      "training_eligible": 3971,
+      "rejected": 55726
+    },
+    "U2538": {
+      "status": "eligible",
+      "observations": 48649,
+      "service_days": 37,
+      "events": 31913,
+      "training_eligible": 1341,
+      "rejected": 30572
+    },
+    "U2548": {
+      "status": "eligible",
+      "observations": 27354,
+      "service_days": 37,
+      "events": 32064,
+      "training_eligible": 955,
+      "rejected": 31109
+    },
+    "U3000": {
+      "status": "eligible",
+      "observations": 317006,
+      "service_days": 37,
+      "events": 417944,
+      "training_eligible": 15426,
+      "rejected": 402518
+    },
+    "U3020": {
+      "status": "eligible",
+      "observations": 50565,
+      "service_days": 37,
+      "events": 20250,
+      "training_eligible": 1728,
+      "rejected": 18522
+    },
+    "U3030": {
+      "status": "eligible",
+      "observations": 122323,
+      "service_days": 37,
+      "events": 128016,
+      "training_eligible": 6027,
+      "rejected": 121989
+    },
+    "U4000": {
+      "status": "eligible",
+      "observations": 144887,
+      "service_days": 37,
+      "events": 94276,
+      "training_eligible": 4594,
+      "rejected": 89682
+    },
+    "U4028": {
+      "status": "eligible",
+      "observations": 53144,
+      "service_days": 37,
+      "events": 37368,
+      "training_eligible": 924,
+      "rejected": 36444
+    },
+    "U4200": {
+      "status": "eligible",
+      "observations": 104489,
+      "service_days": 37,
+      "events": 86760,
+      "training_eligible": 4164,
+      "rejected": 82596
+    },
+    "U4210": {
+      "status": "eligible",
+      "observations": 59641,
+      "service_days": 37,
+      "events": 52200,
+      "training_eligible": 2033,
+      "rejected": 50167
+    },
+    "U4500": {
+      "status": "eligible",
+      "observations": 65781,
+      "service_days": 37,
+      "events": 58835,
+      "training_eligible": 2309,
+      "rejected": 56526
+    },
+    "U5068": {
+      "status": "eligible",
+      "observations": 98610,
+      "service_days": 37,
+      "events": 20033,
+      "training_eligible": 1083,
+      "rejected": 18950
+    },
+    "U5408": {
+      "status": "eligible",
+      "observations": 76303,
+      "service_days": 37,
+      "events": 56621,
+      "training_eligible": 1894,
+      "rejected": 54727
+    },
+    "U5410": {
+      "status": "insufficient_arrivals",
+      "observations": 19486,
+      "service_days": 36,
+      "events": 14940,
+      "training_eligible": 116,
+      "rejected": 14824
+    },
+    "U5800": {
+      "status": "eligible",
+      "observations": 55872,
+      "service_days": 37,
+      "events": 38430,
+      "training_eligible": 2236,
+      "rejected": 36194
+    },
+    "U5810": {
+      "status": "eligible",
+      "observations": 34793,
+      "service_days": 37,
+      "events": 14976,
+      "training_eligible": 738,
+      "rejected": 14238
+    },
+    "U5900": {
+      "status": "eligible",
+      "observations": 156425,
+      "service_days": 37,
+      "events": 102248,
+      "training_eligible": 4931,
+      "rejected": 97317
+    },
+    "U6000": {
+      "status": "eligible",
+      "observations": 550886,
+      "service_days": 37,
+      "events": 382126,
+      "training_eligible": 28433,
+      "rejected": 353693
+    },
+    "U6020": {
+      "status": "eligible",
+      "observations": 48281,
+      "service_days": 37,
+      "events": 20264,
+      "training_eligible": 1678,
+      "rejected": 18586
+    },
+    "U6400": {
+      "status": "eligible",
+      "observations": 162222,
+      "service_days": 37,
+      "events": 123696,
+      "training_eligible": 12974,
+      "rejected": 110722
+    },
+    "U6410": {
+      "status": "eligible",
+      "observations": 43605,
+      "service_days": 36,
+      "events": 30550,
+      "training_eligible": 1712,
+      "rejected": 28838
+    },
+    "U6500": {
+      "status": "eligible",
+      "observations": 90930,
+      "service_days": 37,
+      "events": 54567,
+      "training_eligible": 3646,
+      "rejected": 50921
+    },
+    "U6510": {
+      "status": "eligible",
+      "observations": 46413,
+      "service_days": 37,
+      "events": 22368,
+      "training_eligible": 1051,
+      "rejected": 21317
+    },
+    "U6520": {
+      "status": "eligible",
+      "observations": 45070,
+      "service_days": 37,
+      "events": 34840,
+      "training_eligible": 1305,
+      "rejected": 33535
+    },
+    "U7088": {
+      "status": "eligible",
+      "observations": 49268,
+      "service_days": 37,
+      "events": 25212,
+      "training_eligible": 1038,
+      "rejected": 24174
+    },
+    "U7508": {
+      "status": "eligible",
+      "observations": 142935,
+      "service_days": 37,
+      "events": 76042,
+      "training_eligible": 3972,
+      "rejected": 72070
+    },
+    "U7510": {
+      "status": "eligible",
+      "observations": 184375,
+      "service_days": 37,
+      "events": 93472,
+      "training_eligible": 6070,
+      "rejected": 87402
+    },
+    "U7520": {
+      "status": "eligible",
+      "observations": 53514,
+      "service_days": 37,
+      "events": 34880,
+      "training_eligible": 1019,
+      "rejected": 33861
+    },
+    "U7538": {
+      "status": "eligible",
+      "observations": 52478,
+      "service_days": 37,
+      "events": 28112,
+      "training_eligible": 521,
+      "rejected": 27591
+    },
+    "U7548": {
+      "status": "insufficient_arrivals",
+      "observations": 31833,
+      "service_days": 37,
+      "events": 21054,
+      "training_eligible": 264,
+      "rejected": 20790
+    },
+    "U7700": {
+      "status": "eligible",
+      "observations": 76780,
+      "service_days": 37,
+      "events": 37908,
+      "training_eligible": 3079,
+      "rejected": 34829
+    },
+    "U7718": {
+      "status": "eligible",
+      "observations": 76103,
+      "service_days": 37,
+      "events": 33459,
+      "training_eligible": 1741,
+      "rejected": 31718
+    },
+    "U7720": {
+      "status": "eligible",
+      "observations": 162033,
+      "service_days": 37,
+      "events": 84451,
+      "training_eligible": 4813,
+      "rejected": 79638
+    },
+    "U7800": {
+      "status": "eligible",
+      "observations": 116218,
+      "service_days": 37,
+      "events": 62321,
+      "training_eligible": 3165,
+      "rejected": 59156
+    },
+    "U7828": {
+      "status": "eligible",
+      "observations": 24446,
+      "service_days": 37,
+      "events": 17212,
+      "training_eligible": 1042,
+      "rejected": 16170
+    },
+    "U7830": {
+      "status": "eligible",
+      "observations": 51329,
+      "service_days": 37,
+      "events": 15975,
+      "training_eligible": 1573,
+      "rejected": 14402
+    },
+    "U8010": {
+      "status": "eligible",
+      "observations": 39301,
+      "service_days": 37,
+      "events": 15710,
+      "training_eligible": 716,
+      "rejected": 14994
+    },
+    "U8020": {
+      "status": "eligible",
+      "observations": 47009,
+      "service_days": 37,
+      "events": 17376,
+      "training_eligible": 722,
+      "rejected": 16654
+    },
+    "U8210": {
+      "status": "eligible",
+      "observations": 169184,
+      "service_days": 37,
+      "events": 91205,
+      "training_eligible": 9283,
+      "rejected": 81922
+    },
+    "U8220": {
+      "status": "eligible",
+      "observations": 16914,
+      "service_days": 37,
+      "events": 18450,
+      "training_eligible": 1052,
+      "rejected": 17398
+    },
+    "U8510": {
+      "status": "eligible",
+      "observations": 35087,
+      "service_days": 37,
+      "events": 18981,
+      "training_eligible": 690,
+      "rejected": 18291
+    }
+  },
+  "processed": 137,
+  "eligible": 115
+}

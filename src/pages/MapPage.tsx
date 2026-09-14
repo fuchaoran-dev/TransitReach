@@ -6,7 +6,6 @@ import {
   LocationSearch,
   TimeBudgetSelector,
   useReachability,
-  type ReachabilityState,
 } from '@/features/reachability';
 
 import {
@@ -31,7 +30,13 @@ import {
   useLiveTransit,
   DEFAULT_FIRST_MILE_THRESHOLD_MINUTES,
   type FirstMileStopResult,
+  type BusStop,
 } from '@/features/first-mile';
+import {
+  loadReliabilityServices,
+  type ReliabilityService,
+} from '@/features/transit-reliability';
+import { originFromHit } from '@/features/reachability/reachabilityService';
 
 import {MapAnalysisPanel,type MapAnalysisTab,} from './components/MapAnalysisPanel';
 import { useMapServices } from './components/useMapServices';
@@ -49,6 +54,29 @@ interface MapPageProps {
 
 export function MapPage({ journey, onToast, analysisTab, onAnalysisTabChange }: MapPageProps) {
   const [configOpen, setConfigOpen] = useState(true);
+  const [selectedBusStop, setSelectedBusStop] = useState<BusStop | null>(null);
+  const [reliabilityServices, setReliabilityServices] = useState<ReliabilityService[]>([]);
+  const [reliabilityLoading, setReliabilityLoading] = useState(true);
+  const [reliabilityError, setReliabilityError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadReliabilityServices(controller.signal)
+      .then(setReliabilityServices)
+      .catch(reason => {
+        if (!controller.signal.aborted) {
+          setReliabilityError(reason instanceof Error ? reason.message : 'Reliability service unavailable');
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setReliabilityLoading(false);
+      });
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    if (journey.origin?.busStop) setSelectedBusStop(journey.origin.busStop);
+  }, [journey.origin?.busStop]);
 const reach = useReachability({
   origin: journey.origin,
   onOriginChange: journey.onOriginChange,
@@ -129,6 +157,12 @@ useEffect(() => {
     accessibleStops,
     reach.state,
   ]);
+  const displayedBusStops = useMemo(() => {
+    if (!selectedBusStop || nearbyBusStops.some(stop => stop.stopId === selectedBusStop.stopId)) {
+      return nearbyBusStops;
+    }
+    return [...nearbyBusStops, selectedBusStop];
+  }, [nearbyBusStops, selectedBusStop]);
 
   const services = useMapServices(
     reach.origin?.at ?? null,
@@ -148,7 +182,10 @@ useEffect(() => {
                 ? reach.state.result.regions
                 : null
             }
-            onMapClick={reach.selectPoint}
+            onMapClick={point => {
+              setSelectedBusStop(null);
+              reach.selectPoint(point);
+            }}
             services={services.displayed}
             selectedServiceId={
               services.selected?.id ?? null
@@ -174,9 +211,14 @@ useEffect(() => {
               />
             )}
 
-            {nearbyBusStops.length > 0 && (
+            {displayedBusStops.length > 0 && (
               <BusStopMapLayer
-                stops={nearbyBusStops}
+                stops={displayedBusStops}
+                selectedStopId={selectedBusStop?.stopId ?? null}
+                onSelect={setSelectedBusStop}
+                reliabilityServices={reliabilityServices}
+                reliabilityLoading={reliabilityLoading}
+                reliabilityError={reliabilityError}
               />
             )}
 
@@ -265,9 +307,19 @@ useEffect(() => {
           {configOpen && (
             <div className="space-y-4 fade-in">
               <LocationSearch
-                onSelect={hit =>
-                  hit.kind === 'stop' ? reach.selectStop(hit.stop) : reach.selectPlace(hit.place)
-                }
+                onSelect={hit => {
+                  if (hit.kind === 'stop') {
+                    setSelectedBusStop(null);
+                    reach.selectStop(hit.stop);
+                  } else if (hit.kind === 'place') {
+                    setSelectedBusStop(null);
+                    reach.selectPlace(hit.place);
+                  }
+                  else {
+                    setSelectedBusStop(hit.busStop);
+                    journey.onOriginChange(originFromHit(hit));
+                  }
+                }}
                 selected={hitFromOrigin(reach.origin)}
                 compact
               />
@@ -283,7 +335,10 @@ useEffect(() => {
                 </button>
                 {reach.origin && (
                   <button
-                    onClick={reach.clearOrigin}
+                  onClick={() => {
+                    setSelectedBusStop(null);
+                    reach.clearOrigin();
+                  }}
                     className="btn-secondary inline-flex items-center gap-1.5 text-xs py-2 px-3"
                   >
                     <X size={14} />
@@ -326,7 +381,8 @@ useEffect(() => {
  */
 function OriginReadout({ origin }: { origin: NonNullable<ReturnType<typeof useReachability>['origin']> }) {
   const label =
-    origin.source === 'stop' ? 'Selected stop'
+    origin.source === 'stop' ? 'Selected rail station'
+    : origin.source === 'bus-stop' ? 'Selected bus stop'
     : origin.source === 'place' ? 'Selected place'
     : origin.source === 'device' ? 'Your location'
     : 'Selected point';
@@ -334,7 +390,12 @@ function OriginReadout({ origin }: { origin: NonNullable<ReturnType<typeof useRe
   return (
     <div className="glass-chip rounded-xl px-3 py-2.5">
       <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">{label}</div>
-      {origin.stop ? (
+      {origin.busStop ? (
+        <>
+          <div className="text-sm font-semibold text-slate-800">{origin.busStop.name}</div>
+          <div className="text-xs text-slate-500">Rapid KL bus stop · click its map marker for AI delay</div>
+        </>
+      ) : origin.stop ? (
         <>
           <div className="text-sm font-semibold text-slate-800">{origin.stop.name}</div>
           <div className="text-xs text-slate-500">

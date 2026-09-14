@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { MapPin, Clock, Footprints, Building2, Gauge, ArrowRight, Check, Database, GitBranch, Shield } from 'lucide-react';
-import { useScrollReveal, useStaggeredReveal, usePrefersReducedMotion } from '@/shared/hooks';
+import { useStaggeredReveal } from '@/shared/hooks';
 import { METHODOLOGY_STEPS } from '@/shared/data';
 import type { MethodologyStep } from '@/shared/types/methodology';
 
@@ -9,7 +9,6 @@ const STEP_ICONS: Record<string, typeof MapPin> = {
 };
 
 export function MethodologyPage() {
-  const reduced = usePrefersReducedMotion();
   const [activeStep, setActiveStep] = useState(0);
   const revealCount = useStaggeredReveal(METHODOLOGY_STEPS.length, 100);
 
@@ -39,7 +38,6 @@ export function MethodologyPage() {
                 active={activeStep === i}
                 visible={i < revealCount}
                 onClick={() => setActiveStep(i)}
-                reduced={reduced}
               />
             ))}
           </div>
@@ -55,12 +53,10 @@ export function MethodologyPage() {
               { icon: Database, title: 'Government Open Data', desc: 'Facility registries and service boundaries.', color: '#f59e0b' },
             ].map((src, i) => {
               const Icon = src.icon;
-              const reveal = useScrollReveal<HTMLDivElement>();
               return (
                 <div
                   key={i}
-                  ref={reveal.ref}
-                  className={`card p-5 ${reveal.visible ? 'fade-slide-up' : 'opacity-0'}`}
+                  className="card p-5 fade-slide-up"
                   style={{ animationDelay: `${i * 60}ms` }}
                 >
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: `${src.color}15` }}>
@@ -113,14 +109,13 @@ export function MethodologyPage() {
 }
 
 function StepCard({
-  step, index, active, visible, onClick, reduced,
+  step, index, active, visible, onClick,
 }: {
   step: MethodologyStep;
   index: number;
   active: boolean;
   visible: boolean;
   onClick: () => void;
-  reduced: boolean;
 }) {
   const Icon = STEP_ICONS[step.icon] ?? MapPin;
   return (

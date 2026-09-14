@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
-  Search, MapPin, Train, Building2, GraduationCap, Landmark, Plane, ShoppingBag, Stethoscope,
+  Search, MapPin, Train, Bus, Building2, GraduationCap, Landmark, Plane, ShoppingBag, Stethoscope,
 } from 'lucide-react';
 import { loadRailStops, linesForStop } from '@/shared/data/adapters/gtfsAdapter';
 import { loadPlaces, type PlaceKind } from '@/shared/data/adapters/osmAdapter';
+import { loadBusStops } from '@/features/first-mile/busStopService';
 import type { SearchHit } from '../reachabilityService';
 import { searchLocations, hitName, MIN_QUERY_LENGTH } from '../reachabilityService';
 
@@ -60,10 +61,11 @@ export function LocationSearch({ onSelect, selected, compact = false }: Location
   }, [selectedName]);
 
   const stops = useMemo(() => loadRailStops(), []);
+  const busStops = useMemo(() => loadBusStops(), []);
   const places = useMemo(() => loadPlaces(), []);
   const results = useMemo(
-    () => searchLocations(query, stops, places),
-    [query, stops, places],
+    () => searchLocations(query, stops, busStops, places),
+    [query, stops, busStops, places],
   );
 
   // Below the minimum query length the field is inert: no results, no "no match".
@@ -108,7 +110,7 @@ export function LocationSearch({ onSelect, selected, compact = false }: Location
         <div className="absolute top-full mt-2 left-0 right-0 glass-strong p-2 z-[1000] fade-slide-up max-h-64 overflow-y-auto scrollbar-thin">
           {results.map((hit, idx) => (
             <ResultRow
-              key={hit.kind === 'stop' ? hit.stop.stopId : hit.place.placeId}
+              key={hit.kind === 'stop' ? `rail-${hit.stop.stopId}` : hit.kind === 'bus-stop' ? `bus-${hit.busStop.stopId}` : `place-${hit.place.placeId}`}
               hit={hit}
               query={query}
               highlighted={highlightedIdx === idx}
@@ -144,11 +146,12 @@ function ResultRow({ hit, query, highlighted, onMouseEnter, onClick }: {
   onMouseEnter: () => void;
   onClick: () => void;
 }) {
-  const isStop = hit.kind === 'stop';
-  const Icon = isStop ? Train : PLACE_ICONS[hit.place.kind];
-  const subtitle = isStop
+  const isRailStop = hit.kind === 'stop';
+  const isBusStop = hit.kind === 'bus-stop';
+  const Icon = isRailStop ? Train : isBusStop ? Bus : PLACE_ICONS[hit.place.kind];
+  const subtitle = isRailStop
     ? linesForStop(hit.stop).map(line => line.longName).join(' · ')
-    : hit.place.kindLabel;
+    : isBusStop ? `Rapid KL bus stop · ID ${hit.busStop.stopId}` : hit.place.kindLabel;
 
   return (
     <button
@@ -158,7 +161,7 @@ function ResultRow({ hit, query, highlighted, onMouseEnter, onClick }: {
         highlighted ? 'bg-teal-50' : 'hover:bg-slate-50'
       }`}
     >
-      <Icon size={16} className={`mt-0.5 shrink-0 ${isStop ? 'text-blue-500' : 'text-slate-400'}`} />
+      <Icon size={16} className={`mt-0.5 shrink-0 ${isRailStop ? 'text-blue-500' : isBusStop ? 'text-amber-600' : 'text-slate-400'}`} />
       <div className="flex-1 min-w-0">
         <div className="text-sm font-semibold text-slate-800 truncate">
           {highlightName(hitName(hit), query)}

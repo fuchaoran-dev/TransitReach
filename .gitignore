@@ -1,4 +1,5 @@
 node_modules/
+.venv/
 dist/
 
 # Env
@@ -13,6 +14,14 @@ dist/
 #
 # Do NOT ignore src/shared/data/rail/*.json — the build fails without them.
 data/gtfs/
+data/raw/
+data/processed/
+data/features/
+data/validation/
+backend/models/artifacts/
+catboost_info/
+__pycache__/
+*.py[cod]
 
 # OpenTripPlanner working files: the jar, the OSM extract, the GTFS copy and the built
 # graph. All are large and reproducible — see routing/README.md for the exact commands.

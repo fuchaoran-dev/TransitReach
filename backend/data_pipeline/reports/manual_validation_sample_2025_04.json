@@ -1,0 +1,9 @@
+{
+  "rows": 450,
+  "routes": {
+    "U1510": 150,
+    "U2020": 150,
+    "U6000": 150
+  },
+  "status": "awaiting_manual_annotation"
+}

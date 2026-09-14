@@ -85,6 +85,11 @@ export default defineConfig({
         timeout: 15_000,
         proxyTimeout: 15_000,
       },
+      '/api/reliability': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        timeout: 15_000,
+      },
     },
   },
 });
