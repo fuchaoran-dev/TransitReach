@@ -53,6 +53,51 @@ export function intersectAreas(areas: IsochroneRegion[][]): OverlapPolygon[] {
   return intersection(first, ...rest).filter(polygon => polygonAreaKm2(polygon) >= MIN_PIECE_KM2);
 }
 
+/** Ray-casting point-in-ring test, on a [lon, lat] ring. */
+function insideRing(lon: number, lat: number, ring: Ring): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if (yi > lat !== yj > lat && lon < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/**
+ * A test for whether a point lies in the overlap: inside some piece's outer ring and in none of
+ * its holes.
+ *
+ * Each piece's bounding box is worked out once, up front, so the thousands of venue points that
+ * lie nowhere near a piece are rejected by four comparisons instead of a walk around its ring.
+ */
+export function overlapContains(polygons: OverlapPolygon[]): (lat: number, lon: number) => boolean {
+  const pieces = polygons.map(([outer, ...holes]) => {
+    let minLon = Infinity;
+    let maxLon = -Infinity;
+    let minLat = Infinity;
+    let maxLat = -Infinity;
+    for (const [lon, lat] of outer) {
+      if (lon < minLon) minLon = lon;
+      if (lon > maxLon) maxLon = lon;
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+    }
+    return { outer, holes, minLon, maxLon, minLat, maxLat };
+  });
+
+  return (lat, lon) =>
+    pieces.some(
+      piece =>
+        lon >= piece.minLon &&
+        lon <= piece.maxLon &&
+        lat >= piece.minLat &&
+        lat <= piece.maxLat &&
+        insideRing(lon, lat, piece.outer) &&
+        !piece.holes.some(hole => insideRing(lon, lat, hole)),
+    );
+}
+
 /** Every outer-ring vertex as [lat, lon], for framing the map on the overlap. */
 export function overlapPoints(polygons: OverlapPolygon[]): [number, number][] {
   return polygons.flatMap(([outer]) => outer.map(([lon, lat]) => [lat, lon] as [number, number]));

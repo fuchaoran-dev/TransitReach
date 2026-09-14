@@ -13,9 +13,12 @@ import { ParticipantList } from './components/ParticipantList';
 import { ParticipantMarkers } from './components/ParticipantMarkers';
 import { RoomLobby } from './components/RoomLobby';
 import { ShareLink } from './components/ShareLink';
+import { VenueFilter } from './components/VenueFilter';
+import { VenueMarkers } from './components/VenueMarkers';
 import { useCommonGround } from './hooks/useCommonGround';
 import { useMeetingRoom } from './hooks/useMeetingRoom';
 import { overlapPoints } from './overlapService';
+import { venuesInOverlap, type VenueType } from './venueService';
 import { ROOM_ERROR_MESSAGES, type Participant, type StartingPoint } from './types';
 
 /** AC 1.1.2's wording, as on the reachability map. */
@@ -53,6 +56,22 @@ export function MeetingPointPage() {
   const common = useCommonGround(queueOrder, budgetMinutes);
   const overlapPolygons = common.outcome.status === 'found' ? common.outcome.polygons : null;
   const overlapFramePoints = useMemo(() => (overlapPolygons ? overlapPoints(overlapPolygons) : []), [overlapPolygons]);
+
+  // The kinds of place chosen survive the shared area changing: someone who asked for cafés
+  // and then changed the budget still wants cafés.
+  const [venueTypes, setVenueTypes] = useState<ReadonlySet<VenueType>>(() => new Set());
+  const venuesInside = useMemo(() => (overlapPolygons ? venuesInOverlap(overlapPolygons) : []), [overlapPolygons]);
+  const shownVenues = useMemo(
+    () => venuesInside.filter(venue => venueTypes.has(venue.type)),
+    [venuesInside, venueTypes],
+  );
+  const toggleVenueType = (type: VenueType) =>
+    setVenueTypes(current => {
+      const next = new Set(current);
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
+      return next;
+    });
 
   const me = participants.find(participant => participant.userId === myUserId) ?? null;
 
@@ -96,6 +115,7 @@ export function MeetingPointPage() {
               focusedId={activeFocus}
             />
             {overlapPolygons && <OverlapLayer polygons={overlapPolygons} />}
+            {overlapPolygons && <VenueMarkers venues={shownVenues} />}
             <ParticipantMarkers participants={participants} myUserId={myUserId} />
             <FitToParticipants participants={participants} request={fitRequest} />
             <FitToArea points={overlapFramePoints} request={overlapFitRequest} />
@@ -138,6 +158,10 @@ export function MeetingPointPage() {
               onShowOnMap={() => setOverlapFitRequest(count => count + 1)}
               onRetrySuggestion={common.retrySuggestion}
             />
+
+            {overlapPolygons && (
+              <VenueFilter venues={venuesInside} selected={venueTypes} onToggle={toggleVenueType} />
+            )}
 
             <ParticipantList
               participants={participants}
