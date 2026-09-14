@@ -278,6 +278,10 @@ export async function computeReachability(
   } finally {
     clearTimeout(timer);
     signal.removeEventListener('abort', abortInner);
+    // When one request fails, Promise.all rejects at once while the other may still be in
+    // flight — and with the timer cleared, nothing would ever cancel it. Abort it rather than
+    // leave it holding a connection to the engine. A no-op once both have settled.
+    inner.abort();
   }
 
   const fullArea = totalAreaKm2(full);
