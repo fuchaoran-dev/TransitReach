@@ -107,13 +107,16 @@ status is decided in the versioned registry with its scope and validation disclo
 
 ## Current capabilities
 
-The revised AI MVP enables 114 Rapid KL bus routes and 1,864 route-stop choices with at
-least 20 comparable historical events. Bus stops are searchable with the shared map
+The revised AI MVP exposes all 136 routes and all 4,053 unique stops in the current Rapid
+KL surface-transit GTFS (6,123 route-stop choices). Bus stops are searchable with the shared map
 search, and selecting a bus-stop marker automatically requests the current historical
 delay estimate. The map popup shows the expected delay, risk band, likely range,
-explanation factors, model type and training period. The former standalone Reliability
+explanation factors, model type, training period, prediction level and confidence. Stops
+with enough direct evidence use stop/time or stop-level profiles; sparse and newly
+published stops use an explicitly labelled low-confidence route or network AI fallback.
+The former standalone Reliability
 page and navigation entry have been removed so this information stays in the user's map
-workflow. Stops without sufficient matched history return an explicit unavailable state.
+workflow. An unavailable result is retained only when no trained network profile exists.
 
 ## Acceptance criteria status
 
@@ -138,8 +141,8 @@ To avoid pairing April 2026 telemetry with a later schedule, the reproducible ex
 uses KRI's internally paired April–May 2025 static and realtime material. The source audit
 found 148 observed routes; 138 met the initial 28-day/5,000-observation gate. Route-by-route
 arrival detection retained 115 routes with at least 500 confidence-eligible arrivals. The
-runtime registry exposes 114 routes that also have at least one stop with 20 comparable
-events, covering 315,734 training events and 1,864 route-stop choices across 37 service
+model was trained from 114 routes with sufficient evidence, covering 315,734 training
+events across 37 service
 days. `shape_matcher.py` provides polyline projection,
 distance-to-shape and monotonic-progress checks when `shapes.txt` is available; the KRI
 archive instead supplies ordered stop lanes and therefore uses the conservative geofence

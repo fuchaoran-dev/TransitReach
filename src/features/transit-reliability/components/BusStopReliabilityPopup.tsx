@@ -108,6 +108,10 @@ export function BusStopReliabilityPopup({ stop, services, catalogLoading, catalo
             {result.prediction_lower_min != null && result.prediction_upper_min != null &&
               ` · likely ${result.prediction_lower_min.toFixed(1)}–${result.prediction_upper_min.toFixed(1)} min`}
           </p>
+          <p className="text-[11px] font-medium text-slate-600">
+            {result.prediction_level.replace('_', ' ')}-level estimate · {result.confidence} confidence
+            {result.is_fallback && ' · fallback for a stop with limited direct history'}
+          </p>
           <ul className="list-disc space-y-1 pl-4 text-[11px] text-slate-600">
             {result.explanations.slice(0, 3).map(item => <li key={item}>{item}</li>)}
           </ul>

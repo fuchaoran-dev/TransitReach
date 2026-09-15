@@ -30,7 +30,7 @@ class ServiceCapability(BaseModel):
     model_available: bool = False
     prediction_available: bool = False
     reason: str | None = "insufficient_historical_operational_data"
-    stops: list[dict[str, str]] = Field(default_factory=list)
+    stops: list[dict[str, str | int]] = Field(default_factory=list)
 
 
 class UnsupportedPrediction(BaseModel):
@@ -41,6 +41,10 @@ class UnsupportedPrediction(BaseModel):
 class ReliabilityPrediction(BaseModel):
     supported: bool = True
     prediction_type: str
+    prediction_level: str
+    confidence: str
+    sample_count: int
+    is_fallback: bool
     expected_delay_min: float
     risk_level: RiskLevel
     historical_percentile: float = Field(ge=0, le=100)

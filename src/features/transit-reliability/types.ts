@@ -16,6 +16,10 @@ export interface UnsupportedPrediction {
 export interface ReliabilityPrediction {
   supported: true;
   prediction_type: 'historical' | 'live_adjusted';
+  prediction_level: 'stop_time' | 'stop' | 'route' | 'network';
+  confidence: 'high' | 'medium' | 'low';
+  sample_count: number;
+  is_fallback: boolean;
   expected_delay_min: number;
   risk_level: RiskLevel;
   historical_percentile: number;
@@ -41,5 +45,5 @@ export interface ReliabilityService {
   line_id: string;
   name: string;
   prediction_available: boolean;
-  stops: { stop_id: string; name: string }[];
+  stops: { stop_id: string; name: string; stop_sequence?: number }[];
 }

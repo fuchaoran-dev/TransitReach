@@ -43,9 +43,20 @@ def predict_historical(line_id: str, stop_id: str, travel_at: datetime) -> Relia
     registry, model = _assets()
     weekend = int(travel_at.isoweekday() >= 6)
     profile = registry["profiles"].get(f"{line_id}|{stop_id}|{travel_at.hour}|{weekend}")
+    level = "stop_time"
+    confidence = "high"
     if profile is None or profile["sample_count"] < 10:
         profile = registry["fallback_profiles"].get(f"{line_id}|{stop_id}")
+        level, confidence = "stop", "medium"
     if profile is None or profile["sample_count"] < 20:
+        profile = registry.get("route_profiles", {}).get(
+            f"{line_id}|{travel_at.hour}|{weekend}"
+        )
+        level, confidence = "route", "low"
+    if profile is None:
+        profile = registry.get("network_profiles", {}).get(f"{travel_at.hour}|{weekend}")
+        level, confidence = "network", "low"
+    if profile is None:
         return None
     row: list[object] = [
         line_id, stop_id, profile["stop_sequence"], travel_at.hour, travel_at.isoweekday(),
@@ -74,7 +85,9 @@ def predict_historical(line_id: str, stop_id: str, travel_at: datetime) -> Relia
     ) if FEATURES[index] in messages][:3]
     metadata = registry["metadata"]
     return ReliabilityPrediction(
-        prediction_type="historical", expected_delay_min=round(expected, 2), risk_level=risk,
+        prediction_type="historical", prediction_level=level, confidence=confidence,
+        sample_count=profile["sample_count"], is_fallback=level in {"route", "network"},
+        expected_delay_min=round(expected, 2), risk_level=risk,
         historical_percentile=percentile, prediction_lower_min=round(lower, 2),
         prediction_upper_min=round(upper, 2), realtime_used=False,
         model_version=metadata["model_version"], model_type=metadata["model_type"],
@@ -84,6 +97,6 @@ def predict_historical(line_id: str, stop_id: str, travel_at: datetime) -> Relia
                     "baseline_mae": metadata["baseline"]["mae"],
                     "baseline_rmse": metadata["baseline"]["rmse"]},
         explanations=explanations,
-        disclaimer=("AI estimate trained on GPS-derived stop arrivals; manual arrival audit is pending. "
-                    "It is not a guaranteed arrival time."),
+        disclaimer=(f"{level.replace('_', ' ').title()}-level AI estimate trained on GPS-derived "
+                    "stop arrivals; manual arrival audit is pending. It is not a guaranteed arrival time."),
     )
