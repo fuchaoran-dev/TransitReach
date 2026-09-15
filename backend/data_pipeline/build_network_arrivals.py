@@ -7,7 +7,13 @@ from pathlib import Path
 from .build_stop_arrivals import build_parquet
 
 
-def build_network(cleaned: Path, gtfs: Path, output: Path, minimum_observations: int = 5_000) -> dict:
+def build_network(
+    cleaned: Path,
+    gtfs: Path,
+    output: Path,
+    minimum_observations: int = 5_000,
+    minimum_service_days: int = 28,
+) -> dict:
     import duckdb
 
     output.mkdir(parents=True, exist_ok=True)
@@ -20,7 +26,7 @@ def build_network(cleaned: Path, gtfs: Path, output: Path, minimum_observations:
     """).fetchall()
     report: dict[str, object] = {"routes": {}, "processed": 0, "eligible": 0}
     for route_id, observations, days in coverage:
-        if observations < minimum_observations or days < 28:
+        if observations < minimum_observations or days < minimum_service_days:
             report["routes"][route_id] = {"status": "insufficient_observations", "observations": observations, "service_days": days}
             continue
         route_literal = route_id.replace("'", "''")
@@ -51,8 +57,13 @@ def main() -> None:
     parser.add_argument("--gtfs", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--report", required=True, type=Path)
+    parser.add_argument("--minimum-observations", type=int, default=5_000)
+    parser.add_argument("--minimum-service-days", type=int, default=28)
     args = parser.parse_args()
-    report = build_network(args.observations, args.gtfs, args.output)
+    report = build_network(
+        args.observations, args.gtfs, args.output,
+        args.minimum_observations, args.minimum_service_days,
+    )
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"processed": report["processed"], "eligible": report["eligible"]}))

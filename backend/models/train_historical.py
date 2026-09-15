@@ -17,13 +17,28 @@ CATEGORICAL = ["route_id", "stop_id"]
 @dataclass(frozen=True)
 class TrainingGate:
     minimum_events: int = 5_000
-    minimum_service_days: int = 28
+    minimum_service_days: int = 120
 
 
 def chronological_boundaries(size: int) -> tuple[int, int]:
     if size < 3:
         raise ValueError("at least three chronological observations are required")
     return max(1, int(size * .70)), max(2, int(size * .85))
+
+
+def chronological_partitions(rows: list[dict]) -> tuple[list[dict], list[dict], list[dict]]:
+    """Use complete calendar months when six or more months are available."""
+    ordered = sorted(rows, key=lambda row: row["scheduled_arrival"])
+    months = sorted({(row["service_date"].year, row["service_date"].month) for row in ordered})
+    if len(months) >= 6:
+        validation_month, test_month = months[-2], months[-1]
+        training = [row for row in ordered if (row["service_date"].year, row["service_date"].month) < validation_month]
+        validation = [row for row in ordered if (row["service_date"].year, row["service_date"].month) == validation_month]
+        test = [row for row in ordered if (row["service_date"].year, row["service_date"].month) == test_month]
+        if training and validation and test:
+            return training, validation, test
+    train_end, validation_end = chronological_boundaries(len(ordered))
+    return ordered[:train_end], ordered[train_end:validation_end], ordered[validation_end:]
 
 
 def metrics(actual: list[float], predicted: list[float]) -> dict[str, float]:
@@ -48,8 +63,7 @@ def train(
             f"requires {gate.minimum_events} events/{gate.minimum_service_days} days"
         )
     from catboost import CatBoostRegressor
-    train_end, validation_end = chronological_boundaries(len(rows))
-    training, validation, test = rows[:train_end], rows[train_end:validation_end], rows[validation_end:]
+    training, validation, test = chronological_partitions(rows)
     fallback = median(float(row["target_delay_minutes"]) for row in training)
     baseline_metrics = metrics(
         [float(row["target_delay_minutes"]) for row in test], [fallback] * len(test)

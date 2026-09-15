@@ -1,0 +1,32 @@
+{
+  "model_version": "historical-2026-09-15",
+  "model_type": "CatBoostRegressor",
+  "training_start": "2025-01-01",
+  "training_end": "2025-04-30",
+  "validation_start": "2025-05-01",
+  "validation_end": "2025-05-31",
+  "test_start": "2025-06-01",
+  "test_end": "2025-06-30",
+  "features": [
+    "route_id",
+    "stop_id",
+    "stop_sequence",
+    "hour",
+    "day_of_week",
+    "is_weekend",
+    "scheduled_headway",
+    "historical_median_delay",
+    "historical_mean_delay"
+  ],
+  "baseline": {
+    "mae": 10.19694770900741,
+    "rmse": 15.62703049957077
+  },
+  "model": {
+    "mae": 5.466762070233389,
+    "rmse": 8.79665833216245
+  },
+  "arrival_validation_passed": false,
+  "candidate_for_promotion": true,
+  "prediction_enabled": false
+}
