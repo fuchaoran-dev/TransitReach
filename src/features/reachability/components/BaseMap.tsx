@@ -229,6 +229,10 @@ function ServicePins({ services, selectedServiceId, onServiceSelect }: Pick<Base
           center={[service.lat, service.lon]}
           radius={selected ? 9 : 6}
           pane="markerPane"
+          // A service click is an inspection action, not a new-origin map click.
+          // Leaflet Path events bubble to the map by default, which would otherwise
+          // trigger ClickHandler and move the user's starting point underneath the pin.
+          bubblingMouseEvents={false}
           // White ring, category fill. Ringing every dot is what lets a category hue read
           // against the area fill, against the base map, and against the dot beside it —
           // stroking each dot in its own colour left it blending into whatever was behind.

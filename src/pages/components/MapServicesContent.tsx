@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { BusFront, Search } from 'lucide-react';
 import { ServiceDetail, ServiceFilters, ServiceList } from '@/features/essential-services';
 import { loadEssentialServicesMetadata } from '@/shared/data/adapters/essentialServicesAdapter';
@@ -23,6 +24,19 @@ export function MapServicesContent({
   onJourney?: (service: ServiceLocation) => void;
 }) {
   const metadata = loadEssentialServicesMetadata();
+  const selectedDetailRef = useRef<HTMLDivElement | null>(null);
+
+  // A map marker can be selected while the Services panel is scrolled deep into the
+  // results list. Bring the selected service card back into view so the click always
+  // has an obvious result in both places: map focus + service information.
+  useEffect(() => {
+    if (!model.selected?.id) return;
+
+    selectedDetailRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+    });
+  }, [model.selected?.id]);
 
   if (!hasOrigin) {
     return (
@@ -115,10 +129,12 @@ export function MapServicesContent({
       )}
 
       {model.selected && (
-        <ServiceDetail
-          service={model.selected}
-          onJourney={onJourney}
-        />
+        <div ref={selectedDetailRef}>
+          <ServiceDetail
+            service={model.selected}
+            onJourney={onJourney}
+          />
+        </div>
       )}
 
       {/* Suppressed while awaiting a choice: ServiceList's empty state reads "No services
