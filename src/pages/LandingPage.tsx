@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { ArrowRight, Clock, MapPin, Train, Building2, Gauge, Sparkles, TrendingUp, Footprints, Route } from 'lucide-react';
+import { ArrowRight, Clock, MapPin, Train, Building2, Gauge, Sparkles, TrendingUp, Footprints, Route, Users } from 'lucide-react';
 import { TransitMap, ReachabilityLayer, OriginMarker } from '@/shared/map';
 
 import { LocationSearch, TIME_BUDGET_OPTIONS } from '@/features/reachability';
@@ -175,6 +175,7 @@ export function LandingPage({ onNavigate, onSearchSelect }: LandingPageProps) {
               { icon: MapPin, title: 'Reachability Mapping', desc: 'Draw reachable areas from any point using real rail schedules and the walking network.', color: '#0d9488', page: 'map' as PageId, available: true },
               { icon: Building2, title: 'Essential Services', desc: 'See which hospitals, schools, markets, and government offices fall within reach.', color: '#e11d48', page: 'services' as PageId, available: true },
               { icon: Clock, title: 'Time-of-Day Comparison', desc: 'Compare real service coverage at 09:00 and 17:00 using the published schedule.', color: '#2563eb', page: 'time' as PageId, available: true },
+              { icon: Users, title: 'Meet Up', desc: 'Share a link, set your own starting points, and find places that are fair for everyone to reach.', color: '#0d9488', page: 'meeting' as PageId, available: true },
               { icon: Route, title: 'Scenario Modelling', desc: 'Test proposed routes or suspend existing ones to see how access changes.', color: '#8b5cf6', page: 'scenario' as PageId, available: false },
               { icon: TrendingUp, title: 'Area Typology', desc: 'Classify neighbourhoods by walkability, transit, and service access scores.', color: '#f59e0b', page: 'typology' as PageId, available: false },
               { icon: Gauge, title: 'Confidence Scoring', desc: 'Every result includes a data-confidence grade so you know what to trust.', color: '#22c55e', page: 'methodology' as PageId, available: false },
