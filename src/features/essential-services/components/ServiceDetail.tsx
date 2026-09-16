@@ -1,9 +1,15 @@
-import { Accessibility, Clock, MapPin } from 'lucide-react';
+import { Accessibility, ArrowRight, Clock, MapPin, Route } from 'lucide-react';
 import { CATEGORY_META } from '@/shared/data';
 import type { ServiceLocation } from '@/shared/types/service';
 
 /** AC 5.1.3 / 5.2.4 — show the source-backed detail and identify unavailable fields. */
-export function ServiceDetail({ service }: { service: ServiceLocation }) {
+export function ServiceDetail({
+  service,
+  onJourney,
+}: {
+  service: ServiceLocation;
+  onJourney?: (service: ServiceLocation) => void;
+}) {
   const meta = CATEGORY_META[service.category];
   const Icon = meta.icon;
   return (
@@ -24,6 +30,18 @@ export function ServiceDetail({ service }: { service: ServiceLocation }) {
       <div className="text-xs text-slate-500">Source tag: <span className="font-mono">{service.sourceCategory || 'Unavailable'}</span></div>
       <div className="text-xs text-slate-500 flex items-center gap-1"><Accessibility size={13} />{service.accessible === undefined ? 'Wheelchair information unavailable' : service.accessible ? 'Wheelchair accessible' : 'Wheelchair access marked no'}</div>
       {service.missingFields && service.missingFields.length > 0 && <div className="text-xs text-amber-700">Unavailable fields: {service.missingFields.join(', ')}</div>}
+
+      {onJourney && (
+        <button
+          type="button"
+          onClick={() => onJourney(service)}
+          className="w-full rounded-xl bg-teal-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700 flex items-center justify-center gap-2"
+        >
+          <Route size={16} />
+          View journey
+          <ArrowRight size={15} />
+        </button>
+      )}
     </div>
   );
 }

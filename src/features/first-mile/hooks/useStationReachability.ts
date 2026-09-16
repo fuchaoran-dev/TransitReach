@@ -5,6 +5,7 @@ import {
 
 import {
   computeReachability,
+  DEPARTURE_TIME,
   type IsochroneRegion,
 } from '@/shared/data/adapters/routingAdapter';
 
@@ -23,30 +24,38 @@ export type StationReachabilityState =
   | {
       status: 'ready';
       regions: IsochroneRegion[];
+      budgetMinutes: number;
     }
   | {
       status: 'failed';
     };
 
+/**
+ * Computes a second reachability area from a selected first-mile station.
+ *
+ * This is intentionally separate from the main origin reachability area. It is only
+ * enabled after the user explicitly selects a rail/BRT service from a first-mile stop.
+ * The caller supplies the remaining journey budget and an adjusted departure time so
+ * the secondary area does not pretend the user was already standing at the station at
+ * the original departure time.
+ */
 export function useStationReachability(
   station: StationPoint | null,
-  timeBudget: number,
+  timeBudgetMinutes: number,
+  departureTime = DEPARTURE_TIME,
 ) {
-  const [
-    state,
-    setState,
-  ] =
+  const [state, setState] =
     useState<StationReachabilityState>({
       status: 'idle',
     });
 
   useEffect(() => {
-    if (!station || timeBudget <= 0) {
-        setState({
-            status: 'idle',
-        });
-        return;
-        }
+    if (!station || timeBudgetMinutes <= 0) {
+      setState({
+        status: 'idle',
+      });
+      return;
+    }
 
     const controller =
       new AbortController();
@@ -57,8 +66,9 @@ export function useStationReachability(
 
     computeReachability(
       station,
-      timeBudget,
+      timeBudgetMinutes,
       controller.signal,
+      departureTime,
     )
       .then(({ result }) => {
         if (
@@ -69,21 +79,17 @@ export function useStationReachability(
 
         setState({
           status: 'ready',
-          regions:
-            result.regions,
+          regions: result.regions,
+          budgetMinutes:
+            timeBudgetMinutes,
         });
       })
-      .catch(error => {
+      .catch(() => {
         if (
           controller.signal.aborted
         ) {
           return;
         }
-
-        console.error(
-          'Station reachability failed',
-          error,
-        );
 
         setState({
           status: 'failed',
@@ -96,7 +102,8 @@ export function useStationReachability(
   }, [
     station?.lat,
     station?.lon,
-    timeBudget,
+    timeBudgetMinutes,
+    departureTime,
   ]);
 
   return state;
