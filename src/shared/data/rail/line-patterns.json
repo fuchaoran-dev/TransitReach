@@ -1,0 +1,2761 @@
+{
+  "generatedAt": "2026-09-16T11:45:06.400Z",
+  "generatedBy": "scripts/build-rail-line-patterns.mjs",
+  "source": "data/gtfs/rapid-rail-kl",
+  "routes": [
+    {
+      "routeId": "AG",
+      "directions": [
+        {
+          "directionId": 0,
+          "tripHeadsign": "From Ampang to Sentul Timur",
+          "stops": [
+            {
+              "stationId": "AG18",
+              "platformStopId": "AG18",
+              "sequence": 1,
+              "arrivalOffsetSeconds": -18,
+              "departureOffsetSeconds": 0
+            },
+            {
+              "stationId": "AG17",
+              "platformStopId": "AG17",
+              "sequence": 2,
+              "arrivalOffsetSeconds": 105,
+              "departureOffsetSeconds": 123
+            },
+            {
+              "stationId": "AG16",
+              "platformStopId": "AG16",
+              "sequence": 3,
+              "arrivalOffsetSeconds": 177,
+              "departureOffsetSeconds": 195
+            },
+            {
+              "stationId": "AG15",
+              "platformStopId": "AG15",
+              "sequence": 4,
+              "arrivalOffsetSeconds": 265,
+              "departureOffsetSeconds": 283
+            },
+            {
+              "stationId": "AG14",
+              "platformStopId": "AG14",
+              "sequence": 5,
+              "arrivalOffsetSeconds": 363,
+              "departureOffsetSeconds": 381
+            },
+            {
+              "stationId": "AG13",
+              "platformStopId": "AG13",
+              "sequence": 6,
+              "arrivalOffsetSeconds": 490,
+              "departureOffsetSeconds": 508
+            },
+            {
+              "stationId": "AG12",
+              "platformStopId": "AG12",
+              "sequence": 7,
+              "arrivalOffsetSeconds": 591,
+              "departureOffsetSeconds": 609
+            },
+            {
+              "stationId": "AG11",
+              "platformStopId": "AG11",
+              "sequence": 8,
+              "arrivalOffsetSeconds": 691,
+              "departureOffsetSeconds": 709
+            },
+            {
+              "stationId": "AG10",
+              "platformStopId": "AG10",
+              "sequence": 9,
+              "arrivalOffsetSeconds": 796,
+              "departureOffsetSeconds": 814
+            },
+            {
+              "stationId": "AG9",
+              "platformStopId": "AG9",
+              "sequence": 10,
+              "arrivalOffsetSeconds": 887,
+              "departureOffsetSeconds": 905
+            },
+            {
+              "stationId": "AG8",
+              "platformStopId": "AG8",
+              "sequence": 11,
+              "arrivalOffsetSeconds": 971,
+              "departureOffsetSeconds": 989
+            },
+            {
+              "stationId": "AG7",
+              "platformStopId": "AG7",
+              "sequence": 12,
+              "arrivalOffsetSeconds": 1081,
+              "departureOffsetSeconds": 1099
+            },
+            {
+              "stationId": "AG6",
+              "platformStopId": "AG6",
+              "sequence": 13,
+              "arrivalOffsetSeconds": 1194,
+              "departureOffsetSeconds": 1212
+            },
+            {
+              "stationId": "AG5",
+              "platformStopId": "AG5",
+              "sequence": 14,
+              "arrivalOffsetSeconds": 1281,
+              "departureOffsetSeconds": 1299
+            },
+            {
+              "stationId": "AG4",
+              "platformStopId": "AG4",
+              "sequence": 15,
+              "arrivalOffsetSeconds": 1369,
+              "departureOffsetSeconds": 1387
+            },
+            {
+              "stationId": "AG3",
+              "platformStopId": "AG3",
+              "sequence": 16,
+              "arrivalOffsetSeconds": 1472,
+              "departureOffsetSeconds": 1490
+            },
+            {
+              "stationId": "AG2",
+              "platformStopId": "AG2",
+              "sequence": 17,
+              "arrivalOffsetSeconds": 1552,
+              "departureOffsetSeconds": 1570
+            },
+            {
+              "stationId": "AG1",
+              "platformStopId": "AG1",
+              "sequence": 18,
+              "arrivalOffsetSeconds": 1649,
+              "departureOffsetSeconds": 1667
+            }
+          ]
+        },
+        {
+          "directionId": 1,
+          "tripHeadsign": "From Sentul Timur to Ampang",
+          "stops": [
+            {
+              "stationId": "AG1",
+              "platformStopId": "AG1",
+              "sequence": 1,
+              "arrivalOffsetSeconds": -18,
+              "departureOffsetSeconds": 0
+            },
+            {
+              "stationId": "AG2",
+              "platformStopId": "AG2",
+              "sequence": 2,
+              "arrivalOffsetSeconds": 79,
+              "departureOffsetSeconds": 97
+            },
+            {
+              "stationId": "AG3",
+              "platformStopId": "AG3",
+              "sequence": 3,
+              "arrivalOffsetSeconds": 159,
+              "departureOffsetSeconds": 177
+            },
+            {
+              "stationId": "AG4",
+              "platformStopId": "AG4",
+              "sequence": 4,
+              "arrivalOffsetSeconds": 262,
+              "departureOffsetSeconds": 280
+            },
+            {
+              "stationId": "AG5",
+              "platformStopId": "AG5",
+              "sequence": 5,
+              "arrivalOffsetSeconds": 350,
+              "departureOffsetSeconds": 368
+            },
+            {
+              "stationId": "AG6",
+              "platformStopId": "AG6",
+              "sequence": 6,
+              "arrivalOffsetSeconds": 437,
+              "departureOffsetSeconds": 455
+            },
+            {
+              "stationId": "AG7",
+              "platformStopId": "AG7",
+              "sequence": 7,
+              "arrivalOffsetSeconds": 550,
+              "departureOffsetSeconds": 568
+            },
+            {
+              "stationId": "AG8",
+              "platformStopId": "AG8",
+              "sequence": 8,
+              "arrivalOffsetSeconds": 660,
+              "departureOffsetSeconds": 678
+            },
+            {
+              "stationId": "AG9",
+              "platformStopId": "AG9",
+              "sequence": 9,
+              "arrivalOffsetSeconds": 744,
+              "departureOffsetSeconds": 762
+            },
+            {
+              "stationId": "AG10",
+              "platformStopId": "AG10",
+              "sequence": 10,
+              "arrivalOffsetSeconds": 835,
+              "departureOffsetSeconds": 853
+            },
+            {
+              "stationId": "AG11",
+              "platformStopId": "AG11",
+              "sequence": 11,
+              "arrivalOffsetSeconds": 940,
+              "departureOffsetSeconds": 958
+            },
+            {
+              "stationId": "AG12",
+              "platformStopId": "AG12",
+              "sequence": 12,
+              "arrivalOffsetSeconds": 1034,
+              "departureOffsetSeconds": 1052
+            },
+            {
+              "stationId": "AG13",
+              "platformStopId": "AG13",
+              "sequence": 13,
+              "arrivalOffsetSeconds": 1138,
+              "departureOffsetSeconds": 1156
+            },
+            {
+              "stationId": "AG14",
+              "platformStopId": "AG14",
+              "sequence": 14,
+              "arrivalOffsetSeconds": 1264,
+              "departureOffsetSeconds": 1282
+            },
+            {
+              "stationId": "AG15",
+              "platformStopId": "AG15",
+              "sequence": 15,
+              "arrivalOffsetSeconds": 1363,
+              "departureOffsetSeconds": 1381
+            },
+            {
+              "stationId": "AG16",
+              "platformStopId": "AG16",
+              "sequence": 16,
+              "arrivalOffsetSeconds": 1453,
+              "departureOffsetSeconds": 1471
+            },
+            {
+              "stationId": "AG17",
+              "platformStopId": "AG17",
+              "sequence": 17,
+              "arrivalOffsetSeconds": 1527,
+              "departureOffsetSeconds": 1545
+            },
+            {
+              "stationId": "AG18",
+              "platformStopId": "AG18",
+              "sequence": 18,
+              "arrivalOffsetSeconds": 1664,
+              "departureOffsetSeconds": 1682
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "routeId": "BRT",
+      "directions": [
+        {
+          "directionId": 0,
+          "tripHeadsign": "From Sunway-Setia Jaya to USJ 7",
+          "stops": [
+            {
+              "stationId": "BRT1",
+              "platformStopId": "BRT1",
+              "sequence": 1,
+              "arrivalOffsetSeconds": -25,
+              "departureOffsetSeconds": 0
+            },
+            {
+              "stationId": "BRT2",
+              "platformStopId": "BRT2",
+              "sequence": 2,
+              "arrivalOffsetSeconds": 150,
+              "departureOffsetSeconds": 175
+            },
+            {
+              "stationId": "BRT3",
+              "platformStopId": "BRT3",
+              "sequence": 3,
+              "arrivalOffsetSeconds": 325,
+              "departureOffsetSeconds": 350
+            },
+            {
+              "stationId": "BRT4",
+              "platformStopId": "BRT4",
+              "sequence": 4,
+              "arrivalOffsetSeconds": 470,
+              "departureOffsetSeconds": 495
+            },
+            {
+              "stationId": "BRT5",
+              "platformStopId": "BRT5",
+              "sequence": 5,
+              "arrivalOffsetSeconds": 615,
+              "departureOffsetSeconds": 640
+            },
+            {
+              "stationId": "BRT6",
+              "platformStopId": "BRT6",
+              "sequence": 6,
+              "arrivalOffsetSeconds": 760,
+              "departureOffsetSeconds": 785
+            },
+            {
+              "stationId": "BRT7",
+              "platformStopId": "BRT7",
+              "sequence": 7,
+              "arrivalOffsetSeconds": 905,
+              "departureOffsetSeconds": 930
+            }
+          ]
+        },
+        {
+          "directionId": 1,
+          "tripHeadsign": "From USJ 7 to Sunway-Setia Jaya",
+          "stops": [
+            {
+              "stationId": "BRT7",
+              "platformStopId": "BRT7",
+              "sequence": 1,
+              "arrivalOffsetSeconds": -25,
+              "departureOffsetSeconds": 0
+            },
+            {
+              "stationId": "BRT6",
+              "platformStopId": "BRT6",
+              "sequence": 2,
+              "arrivalOffsetSeconds": 150,
+              "departureOffsetSeconds": 175
+            },
+            {
+              "stationId": "BRT5",
+              "platformStopId": "BRT5",
+              "sequence": 3,
+              "arrivalOffsetSeconds": 325,
+              "departureOffsetSeconds": 350
+            },
+            {
+              "stationId": "BRT4",
+              "platformStopId": "BRT4",
+              "sequence": 4,
+              "arrivalOffsetSeconds": 470,
+              "departureOffsetSeconds": 495
+            },
+            {
+              "stationId": "BRT3",
+              "platformStopId": "BRT3",
+              "sequence": 5,
+              "arrivalOffsetSeconds": 615,
+              "departureOffsetSeconds": 640
+            },
+            {
+              "stationId": "BRT2",
+              "platformStopId": "BRT2",
+              "sequence": 6,
+              "arrivalOffsetSeconds": 760,
+              "departureOffsetSeconds": 785
+            },
+            {
+              "stationId": "BRT1",
+              "platformStopId": "BRT1",
+              "sequence": 7,
+              "arrivalOffsetSeconds": 905,
+              "departureOffsetSeconds": 930
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "routeId": "KGL",
+      "directions": [
+        {
+          "directionId": 0,
+          "tripHeadsign": "From Kwasa Damansara to Kajang",
+          "stops": [
+            {
+              "stationId": "KG04",
+              "platformStopId": "KG04",
+              "sequence": 1,
+              "arrivalOffsetSeconds": -18,
+              "departureOffsetSeconds": 0
+            },
+            {
+              "stationId": "KG05",
+              "platformStopId": "KG05",
+              "sequence": 2,
+              "arrivalOffsetSeconds": 120,
+              "departureOffsetSeconds": 146
+            },
+            {
+              "stationId": "KG06",
+              "platformStopId": "KG06",
+              "sequence": 3,
+              "arrivalOffsetSeconds": 326,
+              "departureOffsetSeconds": 352
+            },
+            {
+              "stationId": "KG07",
+              "platformStopId": "KG07",
+              "sequence": 4,
+              "arrivalOffsetSeconds": 472,
+              "departureOffsetSeconds": 498
+            },
+            {
+              "stationId": "KG08",
+              "platformStopId": "KG08",
+              "sequence": 5,
+              "arrivalOffsetSeconds": 618,
+              "departureOffsetSeconds": 644
+            },
+            {
+              "stationId": "KG09",
+              "platformStopId": "KG09",
+              "sequence": 6,
+              "arrivalOffsetSeconds": 824,
+              "departureOffsetSeconds": 850
+            },
+            {
+              "stationId": "KG10",
+              "platformStopId": "KG10",
+              "sequence": 7,
+              "arrivalOffsetSeconds": 1030,
+              "departureOffsetSeconds": 1056
+            },
+            {
+              "stationId": "KG12",
+              "platformStopId": "KG12",
+              "sequence": 8,
+              "arrivalOffsetSeconds": 1176,
+              "departureOffsetSeconds": 1206
+            },
+            {
+              "stationId": "KG13",
+              "platformStopId": "KG13",
+              "sequence": 9,
+              "arrivalOffsetSeconds": 1446,
+              "departureOffsetSeconds": 1472
+            },
+            {
+              "stationId": "KG14",
+              "platformStopId": "KG14",
+              "sequence": 10,
+              "arrivalOffsetSeconds": 1652,
+              "departureOffsetSeconds": 1678
+            },
+            {
+              "stationId": "KG15",
+              "platformStopId": "KG15",
+              "sequence": 11,
+              "arrivalOffsetSeconds": 1918,
+              "departureOffsetSeconds": 1958
+            },
+            {
+              "stationId": "KG16",
+              "platformStopId": "KG16",
+              "sequence": 12,
+              "arrivalOffsetSeconds": 2138,
+              "departureOffsetSeconds": 2178
+            },
+            {
+              "stationId": "KG17",
+              "platformStopId": "KG17",
+              "sequence": 13,
+              "arrivalOffsetSeconds": 2298,
+              "departureOffsetSeconds": 2338
+            },
+            {
+              "stationId": "KG18A",
+              "platformStopId": "KG18A",
+              "sequence": 14,
+              "arrivalOffsetSeconds": 2518,
+              "departureOffsetSeconds": 2558
+            },
+            {
+              "stationId": "KG20",
+              "platformStopId": "KG20",
+              "sequence": 15,
+              "arrivalOffsetSeconds": 2738,
+              "departureOffsetSeconds": 2764
+            },
+            {
+              "stationId": "KG21",
+              "platformStopId": "KG21",
+              "sequence": 16,
+              "arrivalOffsetSeconds": 2884,
+              "departureOffsetSeconds": 2910
+            },
+            {
+              "stationId": "AG13",
+              "platformStopId": "KG22",
+              "sequence": 17,
+              "arrivalOffsetSeconds": 3030,
+              "departureOffsetSeconds": 3070
+            },
+            {
+              "stationId": "KG23",
+              "platformStopId": "KG23",
+              "sequence": 18,
+              "arrivalOffsetSeconds": 3250,
+              "departureOffsetSeconds": 3276
+            },
+            {
+              "stationId": "KG24",
+              "platformStopId": "KG24",
+              "sequence": 19,
+              "arrivalOffsetSeconds": 3396,
+              "departureOffsetSeconds": 3422
+            },
+            {
+              "stationId": "KG25",
+              "platformStopId": "KG25",
+              "sequence": 20,
+              "arrivalOffsetSeconds": 3602,
+              "departureOffsetSeconds": 3628
+            },
+            {
+              "stationId": "KG26",
+              "platformStopId": "KG26",
+              "sequence": 21,
+              "arrivalOffsetSeconds": 3808,
+              "departureOffsetSeconds": 3834
+            },
+            {
+              "stationId": "KG27",
+              "platformStopId": "KG27",
+              "sequence": 22,
+              "arrivalOffsetSeconds": 4014,
+              "departureOffsetSeconds": 4040
+            },
+            {
+              "stationId": "KG28",
+              "platformStopId": "KG28",
+              "sequence": 23,
+              "arrivalOffsetSeconds": 4160,
+              "departureOffsetSeconds": 4186
+            },
+            {
+              "stationId": "KG29",
+              "platformStopId": "KG29",
+              "sequence": 24,
+              "arrivalOffsetSeconds": 4366,
+              "departureOffsetSeconds": 4392
+            },
+            {
+              "stationId": "KG30",
+              "platformStopId": "KG30",
+              "sequence": 25,
+              "arrivalOffsetSeconds": 4512,
+              "departureOffsetSeconds": 4538
+            },
+            {
+              "stationId": "KG31",
+              "platformStopId": "KG31",
+              "sequence": 26,
+              "arrivalOffsetSeconds": 4718,
+              "departureOffsetSeconds": 4744
+            },
+            {
+              "stationId": "KG33",
+              "platformStopId": "KG33",
+              "sequence": 27,
+              "arrivalOffsetSeconds": 4984,
+              "departureOffsetSeconds": 5010
+            },
+            {
+              "stationId": "KG34",
+              "platformStopId": "KG34",
+              "sequence": 28,
+              "arrivalOffsetSeconds": 5130,
+              "departureOffsetSeconds": 5156
+            },
+            {
+              "stationId": "KG35",
+              "platformStopId": "KG35",
+              "sequence": 29,
+              "arrivalOffsetSeconds": 5276,
+              "departureOffsetSeconds": 5316
+            }
+          ]
+        },
+        {
+          "directionId": 1,
+          "tripHeadsign": "From Kajang to Kwasa Damansara",
+          "stops": [
+            {
+              "stationId": "KG35",
+              "platformStopId": "KG35",
+              "sequence": 1,
+              "arrivalOffsetSeconds": -18,
+              "departureOffsetSeconds": 0
+            },
+            {
+              "stationId": "KG34",
+              "platformStopId": "KG34",
+              "sequence": 2,
+              "arrivalOffsetSeconds": 120,
+              "departureOffsetSeconds": 146
+            },
+            {
+              "stationId": "KG33",
+              "platformStopId": "KG33",
+              "sequence": 3,
+              "arrivalOffsetSeconds": 266,
+              "departureOffsetSeconds": 292
+            },
+            {
+              "stationId": "KG31",
+              "platformStopId": "KG31",
+              "sequence": 4,
+              "arrivalOffsetSeconds": 532,
+              "departureOffsetSeconds": 558
+            },
+            {
+              "stationId": "KG30",
+              "platformStopId": "KG30",
+              "sequence": 5,
+              "arrivalOffsetSeconds": 738,
+              "departureOffsetSeconds": 764
+            },
+            {
+              "stationId": "KG29",
+              "platformStopId": "KG29",
+              "sequence": 6,
+              "arrivalOffsetSeconds": 884,
+              "departureOffsetSeconds": 910
+            },
+            {
+              "stationId": "KG28",
+              "platformStopId": "KG28",
+              "sequence": 7,
+              "arrivalOffsetSeconds": 1090,
+              "departureOffsetSeconds": 1116
+            },
+            {
+              "stationId": "KG27",
+              "platformStopId": "KG27",
+              "sequence": 8,
+              "arrivalOffsetSeconds": 1236,
+              "departureOffsetSeconds": 1262
+            },
+            {
+              "stationId": "KG26",
+              "platformStopId": "KG26",
+              "sequence": 9,
+              "arrivalOffsetSeconds": 1442,
+              "departureOffsetSeconds": 1468
+            },
+            {
+              "stationId": "KG25",
+              "platformStopId": "KG25",
+              "sequence": 10,
+              "arrivalOffsetSeconds": 1648,
+              "departureOffsetSeconds": 1674
+            },
+            {
+              "stationId": "KG24",
+              "platformStopId": "KG24",
+              "sequence": 11,
+              "arrivalOffsetSeconds": 1854,
+              "departureOffsetSeconds": 1880
+            },
+            {
+              "stationId": "KG23",
+              "platformStopId": "KG23",
+              "sequence": 12,
+              "arrivalOffsetSeconds": 2000,
+              "departureOffsetSeconds": 2026
+            },
+            {
+              "stationId": "AG13",
+              "platformStopId": "KG22",
+              "sequence": 13,
+              "arrivalOffsetSeconds": 2206,
+              "departureOffsetSeconds": 2246
+            },
+            {
+              "stationId": "KG21",
+              "platformStopId": "KG21",
+              "sequence": 14,
+              "arrivalOffsetSeconds": 2366,
+              "departureOffsetSeconds": 2392
+            },
+            {
+              "stationId": "KG20",
+              "platformStopId": "KG20",
+              "sequence": 15,
+              "arrivalOffsetSeconds": 2512,
+              "departureOffsetSeconds": 2538
+            },
+            {
+              "stationId": "KG18A",
+              "platformStopId": "KG18A",
+              "sequence": 16,
+              "arrivalOffsetSeconds": 2718,
+              "departureOffsetSeconds": 2758
+            },
+            {
+              "stationId": "KG17",
+              "platformStopId": "KG17",
+              "sequence": 17,
+              "arrivalOffsetSeconds": 2938,
+              "departureOffsetSeconds": 2978
+            },
+            {
+              "stationId": "KG16",
+              "platformStopId": "KG16",
+              "sequence": 18,
+              "arrivalOffsetSeconds": 3098,
+              "departureOffsetSeconds": 3138
+            },
+            {
+              "stationId": "KG15",
+              "platformStopId": "KG15",
+              "sequence": 19,
+              "arrivalOffsetSeconds": 3318,
+              "departureOffsetSeconds": 3358
+            },
+            {
+              "stationId": "KG14",
+              "platformStopId": "KG14",
+              "sequence": 20,
+              "arrivalOffsetSeconds": 3598,
+              "departureOffsetSeconds": 3624
+            },
+            {
+              "stationId": "KG13",
+              "platformStopId": "KG13",
+              "sequence": 21,
+              "arrivalOffsetSeconds": 3804,
+              "departureOffsetSeconds": 3830
+            },
+            {
+              "stationId": "KG12",
+              "platformStopId": "KG12",
+              "sequence": 22,
+              "arrivalOffsetSeconds": 4070,
+              "departureOffsetSeconds": 4110
+            },
+            {
+              "stationId": "KG10",
+              "platformStopId": "KG10",
+              "sequence": 23,
+              "arrivalOffsetSeconds": 4230,
+              "departureOffsetSeconds": 4256
+            },
+            {
+              "stationId": "KG09",
+              "platformStopId": "KG09",
+              "sequence": 24,
+              "arrivalOffsetSeconds": 4436,
+              "departureOffsetSeconds": 4462
+            },
+            {
+              "stationId": "KG08",
+              "platformStopId": "KG08",
+              "sequence": 25,
+              "arrivalOffsetSeconds": 4642,
+              "departureOffsetSeconds": 4668
+            },
+            {
+              "stationId": "KG07",
+              "platformStopId": "KG07",
+              "sequence": 26,
+              "arrivalOffsetSeconds": 4788,
+              "departureOffsetSeconds": 4814
+            },
+            {
+              "stationId": "KG06",
+              "platformStopId": "KG06",
+              "sequence": 27,
+              "arrivalOffsetSeconds": 4934,
+              "departureOffsetSeconds": 4960
+            },
+            {
+              "stationId": "KG05",
+              "platformStopId": "KG05",
+              "sequence": 28,
+              "arrivalOffsetSeconds": 5140,
+              "departureOffsetSeconds": 5166
+            },
+            {
+              "stationId": "KG04",
+              "platformStopId": "KG04",
+              "sequence": 29,
+              "arrivalOffsetSeconds": 5286,
+              "departureOffsetSeconds": 5312
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "routeId": "KJ",
+      "directions": [
+        {
+          "directionId": 0,
+          "tripHeadsign": "From Putra Heights to Gombak",
+          "stops": [
+            {
+              "stationId": "KJ37",
+              "platformStopId": "KJ37",
+              "sequence": 1,
+              "arrivalOffsetSeconds": -18,
+              "departureOffsetSeconds": 0
+            },
+            {
+              "stationId": "KJ36",
+              "platformStopId": "KJ36",
+              "sequence": 2,
+              "arrivalOffsetSeconds": 181,
+              "departureOffsetSeconds": 196
+            },
+            {
+              "stationId": "KJ35",
+              "platformStopId": "KJ35",
+              "sequence": 3,
+              "arrivalOffsetSeconds": 340,
+              "departureOffsetSeconds": 355
+            },
+            {
+              "stationId": "KJ34",
+              "platformStopId": "KJ34",
+              "sequence": 4,
+              "arrivalOffsetSeconds": 574,
+              "departureOffsetSeconds": 589
+            },
+            {
+              "stationId": "KJ33",
+              "platformStopId": "KJ33",
+              "sequence": 5,
+              "arrivalOffsetSeconds": 727,
+              "departureOffsetSeconds": 742
+            },
+            {
+              "stationId": "KJ32",
+              "platformStopId": "KJ32",
+              "sequence": 6,
+              "arrivalOffsetSeconds": 892,
+              "departureOffsetSeconds": 907
+            },
+            {
+              "stationId": "KJ31",
+              "platformStopId": "KJ31",
+              "sequence": 7,
+              "arrivalOffsetSeconds": 1017,
+              "departureOffsetSeconds": 1032
+            },
+            {
+              "stationId": "KJ30",
+              "platformStopId": "KJ30",
+              "sequence": 8,
+              "arrivalOffsetSeconds": 1282,
+              "departureOffsetSeconds": 1297
+            },
+            {
+              "stationId": "KJ29",
+              "platformStopId": "KJ29",
+              "sequence": 9,
+              "arrivalOffsetSeconds": 1411,
+              "departureOffsetSeconds": 1426
+            },
+            {
+              "stationId": "KJ28",
+              "platformStopId": "KJ28",
+              "sequence": 10,
+              "arrivalOffsetSeconds": 1609,
+              "departureOffsetSeconds": 1624
+            },
+            {
+              "stationId": "KJ27",
+              "platformStopId": "KJ27",
+              "sequence": 11,
+              "arrivalOffsetSeconds": 1820,
+              "departureOffsetSeconds": 1835
+            },
+            {
+              "stationId": "KJ26",
+              "platformStopId": "KJ26",
+              "sequence": 12,
+              "arrivalOffsetSeconds": 2007,
+              "departureOffsetSeconds": 2022
+            },
+            {
+              "stationId": "KJ25",
+              "platformStopId": "KJ25",
+              "sequence": 13,
+              "arrivalOffsetSeconds": 2117,
+              "departureOffsetSeconds": 2132
+            },
+            {
+              "stationId": "KJ24",
+              "platformStopId": "KJ24",
+              "sequence": 14,
+              "arrivalOffsetSeconds": 2285,
+              "departureOffsetSeconds": 2300
+            },
+            {
+              "stationId": "KJ23",
+              "platformStopId": "KJ23",
+              "sequence": 15,
+              "arrivalOffsetSeconds": 2417,
+              "departureOffsetSeconds": 2432
+            },
+            {
+              "stationId": "KJ22",
+              "platformStopId": "KJ22",
+              "sequence": 16,
+              "arrivalOffsetSeconds": 2567,
+              "departureOffsetSeconds": 2582
+            },
+            {
+              "stationId": "KJ21",
+              "platformStopId": "KJ21",
+              "sequence": 17,
+              "arrivalOffsetSeconds": 2728,
+              "departureOffsetSeconds": 2743
+            },
+            {
+              "stationId": "KJ20",
+              "platformStopId": "KJ20",
+              "sequence": 18,
+              "arrivalOffsetSeconds": 2842,
+              "departureOffsetSeconds": 2857
+            },
+            {
+              "stationId": "KJ19",
+              "platformStopId": "KJ19",
+              "sequence": 19,
+              "arrivalOffsetSeconds": 3068,
+              "departureOffsetSeconds": 3085
+            },
+            {
+              "stationId": "KJ18",
+              "platformStopId": "KJ18",
+              "sequence": 20,
+              "arrivalOffsetSeconds": 3197,
+              "departureOffsetSeconds": 3214
+            },
+            {
+              "stationId": "KJ17",
+              "platformStopId": "KJ17",
+              "sequence": 21,
+              "arrivalOffsetSeconds": 3326,
+              "departureOffsetSeconds": 3344
+            },
+            {
+              "stationId": "KJ16",
+              "platformStopId": "KJ16",
+              "sequence": 22,
+              "arrivalOffsetSeconds": 3487,
+              "departureOffsetSeconds": 3504
+            },
+            {
+              "stationId": "KJ15",
+              "platformStopId": "KJ15",
+              "sequence": 23,
+              "arrivalOffsetSeconds": 3650,
+              "departureOffsetSeconds": 3685
+            },
+            {
+              "stationId": "KG16",
+              "platformStopId": "KJ14",
+              "sequence": 24,
+              "arrivalOffsetSeconds": 3864,
+              "departureOffsetSeconds": 3899
+            },
+            {
+              "stationId": "AG7",
+              "platformStopId": "KJ13",
+              "sequence": 25,
+              "arrivalOffsetSeconds": 4045,
+              "departureOffsetSeconds": 4080
+            },
+            {
+              "stationId": "KJ12",
+              "platformStopId": "KJ12",
+              "sequence": 26,
+              "arrivalOffsetSeconds": 4199,
+              "departureOffsetSeconds": 4214
+            },
+            {
+              "stationId": "KJ11",
+              "platformStopId": "KJ11",
+              "sequence": 27,
+              "arrivalOffsetSeconds": 4313,
+              "departureOffsetSeconds": 4328
+            },
+            {
+              "stationId": "KJ10",
+              "platformStopId": "KJ10",
+              "sequence": 28,
+              "arrivalOffsetSeconds": 4461,
+              "departureOffsetSeconds": 4496
+            },
+            {
+              "stationId": "KJ9",
+              "platformStopId": "KJ9",
+              "sequence": 29,
+              "arrivalOffsetSeconds": 4611,
+              "departureOffsetSeconds": 4646
+            },
+            {
+              "stationId": "KJ8",
+              "platformStopId": "KJ8",
+              "sequence": 30,
+              "arrivalOffsetSeconds": 4762,
+              "departureOffsetSeconds": 4777
+            },
+            {
+              "stationId": "KJ7",
+              "platformStopId": "KJ7",
+              "sequence": 31,
+              "arrivalOffsetSeconds": 4888,
+              "departureOffsetSeconds": 4903
+            },
+            {
+              "stationId": "KJ6",
+              "platformStopId": "KJ6",
+              "sequence": 32,
+              "arrivalOffsetSeconds": 5003,
+              "departureOffsetSeconds": 5018
+            },
+            {
+              "stationId": "KJ5",
+              "platformStopId": "KJ5",
+              "sequence": 33,
+              "arrivalOffsetSeconds": 5122,
+              "departureOffsetSeconds": 5137
+            },
+            {
+              "stationId": "KJ4",
+              "platformStopId": "KJ4",
+              "sequence": 34,
+              "arrivalOffsetSeconds": 5387,
+              "departureOffsetSeconds": 5402
+            },
+            {
+              "stationId": "KJ3",
+              "platformStopId": "KJ3",
+              "sequence": 35,
+              "arrivalOffsetSeconds": 5529,
+              "departureOffsetSeconds": 5544
+            },
+            {
+              "stationId": "KJ2",
+              "platformStopId": "KJ2",
+              "sequence": 36,
+              "arrivalOffsetSeconds": 5707,
+              "departureOffsetSeconds": 5722
+            },
+            {
+              "stationId": "KJ1",
+              "platformStopId": "KJ1",
+              "sequence": 37,
+              "arrivalOffsetSeconds": 5865,
+              "departureOffsetSeconds": 5880
+            }
+          ]
+        },
+        {
+          "directionId": 1,
+          "tripHeadsign": "From Gombak to Putra Heights",
+          "stops": [
+            {
+              "stationId": "KJ1",
+              "platformStopId": "KJ1",
+              "sequence": 1,
+              "arrivalOffsetSeconds": -18,
+              "departureOffsetSeconds": 0
+            },
+            {
+              "stationId": "KJ2",
+              "platformStopId": "KJ2",
+              "sequence": 2,
+              "arrivalOffsetSeconds": 155,
+              "departureOffsetSeconds": 170
+            },
+            {
+              "stationId": "KJ3",
+              "platformStopId": "KJ3",
+              "sequence": 3,
+              "arrivalOffsetSeconds": 330,
+              "departureOffsetSeconds": 345
+            },
+            {
+              "stationId": "KJ4",
+              "platformStopId": "KJ4",
+              "sequence": 4,
+              "arrivalOffsetSeconds": 454,
+              "departureOffsetSeconds": 469
+            },
+            {
+              "stationId": "KJ5",
+              "platformStopId": "KJ5",
+              "sequence": 5,
+              "arrivalOffsetSeconds": 724,
+              "departureOffsetSeconds": 739
+            },
+            {
+              "stationId": "KJ6",
+              "platformStopId": "KJ6",
+              "sequence": 6,
+              "arrivalOffsetSeconds": 850,
+              "departureOffsetSeconds": 865
+            },
+            {
+              "stationId": "KJ7",
+              "platformStopId": "KJ7",
+              "sequence": 7,
+              "arrivalOffsetSeconds": 967,
+              "departureOffsetSeconds": 982
+            },
+            {
+              "stationId": "KJ8",
+              "platformStopId": "KJ8",
+              "sequence": 8,
+              "arrivalOffsetSeconds": 1094,
+              "departureOffsetSeconds": 1129
+            },
+            {
+              "stationId": "KJ9",
+              "platformStopId": "KJ9",
+              "sequence": 9,
+              "arrivalOffsetSeconds": 1267,
+              "departureOffsetSeconds": 1302
+            },
+            {
+              "stationId": "KJ10",
+              "platformStopId": "KJ10",
+              "sequence": 10,
+              "arrivalOffsetSeconds": 1417,
+              "departureOffsetSeconds": 1432
+            },
+            {
+              "stationId": "KJ11",
+              "platformStopId": "KJ11",
+              "sequence": 11,
+              "arrivalOffsetSeconds": 1546,
+              "departureOffsetSeconds": 1561
+            },
+            {
+              "stationId": "KJ12",
+              "platformStopId": "KJ12",
+              "sequence": 12,
+              "arrivalOffsetSeconds": 1658,
+              "departureOffsetSeconds": 1693
+            },
+            {
+              "stationId": "AG7",
+              "platformStopId": "KJ13",
+              "sequence": 13,
+              "arrivalOffsetSeconds": 1834,
+              "departureOffsetSeconds": 1869
+            },
+            {
+              "stationId": "KG16",
+              "platformStopId": "KJ14",
+              "sequence": 14,
+              "arrivalOffsetSeconds": 2016,
+              "departureOffsetSeconds": 2051
+            },
+            {
+              "stationId": "KJ15",
+              "platformStopId": "KJ15",
+              "sequence": 15,
+              "arrivalOffsetSeconds": 2224,
+              "departureOffsetSeconds": 2243
+            },
+            {
+              "stationId": "KJ16",
+              "platformStopId": "KJ16",
+              "sequence": 16,
+              "arrivalOffsetSeconds": 2366,
+              "departureOffsetSeconds": 2383
+            },
+            {
+              "stationId": "KJ17",
+              "platformStopId": "KJ17",
+              "sequence": 17,
+              "arrivalOffsetSeconds": 2518,
+              "departureOffsetSeconds": 2535
+            },
+            {
+              "stationId": "KJ18",
+              "platformStopId": "KJ18",
+              "sequence": 18,
+              "arrivalOffsetSeconds": 2647,
+              "departureOffsetSeconds": 2663
+            },
+            {
+              "stationId": "KJ19",
+              "platformStopId": "KJ19",
+              "sequence": 19,
+              "arrivalOffsetSeconds": 2771,
+              "departureOffsetSeconds": 2786
+            },
+            {
+              "stationId": "KJ20",
+              "platformStopId": "KJ20",
+              "sequence": 20,
+              "arrivalOffsetSeconds": 2988,
+              "departureOffsetSeconds": 3003
+            },
+            {
+              "stationId": "KJ21",
+              "platformStopId": "KJ21",
+              "sequence": 21,
+              "arrivalOffsetSeconds": 3102,
+              "departureOffsetSeconds": 3117
+            },
+            {
+              "stationId": "KJ22",
+              "platformStopId": "KJ22",
+              "sequence": 22,
+              "arrivalOffsetSeconds": 3262,
+              "departureOffsetSeconds": 3277
+            },
+            {
+              "stationId": "KJ23",
+              "platformStopId": "KJ23",
+              "sequence": 23,
+              "arrivalOffsetSeconds": 3408,
+              "departureOffsetSeconds": 3423
+            },
+            {
+              "stationId": "KJ24",
+              "platformStopId": "KJ24",
+              "sequence": 24,
+              "arrivalOffsetSeconds": 3601,
+              "departureOffsetSeconds": 3616
+            },
+            {
+              "stationId": "KJ25",
+              "platformStopId": "KJ25",
+              "sequence": 25,
+              "arrivalOffsetSeconds": 3771,
+              "departureOffsetSeconds": 3786
+            },
+            {
+              "stationId": "KJ26",
+              "platformStopId": "KJ26",
+              "sequence": 26,
+              "arrivalOffsetSeconds": 3879,
+              "departureOffsetSeconds": 3894
+            },
+            {
+              "stationId": "KJ27",
+              "platformStopId": "KJ27",
+              "sequence": 27,
+              "arrivalOffsetSeconds": 4045,
+              "departureOffsetSeconds": 4060
+            },
+            {
+              "stationId": "KJ28",
+              "platformStopId": "KJ28",
+              "sequence": 28,
+              "arrivalOffsetSeconds": 4219,
+              "departureOffsetSeconds": 4234
+            },
+            {
+              "stationId": "KJ29",
+              "platformStopId": "KJ29",
+              "sequence": 29,
+              "arrivalOffsetSeconds": 4419,
+              "departureOffsetSeconds": 4434
+            },
+            {
+              "stationId": "KJ30",
+              "platformStopId": "KJ30",
+              "sequence": 30,
+              "arrivalOffsetSeconds": 4558,
+              "departureOffsetSeconds": 4573
+            },
+            {
+              "stationId": "KJ31",
+              "platformStopId": "KJ31",
+              "sequence": 31,
+              "arrivalOffsetSeconds": 4827,
+              "departureOffsetSeconds": 4842
+            },
+            {
+              "stationId": "KJ32",
+              "platformStopId": "KJ32",
+              "sequence": 32,
+              "arrivalOffsetSeconds": 4955,
+              "departureOffsetSeconds": 4970
+            },
+            {
+              "stationId": "KJ33",
+              "platformStopId": "KJ33",
+              "sequence": 33,
+              "arrivalOffsetSeconds": 5125,
+              "departureOffsetSeconds": 5140
+            },
+            {
+              "stationId": "KJ34",
+              "platformStopId": "KJ34",
+              "sequence": 34,
+              "arrivalOffsetSeconds": 5278,
+              "departureOffsetSeconds": 5293
+            },
+            {
+              "stationId": "KJ35",
+              "platformStopId": "KJ35",
+              "sequence": 35,
+              "arrivalOffsetSeconds": 5512,
+              "departureOffsetSeconds": 5527
+            },
+            {
+              "stationId": "KJ36",
+              "platformStopId": "KJ36",
+              "sequence": 36,
+              "arrivalOffsetSeconds": 5676,
+              "departureOffsetSeconds": 5691
+            },
+            {
+              "stationId": "KJ37",
+              "platformStopId": "KJ37",
+              "sequence": 37,
+              "arrivalOffsetSeconds": 5873,
+              "departureOffsetSeconds": 5888
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "routeId": "MR",
+      "directions": [
+        {
+          "directionId": 0,
+          "tripHeadsign": "From KL Sentral to Titiwangsa",
+          "stops": [
+            {
+              "stationId": "MR1",
+              "platformStopId": "MR1",
+              "sequence": 1,
+              "arrivalOffsetSeconds": -18,
+              "departureOffsetSeconds": 0
+            },
+            {
+              "stationId": "MR2",
+              "platformStopId": "MR2",
+              "sequence": 2,
+              "arrivalOffsetSeconds": 150,
+              "departureOffsetSeconds": 168
+            },
+            {
+              "stationId": "MR3",
+              "platformStopId": "MR3",
+              "sequence": 3,
+              "arrivalOffsetSeconds": 378,
+              "departureOffsetSeconds": 396
+            },
+            {
+              "stationId": "AG9",
+              "platformStopId": "MR4",
+              "sequence": 4,
+              "arrivalOffsetSeconds": 546,
+              "departureOffsetSeconds": 564
+            },
+            {
+              "stationId": "MR5",
+              "platformStopId": "MR5",
+              "sequence": 5,
+              "arrivalOffsetSeconds": 654,
+              "departureOffsetSeconds": 672
+            },
+            {
+              "stationId": "KG18A",
+              "platformStopId": "MR6",
+              "sequence": 6,
+              "arrivalOffsetSeconds": 792,
+              "departureOffsetSeconds": 810
+            },
+            {
+              "stationId": "MR7",
+              "platformStopId": "MR7",
+              "sequence": 7,
+              "arrivalOffsetSeconds": 930,
+              "departureOffsetSeconds": 948
+            },
+            {
+              "stationId": "MR8",
+              "platformStopId": "MR8",
+              "sequence": 8,
+              "arrivalOffsetSeconds": 1068,
+              "departureOffsetSeconds": 1086
+            },
+            {
+              "stationId": "MR9",
+              "platformStopId": "MR9",
+              "sequence": 9,
+              "arrivalOffsetSeconds": 1206,
+              "departureOffsetSeconds": 1224
+            },
+            {
+              "stationId": "MR10",
+              "platformStopId": "MR10",
+              "sequence": 10,
+              "arrivalOffsetSeconds": 1374,
+              "departureOffsetSeconds": 1392
+            },
+            {
+              "stationId": "AG3",
+              "platformStopId": "MR11",
+              "sequence": 11,
+              "arrivalOffsetSeconds": 1542,
+              "departureOffsetSeconds": 1560
+            }
+          ]
+        },
+        {
+          "directionId": 1,
+          "tripHeadsign": "From Titiwangsa to KL Sentral",
+          "stops": [
+            {
+              "stationId": "AG3",
+              "platformStopId": "MR11",
+              "sequence": 1,
+              "arrivalOffsetSeconds": -18,
+              "departureOffsetSeconds": 0
+            },
+            {
+              "stationId": "MR10",
+              "platformStopId": "MR10",
+              "sequence": 2,
+              "arrivalOffsetSeconds": 150,
+              "departureOffsetSeconds": 168
+            },
+            {
+              "stationId": "MR9",
+              "platformStopId": "MR9",
+              "sequence": 3,
+              "arrivalOffsetSeconds": 318,
+              "departureOffsetSeconds": 336
+            },
+            {
+              "stationId": "MR8",
+              "platformStopId": "MR8",
+              "sequence": 4,
+              "arrivalOffsetSeconds": 456,
+              "departureOffsetSeconds": 474
+            },
+            {
+              "stationId": "MR7",
+              "platformStopId": "MR7",
+              "sequence": 5,
+              "arrivalOffsetSeconds": 594,
+              "departureOffsetSeconds": 612
+            },
+            {
+              "stationId": "KG18A",
+              "platformStopId": "MR6",
+              "sequence": 6,
+              "arrivalOffsetSeconds": 732,
+              "departureOffsetSeconds": 750
+            },
+            {
+              "stationId": "MR5",
+              "platformStopId": "MR5",
+              "sequence": 7,
+              "arrivalOffsetSeconds": 870,
+              "departureOffsetSeconds": 888
+            },
+            {
+              "stationId": "AG9",
+              "platformStopId": "MR4",
+              "sequence": 8,
+              "arrivalOffsetSeconds": 978,
+              "departureOffsetSeconds": 996
+            },
+            {
+              "stationId": "MR3",
+              "platformStopId": "MR3",
+              "sequence": 9,
+              "arrivalOffsetSeconds": 1146,
+              "departureOffsetSeconds": 1164
+            },
+            {
+              "stationId": "MR2",
+              "platformStopId": "MR2",
+              "sequence": 10,
+              "arrivalOffsetSeconds": 1374,
+              "departureOffsetSeconds": 1392
+            },
+            {
+              "stationId": "MR1",
+              "platformStopId": "MR1",
+              "sequence": 11,
+              "arrivalOffsetSeconds": 1542,
+              "departureOffsetSeconds": 1560
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "routeId": "PH",
+      "directions": [
+        {
+          "directionId": 0,
+          "tripHeadsign": "From Putra Heights to Sentul Timur",
+          "stops": [
+            {
+              "stationId": "KJ37",
+              "platformStopId": "SP31",
+              "sequence": 1,
+              "arrivalOffsetSeconds": -18,
+              "departureOffsetSeconds": 0
+            },
+            {
+              "stationId": "SP29",
+              "platformStopId": "SP29",
+              "sequence": 2,
+              "arrivalOffsetSeconds": 214,
+              "departureOffsetSeconds": 232
+            },
+            {
+              "stationId": "SP28",
+              "platformStopId": "SP28",
+              "sequence": 3,
+              "arrivalOffsetSeconds": 379,
+              "departureOffsetSeconds": 397
+            },
+            {
+              "stationId": "SP27",
+              "platformStopId": "SP27",
+              "sequence": 4,
+              "arrivalOffsetSeconds": 508,
+              "departureOffsetSeconds": 526
+            },
+            {
+              "stationId": "SP26",
+              "platformStopId": "SP26",
+              "sequence": 5,
+              "arrivalOffsetSeconds": 612,
+              "departureOffsetSeconds": 630
+            },
+            {
+              "stationId": "SP25",
+              "platformStopId": "SP25",
+              "sequence": 6,
+              "arrivalOffsetSeconds": 732,
+              "departureOffsetSeconds": 750
+            },
+            {
+              "stationId": "SP24",
+              "platformStopId": "SP24",
+              "sequence": 7,
+              "arrivalOffsetSeconds": 820,
+              "departureOffsetSeconds": 838
+            },
+            {
+              "stationId": "SP22",
+              "platformStopId": "SP22",
+              "sequence": 8,
+              "arrivalOffsetSeconds": 1046,
+              "departureOffsetSeconds": 1064
+            },
+            {
+              "stationId": "SP21",
+              "platformStopId": "SP21",
+              "sequence": 9,
+              "arrivalOffsetSeconds": 1271,
+              "departureOffsetSeconds": 1289
+            },
+            {
+              "stationId": "SP20",
+              "platformStopId": "SP20",
+              "sequence": 10,
+              "arrivalOffsetSeconds": 1403,
+              "departureOffsetSeconds": 1421
+            },
+            {
+              "stationId": "SP19",
+              "platformStopId": "SP19",
+              "sequence": 11,
+              "arrivalOffsetSeconds": 1532,
+              "departureOffsetSeconds": 1550
+            },
+            {
+              "stationId": "SP18",
+              "platformStopId": "SP18",
+              "sequence": 12,
+              "arrivalOffsetSeconds": 1640,
+              "departureOffsetSeconds": 1658
+            },
+            {
+              "stationId": "SP17",
+              "platformStopId": "SP17",
+              "sequence": 13,
+              "arrivalOffsetSeconds": 1735,
+              "departureOffsetSeconds": 1753
+            },
+            {
+              "stationId": "PY29",
+              "platformStopId": "SP16",
+              "sequence": 14,
+              "arrivalOffsetSeconds": 1900,
+              "departureOffsetSeconds": 1918
+            },
+            {
+              "stationId": "SP15",
+              "platformStopId": "SP15",
+              "sequence": 15,
+              "arrivalOffsetSeconds": 2024,
+              "departureOffsetSeconds": 2042
+            },
+            {
+              "stationId": "SP14",
+              "platformStopId": "SP14",
+              "sequence": 16,
+              "arrivalOffsetSeconds": 2176,
+              "departureOffsetSeconds": 2194
+            },
+            {
+              "stationId": "SP13",
+              "platformStopId": "SP13",
+              "sequence": 17,
+              "arrivalOffsetSeconds": 2314,
+              "departureOffsetSeconds": 2332
+            },
+            {
+              "stationId": "SP12",
+              "platformStopId": "SP12",
+              "sequence": 18,
+              "arrivalOffsetSeconds": 2443,
+              "departureOffsetSeconds": 2461
+            },
+            {
+              "stationId": "AG11",
+              "platformStopId": "SP11",
+              "sequence": 19,
+              "arrivalOffsetSeconds": 2599,
+              "departureOffsetSeconds": 2617
+            },
+            {
+              "stationId": "AG10",
+              "platformStopId": "SP10",
+              "sequence": 20,
+              "arrivalOffsetSeconds": 2708,
+              "departureOffsetSeconds": 2726
+            },
+            {
+              "stationId": "AG9",
+              "platformStopId": "SP9",
+              "sequence": 21,
+              "arrivalOffsetSeconds": 2797,
+              "departureOffsetSeconds": 2815
+            },
+            {
+              "stationId": "AG8",
+              "platformStopId": "SP8",
+              "sequence": 22,
+              "arrivalOffsetSeconds": 2888,
+              "departureOffsetSeconds": 2906
+            },
+            {
+              "stationId": "AG7",
+              "platformStopId": "SP7",
+              "sequence": 23,
+              "arrivalOffsetSeconds": 2997,
+              "departureOffsetSeconds": 3015
+            },
+            {
+              "stationId": "AG6",
+              "platformStopId": "SP6",
+              "sequence": 24,
+              "arrivalOffsetSeconds": 3111,
+              "departureOffsetSeconds": 3129
+            },
+            {
+              "stationId": "AG5",
+              "platformStopId": "SP5",
+              "sequence": 25,
+              "arrivalOffsetSeconds": 3198,
+              "departureOffsetSeconds": 3216
+            },
+            {
+              "stationId": "AG4",
+              "platformStopId": "SP4",
+              "sequence": 26,
+              "arrivalOffsetSeconds": 3286,
+              "departureOffsetSeconds": 3304
+            },
+            {
+              "stationId": "AG3",
+              "platformStopId": "SP3",
+              "sequence": 27,
+              "arrivalOffsetSeconds": 3386,
+              "departureOffsetSeconds": 3404
+            },
+            {
+              "stationId": "AG2",
+              "platformStopId": "SP2",
+              "sequence": 28,
+              "arrivalOffsetSeconds": 3468,
+              "departureOffsetSeconds": 3486
+            },
+            {
+              "stationId": "AG1",
+              "platformStopId": "SP1",
+              "sequence": 29,
+              "arrivalOffsetSeconds": 3569,
+              "departureOffsetSeconds": 3587
+            }
+          ]
+        },
+        {
+          "directionId": 1,
+          "tripHeadsign": "From Sentul Timur to Putra Heights",
+          "stops": [
+            {
+              "stationId": "AG1",
+              "platformStopId": "SP1",
+              "sequence": 1,
+              "arrivalOffsetSeconds": -18,
+              "departureOffsetSeconds": 0
+            },
+            {
+              "stationId": "AG2",
+              "platformStopId": "SP2",
+              "sequence": 2,
+              "arrivalOffsetSeconds": 79,
+              "departureOffsetSeconds": 97
+            },
+            {
+              "stationId": "AG3",
+              "platformStopId": "SP3",
+              "sequence": 3,
+              "arrivalOffsetSeconds": 159,
+              "departureOffsetSeconds": 177
+            },
+            {
+              "stationId": "AG4",
+              "platformStopId": "SP4",
+              "sequence": 4,
+              "arrivalOffsetSeconds": 262,
+              "departureOffsetSeconds": 280
+            },
+            {
+              "stationId": "AG5",
+              "platformStopId": "SP5",
+              "sequence": 5,
+              "arrivalOffsetSeconds": 350,
+              "departureOffsetSeconds": 368
+            },
+            {
+              "stationId": "AG6",
+              "platformStopId": "SP6",
+              "sequence": 6,
+              "arrivalOffsetSeconds": 437,
+              "departureOffsetSeconds": 455
+            },
+            {
+              "stationId": "AG7",
+              "platformStopId": "SP7",
+              "sequence": 7,
+              "arrivalOffsetSeconds": 550,
+              "departureOffsetSeconds": 568
+            },
+            {
+              "stationId": "AG8",
+              "platformStopId": "SP8",
+              "sequence": 8,
+              "arrivalOffsetSeconds": 660,
+              "departureOffsetSeconds": 678
+            },
+            {
+              "stationId": "AG9",
+              "platformStopId": "SP9",
+              "sequence": 9,
+              "arrivalOffsetSeconds": 744,
+              "departureOffsetSeconds": 762
+            },
+            {
+              "stationId": "AG10",
+              "platformStopId": "SP10",
+              "sequence": 10,
+              "arrivalOffsetSeconds": 835,
+              "departureOffsetSeconds": 853
+            },
+            {
+              "stationId": "AG11",
+              "platformStopId": "SP11",
+              "sequence": 11,
+              "arrivalOffsetSeconds": 940,
+              "departureOffsetSeconds": 958
+            },
+            {
+              "stationId": "SP12",
+              "platformStopId": "SP12",
+              "sequence": 12,
+              "arrivalOffsetSeconds": 1086,
+              "departureOffsetSeconds": 1104
+            },
+            {
+              "stationId": "SP13",
+              "platformStopId": "SP13",
+              "sequence": 13,
+              "arrivalOffsetSeconds": 1215,
+              "departureOffsetSeconds": 1233
+            },
+            {
+              "stationId": "SP14",
+              "platformStopId": "SP14",
+              "sequence": 14,
+              "arrivalOffsetSeconds": 1359,
+              "departureOffsetSeconds": 1377
+            },
+            {
+              "stationId": "SP15",
+              "platformStopId": "SP15",
+              "sequence": 15,
+              "arrivalOffsetSeconds": 1510,
+              "departureOffsetSeconds": 1528
+            },
+            {
+              "stationId": "PY29",
+              "platformStopId": "SP16",
+              "sequence": 16,
+              "arrivalOffsetSeconds": 1635,
+              "departureOffsetSeconds": 1653
+            },
+            {
+              "stationId": "SP17",
+              "platformStopId": "SP17",
+              "sequence": 17,
+              "arrivalOffsetSeconds": 1806,
+              "departureOffsetSeconds": 1824
+            },
+            {
+              "stationId": "SP18",
+              "platformStopId": "SP18",
+              "sequence": 18,
+              "arrivalOffsetSeconds": 1935,
+              "departureOffsetSeconds": 1953
+            },
+            {
+              "stationId": "SP19",
+              "platformStopId": "SP19",
+              "sequence": 19,
+              "arrivalOffsetSeconds": 2043,
+              "departureOffsetSeconds": 2061
+            },
+            {
+              "stationId": "SP20",
+              "platformStopId": "SP20",
+              "sequence": 20,
+              "arrivalOffsetSeconds": 2172,
+              "departureOffsetSeconds": 2190
+            },
+            {
+              "stationId": "SP21",
+              "platformStopId": "SP21",
+              "sequence": 21,
+              "arrivalOffsetSeconds": 2304,
+              "departureOffsetSeconds": 2322
+            },
+            {
+              "stationId": "SP22",
+              "platformStopId": "SP22",
+              "sequence": 22,
+              "arrivalOffsetSeconds": 2529,
+              "departureOffsetSeconds": 2547
+            },
+            {
+              "stationId": "SP24",
+              "platformStopId": "SP24",
+              "sequence": 23,
+              "arrivalOffsetSeconds": 2755,
+              "departureOffsetSeconds": 2773
+            },
+            {
+              "stationId": "SP25",
+              "platformStopId": "SP25",
+              "sequence": 24,
+              "arrivalOffsetSeconds": 2843,
+              "departureOffsetSeconds": 2861
+            },
+            {
+              "stationId": "SP26",
+              "platformStopId": "SP26",
+              "sequence": 25,
+              "arrivalOffsetSeconds": 2963,
+              "departureOffsetSeconds": 2981
+            },
+            {
+              "stationId": "SP27",
+              "platformStopId": "SP27",
+              "sequence": 26,
+              "arrivalOffsetSeconds": 3067,
+              "departureOffsetSeconds": 3085
+            },
+            {
+              "stationId": "SP28",
+              "platformStopId": "SP28",
+              "sequence": 27,
+              "arrivalOffsetSeconds": 3196,
+              "departureOffsetSeconds": 3214
+            },
+            {
+              "stationId": "SP29",
+              "platformStopId": "SP29",
+              "sequence": 28,
+              "arrivalOffsetSeconds": 3361,
+              "departureOffsetSeconds": 3379
+            },
+            {
+              "stationId": "KJ37",
+              "platformStopId": "SP31",
+              "sequence": 29,
+              "arrivalOffsetSeconds": 3593,
+              "departureOffsetSeconds": 3611
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "routeId": "PYL",
+      "directions": [
+        {
+          "directionId": 0,
+          "tripHeadsign": "From Kwasa Damansara to Putrajaya",
+          "stops": [
+            {
+              "stationId": "KG04",
+              "platformStopId": "PY01",
+              "sequence": 1,
+              "arrivalOffsetSeconds": -18,
+              "departureOffsetSeconds": 0
+            },
+            {
+              "stationId": "PY03",
+              "platformStopId": "PY03",
+              "sequence": 2,
+              "arrivalOffsetSeconds": 189,
+              "departureOffsetSeconds": 189
+            },
+            {
+              "stationId": "PY04",
+              "platformStopId": "PY04",
+              "sequence": 3,
+              "arrivalOffsetSeconds": 296,
+              "departureOffsetSeconds": 296
+            },
+            {
+              "stationId": "PY05",
+              "platformStopId": "PY05",
+              "sequence": 4,
+              "arrivalOffsetSeconds": 422,
+              "departureOffsetSeconds": 422
+            },
+            {
+              "stationId": "PY06",
+              "platformStopId": "PY06",
+              "sequence": 5,
+              "arrivalOffsetSeconds": 532,
+              "departureOffsetSeconds": 532
+            },
+            {
+              "stationId": "PY07",
+              "platformStopId": "PY07",
+              "sequence": 6,
+              "arrivalOffsetSeconds": 636,
+              "departureOffsetSeconds": 636
+            },
+            {
+              "stationId": "PY08",
+              "platformStopId": "PY08",
+              "sequence": 7,
+              "arrivalOffsetSeconds": 737,
+              "departureOffsetSeconds": 737
+            },
+            {
+              "stationId": "PY09",
+              "platformStopId": "PY09",
+              "sequence": 8,
+              "arrivalOffsetSeconds": 851,
+              "departureOffsetSeconds": 851
+            },
+            {
+              "stationId": "PY10",
+              "platformStopId": "PY10",
+              "sequence": 9,
+              "arrivalOffsetSeconds": 924,
+              "departureOffsetSeconds": 924
+            },
+            {
+              "stationId": "PY11",
+              "platformStopId": "PY11",
+              "sequence": 10,
+              "arrivalOffsetSeconds": 1002,
+              "departureOffsetSeconds": 1002
+            },
+            {
+              "stationId": "PY12",
+              "platformStopId": "PY12",
+              "sequence": 11,
+              "arrivalOffsetSeconds": 1090,
+              "departureOffsetSeconds": 1090
+            },
+            {
+              "stationId": "PY13",
+              "platformStopId": "PY13",
+              "sequence": 12,
+              "arrivalOffsetSeconds": 1178,
+              "departureOffsetSeconds": 1178
+            },
+            {
+              "stationId": "PY14",
+              "platformStopId": "PY14",
+              "sequence": 13,
+              "arrivalOffsetSeconds": 1279,
+              "departureOffsetSeconds": 1279
+            },
+            {
+              "stationId": "PY15",
+              "platformStopId": "PY15",
+              "sequence": 14,
+              "arrivalOffsetSeconds": 1351,
+              "departureOffsetSeconds": 1351
+            },
+            {
+              "stationId": "PY16",
+              "platformStopId": "PY16",
+              "sequence": 15,
+              "arrivalOffsetSeconds": 1467,
+              "departureOffsetSeconds": 1467
+            },
+            {
+              "stationId": "AG3",
+              "platformStopId": "PY17",
+              "sequence": 16,
+              "arrivalOffsetSeconds": 1571,
+              "departureOffsetSeconds": 1571
+            },
+            {
+              "stationId": "PY18",
+              "platformStopId": "PY18",
+              "sequence": 17,
+              "arrivalOffsetSeconds": 1641,
+              "departureOffsetSeconds": 1641
+            },
+            {
+              "stationId": "PY19",
+              "platformStopId": "PY19",
+              "sequence": 18,
+              "arrivalOffsetSeconds": 1745,
+              "departureOffsetSeconds": 1745
+            },
+            {
+              "stationId": "KJ9",
+              "platformStopId": "PY20",
+              "sequence": 19,
+              "arrivalOffsetSeconds": 1845,
+              "departureOffsetSeconds": 1845
+            },
+            {
+              "stationId": "PY21",
+              "platformStopId": "PY21",
+              "sequence": 20,
+              "arrivalOffsetSeconds": 1906,
+              "departureOffsetSeconds": 1906
+            },
+            {
+              "stationId": "PY22",
+              "platformStopId": "PY22",
+              "sequence": 21,
+              "arrivalOffsetSeconds": 1978,
+              "departureOffsetSeconds": 1978
+            },
+            {
+              "stationId": "KG20",
+              "platformStopId": "PY23",
+              "sequence": 22,
+              "arrivalOffsetSeconds": 2060,
+              "departureOffsetSeconds": 2060
+            },
+            {
+              "stationId": "AG11",
+              "platformStopId": "PY24",
+              "sequence": 23,
+              "arrivalOffsetSeconds": 2193,
+              "departureOffsetSeconds": 2193
+            },
+            {
+              "stationId": "PY27",
+              "platformStopId": "PY27",
+              "sequence": 24,
+              "arrivalOffsetSeconds": 2533,
+              "departureOffsetSeconds": 2533
+            },
+            {
+              "stationId": "PY28",
+              "platformStopId": "PY28",
+              "sequence": 25,
+              "arrivalOffsetSeconds": 2637,
+              "departureOffsetSeconds": 2637
+            },
+            {
+              "stationId": "PY29",
+              "platformStopId": "PY29",
+              "sequence": 26,
+              "arrivalOffsetSeconds": 2783,
+              "departureOffsetSeconds": 2783
+            },
+            {
+              "stationId": "PY31",
+              "platformStopId": "PY31",
+              "sequence": 27,
+              "arrivalOffsetSeconds": 2943,
+              "departureOffsetSeconds": 2943
+            },
+            {
+              "stationId": "PY32",
+              "platformStopId": "PY32",
+              "sequence": 28,
+              "arrivalOffsetSeconds": 3045,
+              "departureOffsetSeconds": 3045
+            },
+            {
+              "stationId": "PY33",
+              "platformStopId": "PY33",
+              "sequence": 29,
+              "arrivalOffsetSeconds": 3118,
+              "departureOffsetSeconds": 3118
+            },
+            {
+              "stationId": "PY34",
+              "platformStopId": "PY34",
+              "sequence": 30,
+              "arrivalOffsetSeconds": 3244,
+              "departureOffsetSeconds": 3244
+            },
+            {
+              "stationId": "PY36",
+              "platformStopId": "PY36",
+              "sequence": 31,
+              "arrivalOffsetSeconds": 3484,
+              "departureOffsetSeconds": 3484
+            },
+            {
+              "stationId": "PY37",
+              "platformStopId": "PY37",
+              "sequence": 32,
+              "arrivalOffsetSeconds": 3587,
+              "departureOffsetSeconds": 3587
+            },
+            {
+              "stationId": "PY38",
+              "platformStopId": "PY38",
+              "sequence": 33,
+              "arrivalOffsetSeconds": 3729,
+              "departureOffsetSeconds": 3729
+            },
+            {
+              "stationId": "PY39",
+              "platformStopId": "PY39",
+              "sequence": 34,
+              "arrivalOffsetSeconds": 3879,
+              "departureOffsetSeconds": 3879
+            },
+            {
+              "stationId": "PY40",
+              "platformStopId": "PY40",
+              "sequence": 35,
+              "arrivalOffsetSeconds": 4004,
+              "departureOffsetSeconds": 4004
+            },
+            {
+              "stationId": "PY41",
+              "platformStopId": "PY41",
+              "sequence": 36,
+              "arrivalOffsetSeconds": 4074,
+              "departureOffsetSeconds": 4074
+            }
+          ]
+        },
+        {
+          "directionId": 1,
+          "tripHeadsign": "From Putrajaya to Kwasa Damansara",
+          "stops": [
+            {
+              "stationId": "PY41",
+              "platformStopId": "PY41",
+              "sequence": 1,
+              "arrivalOffsetSeconds": -18,
+              "departureOffsetSeconds": 0
+            },
+            {
+              "stationId": "PY40",
+              "platformStopId": "PY40",
+              "sequence": 2,
+              "arrivalOffsetSeconds": 70,
+              "departureOffsetSeconds": 70
+            },
+            {
+              "stationId": "PY39",
+              "platformStopId": "PY39",
+              "sequence": 3,
+              "arrivalOffsetSeconds": 195,
+              "departureOffsetSeconds": 195
+            },
+            {
+              "stationId": "PY38",
+              "platformStopId": "PY38",
+              "sequence": 4,
+              "arrivalOffsetSeconds": 345,
+              "departureOffsetSeconds": 345
+            },
+            {
+              "stationId": "PY37",
+              "platformStopId": "PY37",
+              "sequence": 5,
+              "arrivalOffsetSeconds": 487,
+              "departureOffsetSeconds": 487
+            },
+            {
+              "stationId": "PY36",
+              "platformStopId": "PY36",
+              "sequence": 6,
+              "arrivalOffsetSeconds": 590,
+              "departureOffsetSeconds": 590
+            },
+            {
+              "stationId": "PY34",
+              "platformStopId": "PY34",
+              "sequence": 7,
+              "arrivalOffsetSeconds": 830,
+              "departureOffsetSeconds": 830
+            },
+            {
+              "stationId": "PY33",
+              "platformStopId": "PY33",
+              "sequence": 8,
+              "arrivalOffsetSeconds": 956,
+              "departureOffsetSeconds": 956
+            },
+            {
+              "stationId": "PY32",
+              "platformStopId": "PY32",
+              "sequence": 9,
+              "arrivalOffsetSeconds": 1029,
+              "departureOffsetSeconds": 1029
+            },
+            {
+              "stationId": "PY31",
+              "platformStopId": "PY31",
+              "sequence": 10,
+              "arrivalOffsetSeconds": 1131,
+              "departureOffsetSeconds": 1131
+            },
+            {
+              "stationId": "PY29",
+              "platformStopId": "PY29",
+              "sequence": 11,
+              "arrivalOffsetSeconds": 1291,
+              "departureOffsetSeconds": 1291
+            },
+            {
+              "stationId": "PY28",
+              "platformStopId": "PY28",
+              "sequence": 12,
+              "arrivalOffsetSeconds": 1437,
+              "departureOffsetSeconds": 1437
+            },
+            {
+              "stationId": "PY27",
+              "platformStopId": "PY27",
+              "sequence": 13,
+              "arrivalOffsetSeconds": 1541,
+              "departureOffsetSeconds": 1541
+            },
+            {
+              "stationId": "AG11",
+              "platformStopId": "PY24",
+              "sequence": 14,
+              "arrivalOffsetSeconds": 1881,
+              "departureOffsetSeconds": 1881
+            },
+            {
+              "stationId": "KG20",
+              "platformStopId": "PY23",
+              "sequence": 15,
+              "arrivalOffsetSeconds": 2014,
+              "departureOffsetSeconds": 2014
+            },
+            {
+              "stationId": "PY22",
+              "platformStopId": "PY22",
+              "sequence": 16,
+              "arrivalOffsetSeconds": 2096,
+              "departureOffsetSeconds": 2096
+            },
+            {
+              "stationId": "PY21",
+              "platformStopId": "PY21",
+              "sequence": 17,
+              "arrivalOffsetSeconds": 2168,
+              "departureOffsetSeconds": 2168
+            },
+            {
+              "stationId": "KJ9",
+              "platformStopId": "PY20",
+              "sequence": 18,
+              "arrivalOffsetSeconds": 2229,
+              "departureOffsetSeconds": 2229
+            },
+            {
+              "stationId": "PY19",
+              "platformStopId": "PY19",
+              "sequence": 19,
+              "arrivalOffsetSeconds": 2329,
+              "departureOffsetSeconds": 2329
+            },
+            {
+              "stationId": "PY18",
+              "platformStopId": "PY18",
+              "sequence": 20,
+              "arrivalOffsetSeconds": 2433,
+              "departureOffsetSeconds": 2433
+            },
+            {
+              "stationId": "AG3",
+              "platformStopId": "PY17",
+              "sequence": 21,
+              "arrivalOffsetSeconds": 2503,
+              "departureOffsetSeconds": 2503
+            },
+            {
+              "stationId": "PY16",
+              "platformStopId": "PY16",
+              "sequence": 22,
+              "arrivalOffsetSeconds": 2607,
+              "departureOffsetSeconds": 2607
+            },
+            {
+              "stationId": "PY15",
+              "platformStopId": "PY15",
+              "sequence": 23,
+              "arrivalOffsetSeconds": 2723,
+              "departureOffsetSeconds": 2723
+            },
+            {
+              "stationId": "PY14",
+              "platformStopId": "PY14",
+              "sequence": 24,
+              "arrivalOffsetSeconds": 2795,
+              "departureOffsetSeconds": 2795
+            },
+            {
+              "stationId": "PY13",
+              "platformStopId": "PY13",
+              "sequence": 25,
+              "arrivalOffsetSeconds": 2896,
+              "departureOffsetSeconds": 2896
+            },
+            {
+              "stationId": "PY12",
+              "platformStopId": "PY12",
+              "sequence": 26,
+              "arrivalOffsetSeconds": 2984,
+              "departureOffsetSeconds": 2984
+            },
+            {
+              "stationId": "PY11",
+              "platformStopId": "PY11",
+              "sequence": 27,
+              "arrivalOffsetSeconds": 3072,
+              "departureOffsetSeconds": 3072
+            },
+            {
+              "stationId": "PY10",
+              "platformStopId": "PY10",
+              "sequence": 28,
+              "arrivalOffsetSeconds": 3150,
+              "departureOffsetSeconds": 3150
+            },
+            {
+              "stationId": "PY09",
+              "platformStopId": "PY09",
+              "sequence": 29,
+              "arrivalOffsetSeconds": 3223,
+              "departureOffsetSeconds": 3223
+            },
+            {
+              "stationId": "PY08",
+              "platformStopId": "PY08",
+              "sequence": 30,
+              "arrivalOffsetSeconds": 3337,
+              "departureOffsetSeconds": 3337
+            },
+            {
+              "stationId": "PY07",
+              "platformStopId": "PY07",
+              "sequence": 31,
+              "arrivalOffsetSeconds": 3438,
+              "departureOffsetSeconds": 3438
+            },
+            {
+              "stationId": "PY06",
+              "platformStopId": "PY06",
+              "sequence": 32,
+              "arrivalOffsetSeconds": 3542,
+              "departureOffsetSeconds": 3542
+            },
+            {
+              "stationId": "PY05",
+              "platformStopId": "PY05",
+              "sequence": 33,
+              "arrivalOffsetSeconds": 3652,
+              "departureOffsetSeconds": 3652
+            },
+            {
+              "stationId": "PY04",
+              "platformStopId": "PY04",
+              "sequence": 34,
+              "arrivalOffsetSeconds": 3778,
+              "departureOffsetSeconds": 3778
+            },
+            {
+              "stationId": "PY03",
+              "platformStopId": "PY03",
+              "sequence": 35,
+              "arrivalOffsetSeconds": 3885,
+              "departureOffsetSeconds": 3885
+            },
+            {
+              "stationId": "KG04",
+              "platformStopId": "PY01",
+              "sequence": 36,
+              "arrivalOffsetSeconds": 4074,
+              "departureOffsetSeconds": 4074
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "routeId": "SA",
+      "directions": [
+        {
+          "directionId": 0,
+          "tripHeadsign": "From Bandar Utama to Johan Setia",
+          "stops": [
+            {
+              "stationId": "KG09",
+              "platformStopId": "SA1",
+              "sequence": 1,
+              "arrivalOffsetSeconds": -18,
+              "departureOffsetSeconds": 0
+            },
+            {
+              "stationId": "SA2",
+              "platformStopId": "SA2",
+              "sequence": 2,
+              "arrivalOffsetSeconds": 116,
+              "departureOffsetSeconds": 134
+            },
+            {
+              "stationId": "SA3",
+              "platformStopId": "SA3",
+              "sequence": 3,
+              "arrivalOffsetSeconds": 274,
+              "departureOffsetSeconds": 292
+            },
+            {
+              "stationId": "SA5",
+              "platformStopId": "SA5",
+              "sequence": 4,
+              "arrivalOffsetSeconds": 460,
+              "departureOffsetSeconds": 478
+            },
+            {
+              "stationId": "SA6",
+              "platformStopId": "SA6",
+              "sequence": 5,
+              "arrivalOffsetSeconds": 671,
+              "departureOffsetSeconds": 689
+            },
+            {
+              "stationId": "SA7",
+              "platformStopId": "SA7",
+              "sequence": 6,
+              "arrivalOffsetSeconds": 816,
+              "departureOffsetSeconds": 834
+            },
+            {
+              "stationId": "SA9",
+              "platformStopId": "SA9",
+              "sequence": 8,
+              "arrivalOffsetSeconds": 1191,
+              "departureOffsetSeconds": 1209
+            },
+            {
+              "stationId": "SA10",
+              "platformStopId": "SA10",
+              "sequence": 9,
+              "arrivalOffsetSeconds": 1360,
+              "departureOffsetSeconds": 1378
+            },
+            {
+              "stationId": "SA12",
+              "platformStopId": "SA12",
+              "sequence": 11,
+              "arrivalOffsetSeconds": 1733,
+              "departureOffsetSeconds": 1751
+            },
+            {
+              "stationId": "SA14",
+              "platformStopId": "SA14",
+              "sequence": 13,
+              "arrivalOffsetSeconds": 2013,
+              "departureOffsetSeconds": 2031
+            },
+            {
+              "stationId": "SA15",
+              "platformStopId": "SA15",
+              "sequence": 14,
+              "arrivalOffsetSeconds": 2204,
+              "departureOffsetSeconds": 2222
+            },
+            {
+              "stationId": "SA17",
+              "platformStopId": "SA17",
+              "sequence": 15,
+              "arrivalOffsetSeconds": 2469,
+              "departureOffsetSeconds": 2487
+            },
+            {
+              "stationId": "SA18",
+              "platformStopId": "SA18",
+              "sequence": 16,
+              "arrivalOffsetSeconds": 2665,
+              "departureOffsetSeconds": 2683
+            },
+            {
+              "stationId": "SA19",
+              "platformStopId": "SA19",
+              "sequence": 17,
+              "arrivalOffsetSeconds": 2785,
+              "departureOffsetSeconds": 2803
+            },
+            {
+              "stationId": "SA20",
+              "platformStopId": "SA20",
+              "sequence": 18,
+              "arrivalOffsetSeconds": 2945,
+              "departureOffsetSeconds": 2963
+            },
+            {
+              "stationId": "SA21",
+              "platformStopId": "SA21",
+              "sequence": 19,
+              "arrivalOffsetSeconds": 3205,
+              "departureOffsetSeconds": 3223
+            },
+            {
+              "stationId": "SA22",
+              "platformStopId": "SA22",
+              "sequence": 20,
+              "arrivalOffsetSeconds": 3348,
+              "departureOffsetSeconds": 3366
+            },
+            {
+              "stationId": "SA23",
+              "platformStopId": "SA23",
+              "sequence": 21,
+              "arrivalOffsetSeconds": 3487,
+              "departureOffsetSeconds": 3505
+            },
+            {
+              "stationId": "SA24",
+              "platformStopId": "SA24",
+              "sequence": 22,
+              "arrivalOffsetSeconds": 3652,
+              "departureOffsetSeconds": 3670
+            },
+            {
+              "stationId": "SA26",
+              "platformStopId": "SA26",
+              "sequence": 24,
+              "arrivalOffsetSeconds": 3934,
+              "departureOffsetSeconds": 3952
+            }
+          ]
+        },
+        {
+          "directionId": 1,
+          "tripHeadsign": "From Johan Setia to Bandar Utama",
+          "stops": [
+            {
+              "stationId": "SA26",
+              "platformStopId": "SA26",
+              "sequence": 1,
+              "arrivalOffsetSeconds": -18,
+              "departureOffsetSeconds": 0
+            },
+            {
+              "stationId": "SA24",
+              "platformStopId": "SA24",
+              "sequence": 3,
+              "arrivalOffsetSeconds": 264,
+              "departureOffsetSeconds": 282
+            },
+            {
+              "stationId": "SA23",
+              "platformStopId": "SA23",
+              "sequence": 4,
+              "arrivalOffsetSeconds": 429,
+              "departureOffsetSeconds": 447
+            },
+            {
+              "stationId": "SA22",
+              "platformStopId": "SA22",
+              "sequence": 5,
+              "arrivalOffsetSeconds": 568,
+              "departureOffsetSeconds": 586
+            },
+            {
+              "stationId": "SA21",
+              "platformStopId": "SA21",
+              "sequence": 6,
+              "arrivalOffsetSeconds": 711,
+              "departureOffsetSeconds": 729
+            },
+            {
+              "stationId": "SA20",
+              "platformStopId": "SA20",
+              "sequence": 7,
+              "arrivalOffsetSeconds": 971,
+              "departureOffsetSeconds": 989
+            },
+            {
+              "stationId": "SA19",
+              "platformStopId": "SA19",
+              "sequence": 8,
+              "arrivalOffsetSeconds": 1131,
+              "departureOffsetSeconds": 1149
+            },
+            {
+              "stationId": "SA18",
+              "platformStopId": "SA18",
+              "sequence": 9,
+              "arrivalOffsetSeconds": 1251,
+              "departureOffsetSeconds": 1269
+            },
+            {
+              "stationId": "SA17",
+              "platformStopId": "SA17",
+              "sequence": 10,
+              "arrivalOffsetSeconds": 1447,
+              "departureOffsetSeconds": 1465
+            },
+            {
+              "stationId": "SA15",
+              "platformStopId": "SA15",
+              "sequence": 11,
+              "arrivalOffsetSeconds": 1712,
+              "departureOffsetSeconds": 1730
+            },
+            {
+              "stationId": "SA14",
+              "platformStopId": "SA14",
+              "sequence": 12,
+              "arrivalOffsetSeconds": 1903,
+              "departureOffsetSeconds": 1921
+            },
+            {
+              "stationId": "SA12",
+              "platformStopId": "SA12",
+              "sequence": 14,
+              "arrivalOffsetSeconds": 2183,
+              "departureOffsetSeconds": 2201
+            },
+            {
+              "stationId": "SA10",
+              "platformStopId": "SA10",
+              "sequence": 16,
+              "arrivalOffsetSeconds": 2556,
+              "departureOffsetSeconds": 2574
+            },
+            {
+              "stationId": "SA9",
+              "platformStopId": "SA9",
+              "sequence": 17,
+              "arrivalOffsetSeconds": 2725,
+              "departureOffsetSeconds": 2743
+            },
+            {
+              "stationId": "SA7",
+              "platformStopId": "SA7",
+              "sequence": 19,
+              "arrivalOffsetSeconds": 3100,
+              "departureOffsetSeconds": 3118
+            },
+            {
+              "stationId": "SA6",
+              "platformStopId": "SA6",
+              "sequence": 20,
+              "arrivalOffsetSeconds": 3245,
+              "departureOffsetSeconds": 3263
+            },
+            {
+              "stationId": "SA5",
+              "platformStopId": "SA5",
+              "sequence": 21,
+              "arrivalOffsetSeconds": 3456,
+              "departureOffsetSeconds": 3474
+            },
+            {
+              "stationId": "SA3",
+              "platformStopId": "SA3",
+              "sequence": 22,
+              "arrivalOffsetSeconds": 3642,
+              "departureOffsetSeconds": 3660
+            },
+            {
+              "stationId": "SA2",
+              "platformStopId": "SA2",
+              "sequence": 23,
+              "arrivalOffsetSeconds": 3800,
+              "departureOffsetSeconds": 3818
+            },
+            {
+              "stationId": "KG09",
+              "platformStopId": "SA1",
+              "sequence": 24,
+              "arrivalOffsetSeconds": 3934,
+              "departureOffsetSeconds": 3952
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

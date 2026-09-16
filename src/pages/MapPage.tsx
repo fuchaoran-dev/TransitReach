@@ -24,10 +24,12 @@ import {
   LiveTransitMapLayer,
   LiveTransitStatus,
   SelectedRailLineLayer,
+  SelectedLineReachabilityLayer,
   BusStopMapLayer,
   busStopsNearAccessibleStations,
   useFirstMile,
   useLiveTransit,
+  useSelectedLineReachability,
   DEFAULT_FIRST_MILE_THRESHOLD_MINUTES,
   type FirstMileStopResult,
   type BusStop,
@@ -121,6 +123,27 @@ const selectedRailLine =
           selectedRouteId,
       ) ?? null
     : null;
+
+/*
+ * Reachability for an explicitly selected line. Unlike the old station-based
+ * secondary isochrone, this calculation only allows the selected Rail/BRT line,
+ * then adds a practical walking egress from downstream stations.
+ */
+const mainReachabilityRegions = useMemo(
+  () =>
+    reach.state.status === 'ready'
+      ? reach.state.result.regions
+      : [],
+  [reach.state],
+);
+
+const selectedLineReachability =
+  useSelectedLineReachability(
+    selectedStation,
+    selectedRailLine,
+    journey.timeBudget,
+    mainReachabilityRegions,
+  );
 
 const handleSelectStop = (
   stopId: string | null,
@@ -224,6 +247,14 @@ useEffect(() => {
               />
             ) : (
               <>
+                {selectedLineReachability.status === 'ready' &&
+                  selectedLineReachability.regions.length > 0 && (
+                    <SelectedLineReachabilityLayer
+                      regions={selectedLineReachability.regions}
+                      color={selectedRailLine?.color ?? null}
+                    />
+                  )}
+
                 <SelectedRailLineLayer
                   routeId={selectedRailLine?.routeId ?? null}
                   color={selectedRailLine?.color ?? null}

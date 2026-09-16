@@ -222,6 +222,14 @@ async function fetchPlan(
     locale: 'en',
   });
 
+  if (mode !== 'WALK') {
+    params.set(
+      'walkReluctance',
+      '4',
+    );
+  }
+  
+
   let response: Response;
   try {
     response = await fetch(
@@ -242,8 +250,19 @@ async function fetchPlan(
     );
   }
 
-  const body = (await response.json()) as OtpPlanResponse;
-  return (body.plan?.itineraries ?? [])
+  const body =
+      (await response.json()) as
+        OtpPlanResponse;
+
+    if (body.error?.message) {
+      throw new TransitJourneyUnavailableError(
+        body.error.message,
+      );
+    }
+
+    return (
+      body.plan?.itineraries ?? []
+    )
     .map(normalizeItinerary)
     .filter((itinerary): itinerary is TransitPlanItinerary => itinerary !== null);
 }
@@ -265,34 +284,150 @@ export async function routeJourneys(
   departureTime: string,
   signal?: AbortSignal,
 ): Promise<TransitPlanItinerary[]> {
-  const results = await Promise.allSettled([
-    fetchPlan(origin, destination, 'WALK', departureTime, 1, signal),
-    fetchPlan(origin, destination, 'TRANSIT,WALK', departureTime, 4, signal),
-  ]);
 
-  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+  const results =
+    await Promise.allSettled([
+      fetchPlan(
+        origin,
+        destination,
+        'WALK',
+        departureTime,
+        1,
+        signal,
+      ),
 
-  const successful = results.flatMap(result =>
-    result.status === 'fulfilled' ? result.value : [],
-  );
+      fetchPlan(
+        origin,
+        destination,
+        'TRANSIT,WALK',
+        departureTime,
+        6,
+        signal,
+      ),
+    ]);
 
-  if (successful.length === 0) {
-    const firstFailure = results.find(
-      (result): result is PromiseRejectedResult => result.status === 'rejected',
+  if (signal?.aborted) {
+    throw new DOMException(
+      'Aborted',
+      'AbortError',
     );
-    if (firstFailure) throw firstFailure.reason;
   }
 
-  const unique = new Map<string, TransitPlanItinerary>();
-  for (const itinerary of successful) {
-    const signature = itinerarySignature(itinerary);
-    const existing = unique.get(signature);
-    if (!existing || itinerary.durationSeconds < existing.durationSeconds) {
-      unique.set(signature, itinerary);
+  const [
+    walkingResult,
+    transitResult,
+  ] = results;
+
+  if (
+    walkingResult.status ===
+    'fulfilled'
+  ) {
+    console.log(
+      '[Epic 4] WALK journeys:',
+      walkingResult.value,
+    );
+  } else {
+    console.error(
+      '[Epic 4] WALK request failed:',
+      walkingResult.reason,
+    );
+  }
+
+  if (
+    transitResult.status ===
+    'fulfilled'
+  ) {
+    console.log(
+      '[Epic 4] TRANSIT journeys:',
+      transitResult.value,
+    );
+
+    console.table(
+      transitResult.value.flatMap(
+        itinerary =>
+          itinerary.legs.map(
+            leg => ({
+              mode: leg.mode,
+              routeId:
+                leg.routeId,
+              route:
+                leg.routeShortName,
+              from:
+                leg.from.name,
+              to:
+                leg.to.name,
+              duration:
+                leg.durationSeconds,
+            }),
+          ),
+      ),
+    );
+  } else {
+    console.error(
+      '[Epic 4] TRANSIT request failed:',
+      transitResult.reason,
+    );
+  }
+
+  const successful =
+    results.flatMap(result =>
+      result.status ===
+      'fulfilled'
+        ? result.value
+        : [],
+    );
+
+  if (
+    successful.length === 0
+  ) {
+    const firstFailure =
+      results.find(
+        (
+          result,
+        ): result is PromiseRejectedResult =>
+          result.status ===
+          'rejected',
+      );
+
+    if (firstFailure) {
+      throw firstFailure.reason;
     }
   }
 
-  return [...unique.values()].sort(
-    (a, b) => a.durationSeconds - b.durationSeconds,
+  const unique =
+    new Map<
+      string,
+      TransitPlanItinerary
+    >();
+
+  for (
+    const itinerary of successful
+  ) {
+    const signature =
+      itinerarySignature(
+        itinerary,
+      );
+
+    const existing =
+      unique.get(signature);
+
+    if (
+      !existing ||
+      itinerary.durationSeconds <
+        existing.durationSeconds
+    ) {
+      unique.set(
+        signature,
+        itinerary,
+      );
+    }
+  }
+
+  return [
+    ...unique.values(),
+  ].sort(
+    (a, b) =>
+      a.durationSeconds -
+      b.durationSeconds,
   );
 }

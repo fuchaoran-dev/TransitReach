@@ -22,3 +22,12 @@ export {useStationReachability} from './hooks/useStationReachability';
 
 export {StationReachabilityLayer} from './components/StationReachabilityLayer';
 export {SelectedRailLineLayer} from './components/SelectedRailLineLayer';
+export { useSelectedLineReachability } from './hooks/useSelectedLineReachability';
+export type {
+  SelectedLineReachabilityState,
+} from './hooks/useSelectedLineReachability';
+export type {
+  SelectedLineReachableStop,
+  SelectedLineReachabilityResult,
+} from './selectedLineReachabilityService';
+export { SelectedLineReachabilityLayer } from './components/SelectedLineReachabilityLayer';
