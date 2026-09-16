@@ -1,6 +1,8 @@
+import { useEffect, useRef } from 'react';
 import { BusFront, Search } from 'lucide-react';
 import { ServiceDetail, ServiceFilters, ServiceList } from '@/features/essential-services';
 import { loadEssentialServicesMetadata } from '@/shared/data/adapters/essentialServicesAdapter';
+import type { ServiceLocation } from '@/shared/types/service';
 import type { MapServicesModel } from './useMapServices';
 
 /**
@@ -13,11 +15,28 @@ import type { MapServicesModel } from './useMapServices';
 export function MapServicesContent({
   model,
   hasOrigin,
+  onServiceSelect,
+  onJourney,
 }: {
   model: MapServicesModel;
   hasOrigin: boolean;
+  onServiceSelect?: (service: ServiceLocation) => void;
+  onJourney?: (service: ServiceLocation) => void;
 }) {
   const metadata = loadEssentialServicesMetadata();
+  const selectedDetailRef = useRef<HTMLDivElement | null>(null);
+
+  // A map marker can be selected while the Services panel is scrolled deep into the
+  // results list. Bring the selected service card back into view so the click always
+  // has an obvious result in both places: map focus + service information.
+  useEffect(() => {
+    if (!model.selected?.id) return;
+
+    selectedDetailRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+    });
+  }, [model.selected?.id]);
 
   if (!hasOrigin) {
     return (
@@ -109,7 +128,14 @@ export function MapServicesContent({
         )
       )}
 
-      {model.selected && <ServiceDetail service={model.selected} />}
+      {model.selected && (
+        <div ref={selectedDetailRef}>
+          <ServiceDetail
+            service={model.selected}
+            onJourney={onJourney}
+          />
+        </div>
+      )}
 
       {/* Suppressed while awaiting a choice: ServiceList's empty state reads "No services
           found — try a longer travel time", which would contradict the prompt above by
@@ -120,7 +146,7 @@ export function MapServicesContent({
           hoveredService={null}
           selectedService={model.selected}
           onHover={() => undefined}
-          onSelect={model.select}
+          onSelect={onServiceSelect ?? model.select}
         />
       )}
     </div>

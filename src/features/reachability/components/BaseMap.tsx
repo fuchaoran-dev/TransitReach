@@ -60,6 +60,8 @@ interface BaseMapProps {
   onMapClick: (at: LatLng) => void;
   services?: ServiceLocation[];
   selectedServiceId?: string | null;
+  /** Selected service to focus without leaving the Services tab. */
+  selectedService?: ServiceLocation | null;
   onServiceSelect?: (service: ServiceLocation) => void;
   children?: ReactNode;
 }
@@ -111,6 +113,31 @@ function ViewController({ origin }: { origin: Origin | null }) {
     if (origin.source === 'map') return;
     map.setView([origin.at.lat, origin.at.lon], ORIGIN_ZOOM);
   }, [origin, map]);
+
+  return null;
+}
+
+/**
+ * Focuses a service after the user explicitly selects it. Selection itself stays in the
+ * Services tab; this controller only moves the camera so the service and its surrounding
+ * streets are easy to inspect before the user chooses to open Journey.
+ */
+function ServiceViewController({
+  service,
+}: {
+  service: ServiceLocation | null | undefined;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (service?.lat === undefined || service.lon === undefined) return;
+
+    map.flyTo(
+      [service.lat, service.lon],
+      Math.max(map.getZoom(), 16),
+      { duration: 0.6 },
+    );
+  }, [service?.id, service?.lat, service?.lon, map]);
 
   return null;
 }
@@ -202,6 +229,10 @@ function ServicePins({ services, selectedServiceId, onServiceSelect }: Pick<Base
           center={[service.lat, service.lon]}
           radius={selected ? 9 : 6}
           pane="markerPane"
+          // A service click is an inspection action, not a new-origin map click.
+          // Leaflet Path events bubble to the map by default, which would otherwise
+          // trigger ClickHandler and move the user's starting point underneath the pin.
+          bubblingMouseEvents={false}
           // White ring, category fill. Ringing every dot is what lets a category hue read
           // against the area fill, against the base map, and against the dot beside it —
           // stroking each dot in its own colour left it blending into whatever was behind.
@@ -218,7 +249,7 @@ function ServicePins({ services, selectedServiceId, onServiceSelect }: Pick<Base
   </>;
 }
 
-export function BaseMap({ origin, regions, onMapClick, services, selectedServiceId, onServiceSelect, children, }: BaseMapProps) {
+export function BaseMap({ origin, regions, onMapClick, services, selectedServiceId, selectedService, onServiceSelect, children, }: BaseMapProps) {
   return (
     <MapContainer
       center={[NETWORK_CENTRE.lat, NETWORK_CENTRE.lon]}
@@ -231,6 +262,7 @@ export function BaseMap({ origin, regions, onMapClick, services, selectedService
       <ResizeHandler />
       <ClickHandler onMapClick={onMapClick} />
       <ViewController origin={origin} />
+      <ServiceViewController service={selectedService} />
       {/* The area is drawn first so the origin pin sits above the fill (AC 1.3.1). */}
       {regions && <ReachabilityLayer regions={regions} />}
       <ServicePins services={services} selectedServiceId={selectedServiceId} onServiceSelect={onServiceSelect} />

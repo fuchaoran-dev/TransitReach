@@ -22,6 +22,8 @@ import {
 
 import { MapServicesContent } from './MapServicesContent';
 import type { MapServicesModel } from './useMapServices';
+import { JourneyOptionsPanel, type JourneyInspectionModel } from '@/features/interchange';
+import type { ServiceLocation } from '@/shared/types/service';
 
 export type MapAnalysisTab =
   | 'first-mile'
@@ -53,6 +55,9 @@ interface MapAnalysisPanelProps {
   onRetryReachability: () => void;
 
   services: MapServicesModel;
+  journeys: JourneyInspectionModel;
+  onServiceSelect: (service: ServiceLocation) => void;
+  onJourneyForService: (service: ServiceLocation) => void;
   hasOrigin: boolean;
 
   activeTab: MapAnalysisTab;
@@ -88,6 +93,9 @@ export function MapAnalysisPanel({
   onSelectStop,
   onRetryReachability,
   services,
+  journeys,
+  onServiceSelect,
+  onJourneyForService,
   hasOrigin,
   activeTab,
   onTabChange,
@@ -318,11 +326,11 @@ export function MapAnalysisPanel({
             />
 
             <AnalysisTabButton
-              label="Transfers"
-              active={false}
-              disabled
-              soon
-              onClick={() => {}}
+              label="Journey"
+              active={activeTab === 'transfers'}
+              onClick={() =>
+                onTabChange('transfers')
+              }
             />
           </div>
         </div>
@@ -351,6 +359,16 @@ export function MapAnalysisPanel({
             <MapServicesContent
               model={services}
               hasOrigin={hasOrigin}
+              onServiceSelect={onServiceSelect}
+              onJourney={onJourneyForService}
+            />
+          )}
+
+          {activeTab === 'transfers' && (
+            <JourneyOptionsPanel
+              model={journeys}
+              service={services.selected}
+              onChooseService={() => onTabChange('services')}
             />
           )}
         </div>
