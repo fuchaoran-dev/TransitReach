@@ -7,16 +7,18 @@ pipeline. Setup, data provenance, training commands, current service capabilitie
 acceptance-criteria coverage are documented in [`backend/README.md`](backend/README.md).
 # Epic 5 data and routing
 
-The Essential Services page uses a committed, reproducible extract of real OpenStreetMap
-POIs in the Klang Valley study area. Refresh it sparingly with:
+The Essential Services page uses a reproducible extract of real OpenStreetMap POIs in the
+Klang Valley study area. Refresh the migration source sparingly with:
 
 ```bash
 npm run data:essential-services
 ```
 
-The generated file is `src/shared/data/services/services.json`. OSM tags are mapped by the
-documented rules in `src/features/essential-services/serviceDataRules.ts`, and nearby
-same-name node/way records are deduplicated before counting.
+The generated file `src/shared/data/services/services.json` is an ingestion source only.
+Production application data is stored in Supabase PostgreSQL and served by FastAPI through
+`/api/data/bootstrap`. OSM tags are mapped by the documented rules in
+`src/features/essential-services/serviceDataRules.ts`, and nearby same-name node/way records
+are deduplicated before counting.
 
 Travel-time reachability and per-service journey estimates are calculated by the project's
 OpenTripPlanner instance from the OSM street graph and the Prasarana Rapid Rail KL GTFS

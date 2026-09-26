@@ -4,6 +4,39 @@ This directory is the data-integrity foundation for Epic 7. It does **not** enab
 prediction by itself. A line remains prediction-unavailable until real actual-arrival
 labels exist and a chronologically evaluated model has been registered.
 
+## PostgreSQL system of record
+
+Production business and model data belongs in PostgreSQL (hosted by Supabase). The
+JSON and Parquet files in this repository are migration/build inputs, not the production
+application database. Create the schema and import the normalized core datasets with:
+
+```bash
+python -m pip install -r backend/requirements.txt
+export DATABASE_URL='postgresql://...?...sslmode=require'
+python -m backend.data_pipeline.migrate_to_postgres --apply-schema core
+```
+
+The schema is in `supabase/transit-data.sql`. The migration is idempotent for reference
+and model-registry data. Large fact tables use monthly PostgreSQL partitions and streaming
+`COPY`; import them separately because they contain tens of millions of rows:
+
+```bash
+python -m backend.data_pipeline.migrate_to_postgres parquet observations \
+  data/processed/vehicle_positions_2025_h1_clean.parquet
+python -m backend.data_pipeline.migrate_to_postgres parquet arrivals \
+  data/processed/network_arrivals_2025_h1
+python -m backend.data_pipeline.migrate_to_postgres parquet features \
+  data/features/network_reliability_2025_h1.parquet
+```
+
+Do not place `DATABASE_URL` in a `VITE_*` variable or commit it. The CatBoost `.cbm`
+binary belongs in Supabase Storage; `model_versions.artifact_uri` records its location.
+API responses may still be JSON—JSON over HTTP is a transport format, not file storage.
+At runtime, FastAPI reads reference data through `backend.app.services.reference_data_service`
+and model profiles through `backend.app.services.model_registry`; neither reads the source
+JSON files. The browser first requests `/api/data/bootstrap`, then keeps that PostgreSQL
+snapshot in memory for local search and map calculations.
+
 ## Large-data cleaning
 
 Keep source files as Parquet. The cleaner uses DuckDB projection and predicate pushdown,

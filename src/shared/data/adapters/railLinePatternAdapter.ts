@@ -1,4 +1,4 @@
-import linePatternsDocument from '../rail/line-patterns.json';
+import { databaseData } from '../databaseData';
 
 export interface RailLinePatternStop {
   stationId: string;
@@ -19,15 +19,6 @@ export interface RailLinePattern {
   directions: RailLineDirectionPattern[];
 }
 
-interface RailLinePatternsDocument {
-  routes: RailLinePattern[];
-}
-
-const DOCUMENT = linePatternsDocument as RailLinePatternsDocument;
-const PATTERNS_BY_ROUTE = new Map(
-  DOCUMENT.routes.map(pattern => [pattern.routeId, pattern]),
-);
-
 /**
  * Returns the directional stop patterns for one GTFS route.
  *
@@ -37,5 +28,6 @@ const PATTERNS_BY_ROUTE = new Map(
 export function railLinePatternForRoute(
   routeId: string,
 ): RailLinePattern | null {
-  return PATTERNS_BY_ROUTE.get(routeId) ?? null;
+  const patterns = databaseData().railPatterns as RailLinePattern[];
+  return patterns.find(pattern => pattern.routeId === routeId) ?? null;
 }

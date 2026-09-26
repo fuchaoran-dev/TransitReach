@@ -1,5 +1,4 @@
-import rawBusStops
-  from '@/shared/data/bus/stops.json';
+import { databaseData } from '@/shared/data/databaseData';
 
 import type {
   IsochroneRegion,
@@ -22,12 +21,9 @@ interface AccessibleStopLike {
   };
 }
 
-const BUS_STOPS =
-  rawBusStops as BusStop[];
-
-/** All committed Rapid KL bus stops, used by search and focused map selection. */
+/** All Rapid KL bus stops loaded from PostgreSQL. */
 export function loadBusStops(): BusStop[] {
-  return BUS_STOPS;
+  return databaseData().busStops as BusStop[];
 }
 
 export const BUS_STOP_RADIUS_METERS =
@@ -197,7 +193,7 @@ export function busStopsNearAccessibleStations(
   ) {
     return [];
   }
-  return BUS_STOPS.flatMap(
+  return loadBusStops().flatMap(
     busStop => {
       let nearest =
         Number.POSITIVE_INFINITY;

@@ -18,8 +18,8 @@ import type { PageId } from '@/app/routes';
  *
  * The previous values (4 lines, 43 service points, 6 areas mapped) came from the
  * prototype's fictional dataset and described coverage the application does not have.
- * Deriving them means rebuilding stops.json or changing the budget options updates the
- * page, instead of leaving a number that was true once.
+ * Deriving them means updating the PostgreSQL feed or changing the budget options updates
+ * the page, instead of leaving a number that was true once.
  */
 const HEADLINE_STATS = [
   { icon: Train, label: 'Rail Lines', value: loadRailFeedMetadata().feeds[0].lines.length, suffix: '', color: '#2563eb' },

@@ -1,10 +1,26 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import App from './app/App.tsx';
+import { initializeDatabaseData } from './shared/data/databaseData.ts';
 import './index.css';
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-);
+async function start() {
+  const root = createRoot(document.getElementById('root')!);
+  try {
+    await initializeDatabaseData();
+    const { default: App } = await import('./app/App.tsx');
+    root.render(<StrictMode><App /></StrictMode>);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown database error';
+    root.render(
+      <main className="min-h-screen grid place-items-center bg-slate-50 p-6">
+        <section className="max-w-lg rounded-2xl bg-white p-6 shadow-lg">
+          <h1 className="text-xl font-bold text-slate-900">TransitReach data unavailable</h1>
+          <p className="mt-2 text-sm text-slate-600">{message}</p>
+          <p className="mt-2 text-sm text-slate-500">The application requires its PostgreSQL API and does not fall back to bundled JSON data.</p>
+        </section>
+      </main>,
+    );
+  }
+}
+
+void start();

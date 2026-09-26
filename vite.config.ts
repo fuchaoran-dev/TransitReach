@@ -90,6 +90,11 @@ export default defineConfig({
         changeOrigin: true,
         timeout: 15_000,
       },
+      '/api/data': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        timeout: 60_000,
+      },
     },
   },
 });

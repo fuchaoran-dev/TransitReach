@@ -1,5 +1,4 @@
-import rawShapes
-  from '@/shared/data/rail/shapes.json';
+import { databaseData } from '@/shared/data/databaseData';
 
 export interface RailShapePoint {
   lat: number;
@@ -12,17 +11,11 @@ export interface RailShape {
     RailShapePoint[];
 }
 
-const RAIL_SHAPES =
-  rawShapes as Record<
-    string,
-    RailShape
-  >;
-
 export function railShapeForRoute(
   routeId: string,
 ): RailShape | null {
   return (
-    RAIL_SHAPES[
+    (databaseData().railShapes as Record<string, RailShape>)[
       routeId
     ] ?? null
   );

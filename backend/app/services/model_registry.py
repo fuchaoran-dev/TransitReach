@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from functools import lru_cache
 from math import isnan
@@ -8,6 +7,7 @@ from pathlib import Path
 
 from catboost import CatBoostRegressor, Pool
 
+from backend.app.database import connection
 from backend.app.schemas.reliability import ReliabilityPrediction, RiskLevel
 
 
@@ -18,15 +18,41 @@ CATEGORICAL_INDICES = [0, 1]
 
 
 @lru_cache(maxsize=1)
-def _assets() -> tuple[dict, CatBoostRegressor]:
-    registry = json.loads((REGISTRY_DIR / "rapidkl-bus-historical-v1.json").read_text())
+def _model() -> CatBoostRegressor:
     model = CatBoostRegressor()
     model.load_model(str(REGISTRY_DIR / "rapidkl-bus-historical-v1.cbm"))
-    return registry, model
+    return model
 
 
+@lru_cache(maxsize=1)
 def service_catalog() -> list[dict]:
-    return _assets()[0]["services"]
+    with connection() as database:
+        rows = database.execute("""
+            select r.route_id as line_id, r.long_name as name, s.stop_id,
+                   s.name as stop_name, min(rs.stop_sequence)::int as stop_sequence
+            from public.model_scope_routes scope
+            join public.model_versions mv using(model_version)
+            join public.transit_routes r on r.route_id=scope.route_id
+            join public.route_stops rs on rs.route_id=r.route_id
+            join public.transit_stops s on s.stop_id=rs.stop_id
+            where mv.prediction_enabled
+            group by r.route_id, r.long_name, s.stop_id, s.name
+            order by r.route_id, stop_sequence, s.stop_id
+        """).fetchall()
+    services: dict[str, dict] = {}
+    for row in rows:
+        service = services.setdefault(row["line_id"], {
+            "line_id": row["line_id"], "name": row["name"], "stops": []})
+        service["stops"].append({"stop_id": row["stop_id"], "name": row["stop_name"],
+                                 "stop_sequence": row["stop_sequence"]})
+    return list(services.values())
+
+
+def _profile(database, version: str, level: str, key: str) -> dict | None:
+    return database.execute("""
+        select * from public.reliability_profiles
+        where model_version=%s and profile_level=%s and profile_key=%s
+    """, (version, level, key)).fetchone()
 
 
 def _risk(delay: float, profile: dict) -> tuple[RiskLevel, float]:
@@ -40,22 +66,32 @@ def _risk(delay: float, profile: dict) -> tuple[RiskLevel, float]:
 
 
 def predict_historical(line_id: str, stop_id: str, travel_at: datetime) -> ReliabilityPrediction | None:
-    registry, model = _assets()
     weekend = int(travel_at.isoweekday() >= 6)
-    profile = registry["profiles"].get(f"{line_id}|{stop_id}|{travel_at.hour}|{weekend}")
-    level = "stop_time"
-    confidence = "high"
-    if profile is None or profile["sample_count"] < 10:
-        profile = registry["fallback_profiles"].get(f"{line_id}|{stop_id}")
-        level, confidence = "stop", "medium"
-    if profile is None or profile["sample_count"] < 20:
-        profile = registry.get("route_profiles", {}).get(
-            f"{line_id}|{travel_at.hour}|{weekend}"
-        )
-        level, confidence = "route", "low"
-    if profile is None:
-        profile = registry.get("network_profiles", {}).get(f"{travel_at.hour}|{weekend}")
-        level, confidence = "network", "low"
+    with connection() as database:
+        metadata = database.execute("""
+            select * from public.model_versions where prediction_enabled
+            order by created_at desc limit 1
+        """).fetchone()
+        if metadata is None:
+            return None
+        version = metadata["model_version"]
+        profile = _profile(database, version, "stop_time",
+                           f"{line_id}|{stop_id}|{travel_at.hour}|{weekend}")
+        level, confidence = "stop_time", "high"
+        if profile is None or profile["sample_count"] < 10:
+            profile = _profile(database, version, "stop", f"{line_id}|{stop_id}")
+            level, confidence = "stop", "medium"
+        if profile is None or profile["sample_count"] < 20:
+            profile = _profile(database, version, "route",
+                               f"{line_id}|{travel_at.hour}|{weekend}")
+            level, confidence = "route", "low"
+        if profile is None:
+            profile = _profile(database, version, "network", f"{travel_at.hour}|{weekend}")
+            level, confidence = "network", "low"
+        data_sources = [row["source_name"] for row in database.execute("""
+            select source_name from public.model_data_sources
+            where model_version=%s order by source_name
+        """, (version,))]
     if profile is None:
         return None
     row: list[object] = [
@@ -63,6 +99,7 @@ def predict_historical(line_id: str, stop_id: str, travel_at: datetime) -> Relia
         bool(weekend), float("nan"), profile["historical_median_delay"],
         profile["historical_mean_delay"],
     ]
+    model = _model()
     expected = float(model.predict([row])[0])
     risk, percentile = _risk(expected, profile)
     scale = profile.get("residual_scale") or 0
@@ -83,7 +120,6 @@ def predict_historical(line_id: str, stop_id: str, travel_at: datetime) -> Relia
     explanations = [messages[FEATURES[index]] for index in sorted(
         range(len(FEATURES)), key=lambda index: abs(shap[index]), reverse=True
     ) if FEATURES[index] in messages][:3]
-    metadata = registry["metadata"]
     return ReliabilityPrediction(
         prediction_type="historical", prediction_level=level, confidence=confidence,
         sample_count=profile["sample_count"], is_fallback=level in {"route", "network"},
@@ -91,11 +127,11 @@ def predict_historical(line_id: str, stop_id: str, travel_at: datetime) -> Relia
         historical_percentile=percentile, prediction_lower_min=round(lower, 2),
         prediction_upper_min=round(upper, 2), realtime_used=False,
         model_version=metadata["model_version"], model_type=metadata["model_type"],
-        data_sources=metadata["data_sources"],
+        data_sources=data_sources,
         training_period=f"{metadata['training_start']} to {metadata['training_end']}",
-        evaluation={"mae": metadata["model"]["mae"], "rmse": metadata["model"]["rmse"],
-                    "baseline_mae": metadata["baseline"]["mae"],
-                    "baseline_rmse": metadata["baseline"]["rmse"]},
+        evaluation={"mae": metadata["model_mae"], "rmse": metadata["model_rmse"],
+                    "baseline_mae": metadata["baseline_mae"],
+                    "baseline_rmse": metadata["baseline_rmse"]},
         explanations=explanations,
         disclaimer=(f"{level.replace('_', ' ').title()}-level AI estimate trained on GPS-derived "
                     "stop arrivals; manual arrival audit is pending. It is not a guaranteed arrival time."),

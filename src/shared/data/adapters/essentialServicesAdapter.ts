@@ -1,4 +1,4 @@
-import servicesDoc from '../services/services.json';
+import { databaseData } from '../databaseData';
 import type { ServiceLocation } from '@/shared/types/service';
 import { categoryFromOsmTag, deduplicateServices, missingServiceFields } from '@/features/essential-services/serviceDataRules';
 
@@ -15,8 +15,6 @@ interface RawServiceRecord {
 
 export const ESSENTIAL_SERVICES_SOURCE = 'OpenStreetMap via Overpass API';
 export const ESSENTIAL_SERVICES_LICENCE = 'ODbL — OpenStreetMap contributors';
-
-const RAW_SERVICES = servicesDoc.services as RawServiceRecord[];
 
 function prepareService(raw: RawServiceRecord): ServiceLocation {
   const service: ServiceLocation = {
@@ -36,20 +34,20 @@ function prepareService(raw: RawServiceRecord): ServiceLocation {
   return service;
 }
 
-const SERVICES = deduplicateServices(RAW_SERVICES.map(prepareService));
+let services: ServiceLocation[] | null = null;
 
 /** Real OSM service records, normalised and deduplicated for Epic 5. */
 export function loadEssentialServices(): ServiceLocation[] {
-  return SERVICES;
+  services ??= deduplicateServices(
+    (databaseData().essentialServices as RawServiceRecord[]).map(prepareService),
+  );
+  return services;
 }
 
 export function loadEssentialServicesMetadata() {
-  return {
-    source: ESSENTIAL_SERVICES_SOURCE,
-    licence: ESSENTIAL_SERVICES_LICENCE,
-    generatedAt: servicesDoc.generatedAt,
-    bbox: servicesDoc.bbox,
-    recordCount: SERVICES.length,
+  return databaseData().servicesMetadata as {
+    source: string; licence: string; generatedAt: string;
+    bbox: { minLat: number; maxLat: number; minLon: number; maxLon: number };
+    recordCount: number;
   };
 }
-
