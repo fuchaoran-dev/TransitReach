@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DEPARTURE_TIME } from '@/shared/data/adapters/routingAdapter';
 import type { ServiceLocation } from '@/shared/types/service';
+import type { WalkStep } from '@/shared/services/transitRoutingClient';
 import { inspectJourneys } from '../journeyInspectionService';
 import type {
   JourneyInspectionModel,
@@ -30,11 +31,23 @@ export function useJourneyInspection(
 ): JourneyInspectionModel {
   const [state, setState] = useState<JourneyState>(INITIAL_STATE);
   const [selectedJourneyId, setSelectedJourneyId] = useState<string | null>(null);
+  const [highlightedJourneyId, setHighlightedJourneyId] = useState<string | null>(null);
+  const [highlightedLegId, setHighlightedLegId] = useState<string | null>(null);
+  const [focusedStep, setFocusedStep] = useState<WalkStep | null>(null);
   const [retryToken, setRetryToken] = useState(0);
 
   useEffect(() => {
     setSelectedJourneyId(null);
+    setHighlightedJourneyId(null);
   }, [origin?.lat, origin?.lon, destination?.id]);
+
+  // Highlights belong to the view they were made in: opening or leaving a journey's
+  // detail starts clean rather than carrying over a hover from the other view.
+  useEffect(() => {
+    setHighlightedLegId(null);
+    setHighlightedJourneyId(null);
+    setFocusedStep(null);
+  }, [selectedJourneyId]);
 
   useEffect(() => {
     if (
@@ -110,6 +123,12 @@ export function useJourneyInspection(
     selectedJourney,
     selectJourney: setSelectedJourneyId,
     clearSelection: () => setSelectedJourneyId(null),
+    highlightedJourneyId,
+    highlightJourney: setHighlightedJourneyId,
+    highlightedLegId,
+    highlightLeg: setHighlightedLegId,
+    focusedStep,
+    focusStep: setFocusedStep,
     retry,
   };
 }

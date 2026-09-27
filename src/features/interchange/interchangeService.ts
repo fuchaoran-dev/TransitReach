@@ -5,7 +5,7 @@ import type {
   JourneyLeg,
   ModelledJourney,
 } from './types';
-import type { TransitPlanItinerary } from '@/shared/services/transitRoutingClient';
+import type { TransitPlanItinerary, WalkStep } from '@/shared/services/transitRoutingClient';
 
 const EARTH_RADIUS_METRES = 6_371_000;
 
@@ -33,14 +33,18 @@ function roundUpTo30Seconds(seconds: number): number {
 }
 
 function modeFamily(leg: JourneyLeg): 'rail' | 'brt' | 'bus' | 'other' {
+  // Mode first: bus route names are full of station names ("Stesen LRT Universiti ~ …"),
+  // so a text match would read a bus as LRT, MRT or BRT.
+  if (leg.mode === 'BUS') return 'bus';
   const text = `${leg.mode} ${leg.routeShortName ?? ''} ${leg.routeLongName ?? ''}`.toUpperCase();
   if (text.includes('BRT')) return 'brt';
-  if (leg.mode === 'BUS') return 'bus';
   if (['SUBWAY', 'TRAM', 'RAIL', 'TRAIN', 'MONORAIL'].includes(leg.mode)) return 'rail';
   return 'other';
 }
 
 export function displayModeLabel(leg: JourneyLeg): string {
+  // As in modeFamily: a bus is a bus whatever stations its route name mentions.
+  if (leg.mode === 'BUS') return 'Bus';
   const text = `${leg.routeShortName ?? ''} ${leg.routeLongName ?? ''}`.toUpperCase();
   if (text.includes('BRT')) return 'BRT';
   if (text.includes('MRT')) return 'MRT';
@@ -50,6 +54,66 @@ export function displayModeLabel(leg: JourneyLeg): string {
   if (leg.mode === 'TRAM') return 'Rail';
   if (leg.mode === 'BUS') return 'Bus';
   return leg.mode.charAt(0) + leg.mode.slice(1).toLowerCase();
+}
+
+/**
+ * What a leg is called wherever it is listed. A bus is known by its number ("Bus 822",
+ * "Bus T801") — the long name is a route description ("Terminal Maluri ~ Lebuh Ampang"),
+ * not what anyone looks for at the stop. A rail line is known by its long name.
+ */
+export function legTitle(leg: JourneyLeg): string {
+  if (leg.mode === 'WALK') return 'Walk';
+  if (leg.mode === 'BUS') return `Bus ${leg.routeShortName ?? leg.routeLongName ?? ''}`.trim();
+  return leg.routeLongName ?? leg.routeShortName ?? displayModeLabel(leg);
+}
+
+/** Where a bus route runs, when the feed says more than its number. */
+export function busRouteDescription(leg: JourneyLeg): string | null {
+  if (leg.mode !== 'BUS' || !leg.routeLongName || leg.routeLongName === leg.routeShortName) return null;
+  return leg.routeLongName;
+}
+
+/**
+ * The way a walking step follows, as a rider would say it, or null when it has no name
+ * worth reading out. OSM-named ways keep their name. Unnamed ways keep OTP's tag-derived
+ * description ("footbridge", "steps") — those are exactly what a rider needs to hear —
+ * but not a raw identifier like "way 803164605 from 1".
+ */
+export function describeStreet(step: WalkStep): string | null {
+  const name = step.streetName.trim();
+  if (!name) return null;
+  if (!step.bogusName) return name;
+  if (/^way \d+/i.test(name)) return null;
+  return `the ${name.toLowerCase()}`;
+}
+
+const TURN_PHRASES: Record<string, string> = {
+  DEPART: 'Start',
+  LEFT: 'Turn left',
+  RIGHT: 'Turn right',
+  SLIGHTLY_LEFT: 'Bear left',
+  SLIGHTLY_RIGHT: 'Bear right',
+  HARD_LEFT: 'Turn sharp left',
+  HARD_RIGHT: 'Turn sharp right',
+  UTURN_LEFT: 'Turn back',
+  UTURN_RIGHT: 'Turn back',
+  CONTINUE: 'Continue',
+  CIRCLE_CLOCKWISE: 'Go round the roundabout',
+  CIRCLE_COUNTERCLOCKWISE: 'Go round the roundabout',
+};
+
+/** One walking step as a sentence: "Turn left onto the footbridge". */
+export function describeStep(step: WalkStep): string {
+  switch (step.relativeDirection) {
+    case 'ELEVATOR': return 'Take the lift';
+    case 'ENTER_STATION': return 'Enter the station';
+    case 'EXIT_STATION': return 'Leave the station';
+    case 'FOLLOW_SIGNS': return 'Follow the signs';
+  }
+  const turn = TURN_PHRASES[step.relativeDirection] ?? 'Continue';
+  const street = describeStreet(step);
+  if (!street) return turn;
+  return `${turn} ${step.relativeDirection === 'DEPART' ? 'along' : 'onto'} ${street}`;
 }
 
 function pairingAllowanceSeconds(from: JourneyLeg, to: JourneyLeg): number {

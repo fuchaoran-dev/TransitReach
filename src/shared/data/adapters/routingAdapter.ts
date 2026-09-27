@@ -65,9 +65,11 @@ export const TRAVEL_MODE: TravelMode = 'multimodal';
 export const WALK_SPEED_MS = 1.33;
 
 /**
- * Transit modes present in the loaded feed. Every rail route is SUBWAY; BRT Sunway is TRAM.
+ * Transit modes present in the loaded feeds. Every rail route is SUBWAY; BRT Sunway is
+ * TRAM; MRT feeder buses are BUS. Requesting BUS from a graph built without the feeder
+ * feed matches nothing and changes no result, so this is safe on either build.
  */
-const TRANSIT_MODES = 'WALK,SUBWAY,TRAM';
+const TRANSIT_MODES = 'WALK,SUBWAY,TRAM,BUS';
 
 /**
  * Sentinel used to obtain a walking-only isochrone.

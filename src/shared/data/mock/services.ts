@@ -19,7 +19,9 @@ export const CATEGORY_META: Record<ServiceCategory, ServiceCategoryMeta> = {
   hospital:   { id: 'hospital',  label: 'Hospitals',      icon: Hospital,       color: '#e11d48', colorLight: '#ffe4e6' },
   clinic:     { id: 'clinic',    label: 'Clinics',         icon: Stethoscope,    color: '#0ea5e9', colorLight: '#e0f2fe' },
   pharmacy:   { id: 'pharmacy',  label: 'Pharmacies',     icon: Pill,           color: '#8b5cf6', colorLight: '#ede9fe' },
-  school:     { id: 'school',    label: 'Schools',        icon: GraduationCap,  color: '#f59e0b', colorLight: '#fef3c7' },
+  // Yellow, pulled away from Food's orange: at amber-500 against orange-500 the two read as
+  // one colour on the map. The pin icon separates them too, but colour should not lie.
+  school:     { id: 'school',    label: 'Schools',        icon: GraduationCap,  color: '#ca8a04', colorLight: '#fef9c3' },
   market:     { id: 'market',    label: 'Markets',         icon: ShoppingBag,    color: '#10b981', colorLight: '#d1fae5' },
   // Its own chip rather than a share of Markets: a mall is a destination people name and
   // go looking for, and folded into "Markets" it was findable only by accident.
@@ -29,10 +31,10 @@ export const CATEGORY_META: Record<ServiceCategory, ServiceCategoryMeta> = {
   // Bronze, not teal-500. At #14b8a6 this sat one step from the reachable area's old
   // teal, so a bank dot over the area fill was all but invisible. Teal now belongs to
   // the user's own position and route, and no category may take it.
-  bank:       { id: 'bank',      label: 'Banks & ATMs',    icon: Banknote,       color: '#a16207', colorLight: '#fef3c7' },
+  bank:       { id: 'bank',      label: 'Banks & ATMs',    icon: Banknote,       color: '#78350f', colorLight: '#fef3c7' },
   police:     { id: 'police',    label: 'Police',          icon: ShieldCheck,    color: '#3b82f6', colorLight: '#dbeafe' },
   childcare:  { id: 'childcare', label: 'Childcare',       icon: Baby,           color: '#ec4899', colorLight: '#fce7f3' },
-  food:       { id: 'food',       label: 'Food & Meals',    icon: Utensils,       color: '#f97316', colorLight: '#ffedd5' },
+  food:       { id: 'food',       label: 'Food & Meals',    icon: Utensils,       color: '#ea580c', colorLight: '#ffedd5' },
   other:      { id: 'other',      label: 'Other services', icon: HelpCircle,      color: '#64748b', colorLight: '#f1f5f9' },
 };
 
