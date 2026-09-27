@@ -8,7 +8,8 @@ import {
   TrainFront,
 } from 'lucide-react';
 import type { ServiceLocation } from '@/shared/types/service';
-import { describeStep, displayModeLabel } from '../interchangeService';
+import { busRouteDescription, describeStep, legTitle } from '../interchangeService';
+import { BusLegDelayEstimate } from '@/features/transit-reliability';
 import type { WalkStep } from '@/shared/services/transitRoutingClient';
 import type {
   JourneyInspectionModel,
@@ -32,7 +33,7 @@ function distance(metres: number): string {
 }
 
 function transitLabel(leg: JourneyLeg): string {
-  return leg.routeLongName ?? leg.routeShortName ?? displayModeLabel(leg);
+  return legTitle(leg);
 }
 
 function JourneyModeIcon({ leg }: { leg: JourneyLeg }) {
@@ -226,6 +227,9 @@ function JourneyDetail({
                   </span>
                 </div>
                 <div className="mt-1 text-[11px] text-slate-500 leading-snug">
+                  {busRouteDescription(leg) && (
+                    <span className="block text-slate-600">{busRouteDescription(leg)}</span>
+                  )}
                   {leg.from.name} → {leg.to.name}
                   {leg.distanceMeters > 0 && ` · ${distance(leg.distanceMeters)}`}
                 </div>
@@ -234,6 +238,13 @@ function JourneyDetail({
                     steps={leg.steps}
                     focusedStep={focusedStep}
                     onFocusStep={onFocusStep}
+                  />
+                )}
+                {leg.mode === 'BUS' && (
+                  <BusLegDelayEstimate
+                    routeId={leg.routeId}
+                    boardingStopId={leg.from.stopId}
+                    departureMs={leg.startTimeMs}
                   />
                 )}
               </div>

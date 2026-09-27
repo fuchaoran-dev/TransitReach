@@ -44,7 +44,7 @@ import { originFromHit } from '@/features/reachability/reachabilityService';
 
 import {MapAnalysisPanel,type MapAnalysisTab,} from './components/MapAnalysisPanel';
 import { useMapServices } from './components/useMapServices';
-import { JourneyMapLayer, JourneyPreviewLayer, useJourneyInspection } from '@/features/interchange';
+import { JourneyLegend, JourneyMapLayer, JourneyPreviewLayer, useJourneyInspection } from '@/features/interchange';
 import type { ServiceLocation } from '@/shared/types/service';
 
 /** One shared empty array, so "no stops yet" keeps a stable identity between renders. */
@@ -327,6 +327,11 @@ useEffect(() => {
           <LiveTransitStatus
             state={liveTransit}
           />
+        )}
+        {inspectingJourney && (
+          <div className="absolute left-4 bottom-6 z-[550]">
+            <JourneyLegend />
+          </div>
         )}
       </div>
 

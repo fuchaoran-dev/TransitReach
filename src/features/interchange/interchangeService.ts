@@ -33,14 +33,18 @@ function roundUpTo30Seconds(seconds: number): number {
 }
 
 function modeFamily(leg: JourneyLeg): 'rail' | 'brt' | 'bus' | 'other' {
+  // Mode first: bus route names are full of station names ("Stesen LRT Universiti ~ …"),
+  // so a text match would read a bus as LRT, MRT or BRT.
+  if (leg.mode === 'BUS') return 'bus';
   const text = `${leg.mode} ${leg.routeShortName ?? ''} ${leg.routeLongName ?? ''}`.toUpperCase();
   if (text.includes('BRT')) return 'brt';
-  if (leg.mode === 'BUS') return 'bus';
   if (['SUBWAY', 'TRAM', 'RAIL', 'TRAIN', 'MONORAIL'].includes(leg.mode)) return 'rail';
   return 'other';
 }
 
 export function displayModeLabel(leg: JourneyLeg): string {
+  // As in modeFamily: a bus is a bus whatever stations its route name mentions.
+  if (leg.mode === 'BUS') return 'Bus';
   const text = `${leg.routeShortName ?? ''} ${leg.routeLongName ?? ''}`.toUpperCase();
   if (text.includes('BRT')) return 'BRT';
   if (text.includes('MRT')) return 'MRT';
@@ -50,6 +54,23 @@ export function displayModeLabel(leg: JourneyLeg): string {
   if (leg.mode === 'TRAM') return 'Rail';
   if (leg.mode === 'BUS') return 'Bus';
   return leg.mode.charAt(0) + leg.mode.slice(1).toLowerCase();
+}
+
+/**
+ * What a leg is called wherever it is listed. A bus is known by its number ("Bus 822",
+ * "Bus T801") — the long name is a route description ("Terminal Maluri ~ Lebuh Ampang"),
+ * not what anyone looks for at the stop. A rail line is known by its long name.
+ */
+export function legTitle(leg: JourneyLeg): string {
+  if (leg.mode === 'WALK') return 'Walk';
+  if (leg.mode === 'BUS') return `Bus ${leg.routeShortName ?? leg.routeLongName ?? ''}`.trim();
+  return leg.routeLongName ?? leg.routeShortName ?? displayModeLabel(leg);
+}
+
+/** Where a bus route runs, when the feed says more than its number. */
+export function busRouteDescription(leg: JourneyLeg): string | null {
+  if (leg.mode !== 'BUS' || !leg.routeLongName || leg.routeLongName === leg.routeShortName) return null;
+  return leg.routeLongName;
 }
 
 /**
