@@ -24,34 +24,10 @@ const ORIGIN_ZOOM = 15;
  * the study area with a little margin, so its edge is not flush with the screen edge.
  */
 const MIN_ZOOM = 10;
-const STUDY_BOUNDS = latLngBounds(
+const MAP_BOUNDS = latLngBounds(
   [STUDY_AREA.minLat, STUDY_AREA.minLon],
   [STUDY_AREA.maxLat, STUDY_AREA.maxLon],
-);
-const MAP_BOUNDS = STUDY_BOUNDS.pad(0.1);
-
-/**
- * Fades everything outside the study area. At the widest zoom a screen is larger than the
- * study area, so towns beyond it (Seremban, Bentong) still show; the fade says plainly
- * that they are not covered, before a click there is rejected. Not interactive, so a
- * click on it still reaches the map and gets the usual out-of-area message.
- */
-function OutsideStudyAreaMask() {
-  const outer = STUDY_BOUNDS.pad(4);
-  const ring = (b: typeof outer) => [
-    [b.getSouth(), b.getWest()],
-    [b.getNorth(), b.getWest()],
-    [b.getNorth(), b.getEast()],
-    [b.getSouth(), b.getEast()],
-  ] as [number, number][];
-  return (
-    <Polygon
-      positions={[ring(outer), ring(STUDY_BOUNDS)]}
-      pathOptions={{ stroke: false, fillColor: '#f8fafc', fillOpacity: 0.6 }}
-      interactive={false}
-    />
-  );
-}
+).pad(0.1);
 
 /**
  * The reachable area's colour.
@@ -340,7 +316,6 @@ export function BaseMap({ origin, regions, onMapClick, services, selectedService
         control on every view; do not pass `attributionControl={false}`.
       */}
       <VectorBaseLayer />
-      <OutsideStudyAreaMask />
       {/* Must precede ViewController so the container size is correct before the view is set. */}
       <ResizeHandler />
       <ClickHandler onMapClick={onMapClick} />
