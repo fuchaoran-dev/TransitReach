@@ -55,17 +55,24 @@ function JourneyCard({
   representative,
   selected,
   onSelect,
+  onHighlight,
 }: {
   journey: ModelledJourney;
   representative: boolean;
   selected: boolean;
   onSelect: () => void;
+  /** Called with true while the card is hovered or focused, false when it no longer is. */
+  onHighlight: (on: boolean) => void;
 }) {
   const summary = journeySummary(journey);
   return (
     <button
       type="button"
       onClick={onSelect}
+      onMouseEnter={() => onHighlight(true)}
+      onMouseLeave={() => onHighlight(false)}
+      onFocus={() => onHighlight(true)}
+      onBlur={() => onHighlight(false)}
       className={`w-full text-left rounded-xl border p-3 transition ${
         selected
           ? 'border-teal-400 bg-teal-50/70 ring-1 ring-teal-300'
@@ -113,7 +120,17 @@ function JourneyCard({
   );
 }
 
-function JourneyDetail({ journey, onBack }: { journey: ModelledJourney; onBack: () => void }) {
+function JourneyDetail({
+  journey,
+  onBack,
+  highlightedLegId,
+  onHighlightLeg,
+}: {
+  journey: ModelledJourney;
+  onBack: () => void;
+  highlightedLegId: string | null;
+  onHighlightLeg: (legId: string | null) => void;
+}) {
   const interchangeAfter = new Map(
     journey.interchanges.map(interchange => [interchange.fromLegIndex, interchange]),
   );
@@ -145,7 +162,15 @@ function JourneyDetail({ journey, onBack }: { journey: ModelledJourney; onBack: 
           const interchange = interchangeAfter.get(index);
           return (
             <div key={leg.id} className="space-y-2">
-              <div className="rounded-lg bg-white/80 border border-slate-100 p-2.5">
+              <div
+                className={`rounded-lg bg-white/80 border p-2.5 transition ${
+                  leg.id === highlightedLegId ? 'border-teal-400 ring-1 ring-teal-300' : 'border-slate-100'
+                }`}
+                // Hovering a step picks out its leg on the map, so the list and the drawn
+                // route can be read against each other.
+                onMouseEnter={() => onHighlightLeg(leg.id)}
+                onMouseLeave={() => onHighlightLeg(null)}
+              >
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
                   <JourneyModeIcon leg={leg} />
                   {leg.mode === 'WALK' ? 'Walk' : transitLabel(leg)}
@@ -235,7 +260,14 @@ export function JourneyOptionsPanel({ model, service, onChooseService }: Props) 
   if (model.status !== 'ready') return null;
 
   if (model.selectedJourney) {
-    return <JourneyDetail journey={model.selectedJourney} onBack={model.clearSelection} />;
+    return (
+      <JourneyDetail
+        journey={model.selectedJourney}
+        onBack={model.clearSelection}
+        highlightedLegId={model.highlightedLegId}
+        onHighlightLeg={model.highlightLeg}
+      />
+    );
   }
 
   return (
@@ -248,7 +280,7 @@ export function JourneyOptionsPanel({ model, service, onChooseService }: Props) 
           {service.name}
         </div>
         <p className="text-[11px] text-slate-500 leading-snug mt-1">
-          Select a journey to inspect only that path on the map. The representative journey is the shortest feasible modelled journey returned by the routing engine; other journeys may exist.
+          Every journey is drawn faintly on the map. Point at one, here or on the map, to pick it out; select it to inspect only that path. The representative journey is the shortest feasible modelled journey returned by the routing engine; other journeys may exist.
         </p>
       </div>
 
@@ -257,8 +289,12 @@ export function JourneyOptionsPanel({ model, service, onChooseService }: Props) 
           key={journey.id}
           journey={journey}
           representative={journey.id === model.representativeJourneyId}
-          selected={false}
+          selected={journey.id === model.highlightedJourneyId}
           onSelect={() => model.selectJourney(journey.id)}
+          onHighlight={on => {
+            if (on) model.highlightJourney(journey.id);
+            else if (model.highlightedJourneyId === journey.id) model.highlightJourney(null);
+          }}
         />
       ))}
 

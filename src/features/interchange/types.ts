@@ -74,5 +74,11 @@ export interface JourneyInspectionModel {
   selectedJourney: ModelledJourney | null;
   selectJourney: (journeyId: string) => void;
   clearSelection: () => void;
+  /** The journey under the pointer or keyboard focus in the list, drawn in full on the map. */
+  highlightedJourneyId: string | null;
+  highlightJourney: (journeyId: string | null) => void;
+  /** The leg under the pointer in Journey Detail, emphasised on the map. */
+  highlightedLegId: string | null;
+  highlightLeg: (legId: string | null) => void;
   retry: () => void;
 }

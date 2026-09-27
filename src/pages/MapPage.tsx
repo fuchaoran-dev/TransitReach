@@ -43,7 +43,7 @@ import { originFromHit } from '@/features/reachability/reachabilityService';
 
 import {MapAnalysisPanel,type MapAnalysisTab,} from './components/MapAnalysisPanel';
 import { useMapServices } from './components/useMapServices';
-import { JourneyMapLayer, useJourneyInspection } from '@/features/interchange';
+import { JourneyMapLayer, JourneyPreviewLayer, useJourneyInspection } from '@/features/interchange';
 import type { ServiceLocation } from '@/shared/types/service';
 
 /** One shared empty array, so "no stops yet" keeps a stable identity between renders. */
@@ -203,7 +203,20 @@ useEffect(() => {
     analysisTab === 'transfers',
   );
 
-  const inspectingJourney = journeyInspection.selectedJourney !== null;
+  /**
+   * What the map shows of the journeys, if anything. 'detail' is one opened journey;
+   * 'preview' is the list, every journey drawn faintly with the pointed-at one in full.
+   * Either way the map is about the journeys, so the other layers step aside.
+   */
+  const journeyView: 'detail' | 'preview' | null =
+    journeyInspection.selectedJourney !== null
+      ? 'detail'
+      : analysisTab === 'transfers' &&
+          journeyInspection.status === 'ready' &&
+          journeyInspection.journeys.length > 0
+        ? 'preview'
+        : null;
+  const inspectingJourney = journeyView !== null;
 
   const handleServiceSelect = (service: ServiceLocation) => {
     // Selecting a service keeps the user in the Services tab. The map focuses the
@@ -241,10 +254,19 @@ useEffect(() => {
             selectedService={services.selected}
             onServiceSelect={handleServiceSelect}
           >
-            {inspectingJourney && services.selected ? (
+            {journeyView === 'detail' && services.selected ? (
               <JourneyMapLayer
                 journey={journeyInspection.selectedJourney!}
                 destination={services.selected}
+                highlightedLegId={journeyInspection.highlightedLegId}
+              />
+            ) : journeyView === 'preview' && services.selected ? (
+              <JourneyPreviewLayer
+                journeys={journeyInspection.journeys}
+                destination={services.selected}
+                highlightedJourneyId={journeyInspection.highlightedJourneyId}
+                onHighlight={journeyInspection.highlightJourney}
+                onSelect={journeyInspection.selectJourney}
               />
             ) : (
               <>
