@@ -33,7 +33,7 @@ interface Props {
 }
 
 
-const MIN_BUS_STOP_ZOOM = 17;
+export const MIN_BUS_STOP_ZOOM = 17;
 
 
 const busStopIcon =

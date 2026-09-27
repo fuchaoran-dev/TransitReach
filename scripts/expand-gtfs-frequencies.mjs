@@ -33,7 +33,12 @@
  * With no arguments it expands the rail feed. Another frequency-based feed can be named
  * by its folder under data/gtfs/ and the output folder under routing/otp/:
  *
- *   node scripts/expand-gtfs-frequencies.mjs rapid-bus-kl gtfs-rapid-bus-kl-expanded
+ *   node scripts/expand-gtfs-frequencies.mjs rapid-bus-kl gtfs-rapid-bus-kl-expanded B1000
+ *
+ * A third argument lists route_ids, comma-separated, to leave out. The trunk bus feed
+ * repeats BRT Sunway (B1000) as a bus route; the rail feed already carries it, and two
+ * timetables for one line would let the router board a BRT that runs twice as often as
+ * it does. So B1000 is dropped from the bus copy.
  */
 
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync } from 'node:fs';
@@ -41,7 +46,8 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const [feedArg = 'rapid-rail-kl', outArg = 'gtfs-rapid-rail-kl-expanded'] = process.argv.slice(2);
+const [feedArg = 'rapid-rail-kl', outArg = 'gtfs-rapid-rail-kl-expanded', dropArg = ''] = process.argv.slice(2);
+const DROPPED_ROUTES = new Set(dropArg.split(',').filter(Boolean));
 const SRC = join(ROOT, 'data', 'gtfs', feedArg);
 const OUT = join(ROOT, 'routing', 'otp', outArg);
 
@@ -125,7 +131,13 @@ function main() {
   let expandedTrips = 0;
   let copiedTrips = 0;
 
+  let droppedTrips = 0;
+
   for (const trip of trips.rows) {
+    if (DROPPED_ROUTES.has(trip.route_id)) {
+      droppedTrips++;
+      continue;
+    }
     const windows = windowsByTrip.get(trip.trip_id);
     const pattern = stopTimesByTrip.get(trip.trip_id);
 
@@ -183,6 +195,7 @@ function main() {
   console.log(`\nsource      : ${trips.rows.length} trips, ${stopTimes.rows.length} stop_times, ${frequencies.rows.length} frequency windows`);
   console.log(`expanded    : ${expandedTrips} trips from frequency windows`);
   console.log(`copied as-is: ${copiedTrips} already-scheduled trips`);
+  if (DROPPED_ROUTES.size) console.log(`dropped     : ${droppedTrips} template trips on ${[...DROPPED_ROUTES].join(', ')}`);
   console.log(`output      : ${outTrips.length} trips, ${outStopTimes.length} stop_times`);
   console.log(`frequencies.txt omitted — the feed is now fully scheduled.`);
   console.log(`\nwrote ${OUT}\n`);

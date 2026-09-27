@@ -28,6 +28,7 @@ import {
   SelectedLineReachabilityLayer,
   BusStopMapLayer,
   busStopsNearAccessibleStations,
+  mapBusStopById,
   useFirstMile,
   useLiveTransit,
   useSelectedLineReachability,
@@ -184,21 +185,20 @@ useEffect(() => {
     reach.state,
   ]);
   const displayedBusStops = useMemo(() => {
-    // A stop already drawn as a first-mile bus stop is not drawn a second time on top.
-    const firstMileIds = new Set(
-      firstMile.state.status === 'ready'
-        ? firstMile.state.busStops.map(result => result.stop.stopId)
-        : [],
-    );
-    const nearby = nearbyBusStops.filter(stop => !firstMileIds.has(stop.stopId));
-    if (
-      !selectedBusStop ||
-      firstMileIds.has(selectedBusStop.stopId) ||
-      nearby.some(stop => stop.stopId === selectedBusStop.stopId)
-    ) {
-      return nearby;
+    // First-mile's bus stops are the same Rapid KL stops this layer draws, so they join
+    // it: close in they appear as the map's own bus stops, delay popup included, rather
+    // than as a second marker on the same pole.
+    const stops = new Map(nearbyBusStops.map(stop => [stop.stopId, stop]));
+    if (firstMile.state.status === 'ready') {
+      for (const result of firstMile.state.busStops) {
+        const mapStop = mapBusStopById(result.stop.stopId);
+        if (mapStop && !stops.has(mapStop.stopId)) stops.set(mapStop.stopId, mapStop);
+      }
     }
-    return [...nearby, selectedBusStop];
+    if (selectedBusStop && !stops.has(selectedBusStop.stopId)) {
+      stops.set(selectedBusStop.stopId, selectedBusStop);
+    }
+    return [...stops.values()];
   }, [nearbyBusStops, selectedBusStop, firstMile.state]);
 
   const services = useMapServices(

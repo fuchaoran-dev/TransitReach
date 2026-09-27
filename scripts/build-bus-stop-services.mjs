@@ -76,11 +76,26 @@ const titleCase = s =>
     ACRONYMS.has(w.toUpperCase()) ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1));
 
 /**
- * Most trunk stops are named with their pole code first ("KL1132 BANGSAR TELAWI",
- * "PJ395 MRT KOTA DAMANSARA"): about 3,300 of 4,053. The code means nothing to a rider
- * looking for the stop, so it is dropped.
+ * A bus stop is a pole, identified by its Rapid KL pole code ("KL2162", "PJ785"): the code
+ * on the sign, and the name the map's bus-stop layer shows ("KL2162 KIARA RESIDENCE 2").
+ * The trunk feed puts the code at the front of stop_name; the feeder feed keeps it in
+ * stop_code. The same pole appears in both feeds under different stop_ids (539 of the
+ * feeder feed's 2,112 stops, checked 2026-09-27), so poles are merged by code: one stop,
+ * every route that calls there. Names are kept exactly as the map shows them.
  */
-const stopName = raw => titleCase(raw.replace(/^[A-Z]{1,4}\d+\s+/, ''));
+const POLE_CODE = /^([A-Z]{1,4}\d+)\s+/;
+function pole(feed, row) {
+  const code = feed === 'rapid-bus-mrtfeeder' ? row.stop_code : row.stop_name.match(POLE_CODE)?.[1];
+  const name = feed === 'rapid-bus-mrtfeeder' && code ? `${code} ${row.stop_name}` : row.stop_name;
+  return { key: code || `${feed}:${row.stop_id}`, name };
+}
+
+/**
+ * BRT Sunway is rapid transit with stations, not a bus with stops: first-mile lists it
+ * with the rail stations, from the rail feed. The trunk bus feed repeats it as a bus
+ * route (B1000, "SUNWAY LINE"), which is left out here.
+ */
+const isBrt = route => route.route_short_name === 'SUNWAY LINE' || /^BRT\b/i.test(route.route_long_name);
 
 function main() {
   const railStations = JSON.parse(readFileSync(RAIL, 'utf8')).stations;
@@ -110,11 +125,11 @@ function main() {
       stopsByRoute.get(routeId).add(st.stop_id);
     }
 
-    const stopById = new Map(stopRows.map(s => [s.stop_id, { lat: Number(s.stop_lat), lon: Number(s.stop_lon), name: s.stop_name }]));
+    const stopById = new Map(stopRows.map(s => [s.stop_id, { lat: Number(s.stop_lat), lon: Number(s.stop_lon), ...pole(feed, s) }]));
 
     for (const r of routeRows) {
       const served = stopsByRoute.get(r.route_id);
-      if (!served || served.size === 0) continue;
+      if (!served || served.size === 0 || isBrt(r)) continue;
 
       // The feeder feed leaves route_short_name empty and puts the number in the long
       // name; its trips carry the useful description as a headsign instead.
@@ -136,8 +151,11 @@ function main() {
       for (const id of served) {
         const s = stopById.get(id);
         if (!s) continue;
-        if (!stops.has(id)) stops.set(id, { id, name: stopName(s.name), lat: s.lat, lon: s.lon, routes: [] });
-        stops.get(id).routes.push(index);
+        // The trunk feed is read first, so a merged pole keeps the trunk stop_id and
+        // position: the ones the map's bus-stop layer and Epic 4 use.
+        if (!stops.has(s.key)) stops.set(s.key, { id, name: s.name, lat: s.lat, lon: s.lon, routes: [] });
+        const entry = stops.get(s.key);
+        if (!entry.routes.includes(index)) entry.routes.push(index);
       }
     }
   }

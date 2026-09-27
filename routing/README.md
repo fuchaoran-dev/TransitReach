@@ -226,13 +226,15 @@ naming the feed and output folders:
 ```bash
 curl -L -o data/gtfs/rapid-bus-kl.zip   "https://api.data.gov.my/gtfs-static/prasarana?category=rapid-bus-kl"
 unzip -o data/gtfs/rapid-bus-kl.zip -d data/gtfs/rapid-bus-kl
-node scripts/expand-gtfs-frequencies.mjs rapid-bus-kl gtfs-rapid-bus-kl-expanded
+node scripts/expand-gtfs-frequencies.mjs rapid-bus-kl gtfs-rapid-bus-kl-expanded B1000
 ```
 
 Feed id `prasarana-rapid-bus-kl`. Inspected edition: 137 routes and 4,053 stops, the same
-stops as `src/shared/data/bus/stops.json`. 2,097 template trips expand to 10,399. Its
-calendars run to 2027-03-31, so unlike the feeder feed they are used as published. It also
-contains the BRT Sunway line as a bus route, which the rail feed carries as `TRAM`.
+stops as `src/shared/data/bus/stops.json`. Its calendars run to 2027-03-31, so unlike the
+feeder feed they are used as published. It also repeats BRT Sunway as a bus route
+(`B1000`). The rail feed already carries that line as `TRAM`, and two timetables for one
+line would make the BRT look twice as frequent as it is, so the trailing `B1000` drops it
+from this copy. The remaining template trips expand to 9,859.
 
 With both bus feeds downloaded, regenerate the first-mile bus-stop data the app ships:
 
