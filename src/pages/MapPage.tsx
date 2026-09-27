@@ -10,6 +10,7 @@ import {
 
 import {
   formatCoord,
+  nearestAreaName,
   STUDY_AREA_BUFFER_KM,
   BUDGET_COMPONENTS,
   BUDGET_ASSUMPTIONS,
@@ -453,6 +454,10 @@ function OriginReadout({ origin }: { origin: NonNullable<ReturnType<typeof useRe
     : origin.source === 'place' ? 'Selected place'
     : origin.source === 'device' ? 'Your location'
     : 'Selected point';
+  const areaName = useMemo(
+    () => (origin.stop || origin.busStop || origin.place ? null : nearestAreaName(origin.at)),
+    [origin],
+  );
 
   return (
     <div className="glass-chip rounded-xl px-3 py-2.5">
@@ -479,7 +484,12 @@ function OriginReadout({ origin }: { origin: NonNullable<ReturnType<typeof useRe
           </div>
         </>
       ) : (
-        <div className="text-sm font-mono text-slate-700">{formatCoord(origin.at)}</div>
+        <>
+          {areaName && <div className="text-sm font-semibold text-slate-800">Near {areaName}</div>}
+          <div className={areaName ? 'text-xs font-mono text-slate-500' : 'text-sm font-mono text-slate-700'}>
+            {formatCoord(origin.at)}
+          </div>
+        </>
       )}
     </div>
   );

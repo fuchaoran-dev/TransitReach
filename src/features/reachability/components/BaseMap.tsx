@@ -1,31 +1,57 @@
 import {
+  createElement,
   useEffect,
   type ReactNode,
 } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Marker, Polygon, useMap, useMapEvents } from 'react-leaflet';
-import { divIcon } from 'leaflet';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { MapContainer, Marker, Polygon, useMap, useMapEvents } from 'react-leaflet';
+import { divIcon, latLngBounds, type DivIcon, type Marker as LeafletMarker } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { IsochroneRegion } from '@/shared/data/adapters/routingAdapter';
 import type { LatLng, Origin } from '../types';
-import { NETWORK_CENTRE } from '../reachabilityService';
-import type { ServiceLocation } from '@/shared/types/service';
+import { NETWORK_CENTRE, STUDY_AREA } from '../reachabilityService';
+import type { ServiceCategory, ServiceLocation } from '@/shared/types/service';
 import { CATEGORY_META } from '@/shared/data';
-
-/**
- * OpenStreetMap raster tiles.
- *
- * The attribution below is a licence obligation under the ODbL, not a design choice
- * (AC 1.3.3). Leaflet renders its attribution control on every view and offers the user
- * no way to dismiss it; do not pass `attributionControl={false}` or override this string.
- *
- * OSM's tile usage policy governs this endpoint. Student-scale traffic sits inside it
- * only while valid attribution is displayed. A heavier deployment needs its own tiles.
- */
-const OSM_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+import { VectorBaseLayer } from './VectorBaseLayer';
 
 const DEFAULT_ZOOM = 11;
 const ORIGIN_ZOOM = 15;
+
+/**
+ * The map stops at the Klang Valley. Nothing outside the study area can be selected or
+ * computed (AC 1.1.2), so letting the user pan to Penang or zoom out to the whole world
+ * only offers places the app cannot answer for, and loads tiles for them. The bounds are
+ * the study area with a little margin, so its edge is not flush with the screen edge.
+ */
+const MIN_ZOOM = 10;
+const STUDY_BOUNDS = latLngBounds(
+  [STUDY_AREA.minLat, STUDY_AREA.minLon],
+  [STUDY_AREA.maxLat, STUDY_AREA.maxLon],
+);
+const MAP_BOUNDS = STUDY_BOUNDS.pad(0.1);
+
+/**
+ * Fades everything outside the study area. At the widest zoom a screen is larger than the
+ * study area, so towns beyond it (Seremban, Bentong) still show; the fade says plainly
+ * that they are not covered, before a click there is rejected. Not interactive, so a
+ * click on it still reaches the map and gets the usual out-of-area message.
+ */
+function OutsideStudyAreaMask() {
+  const outer = STUDY_BOUNDS.pad(4);
+  const ring = (b: typeof outer) => [
+    [b.getSouth(), b.getWest()],
+    [b.getNorth(), b.getWest()],
+    [b.getNorth(), b.getEast()],
+    [b.getSouth(), b.getEast()],
+  ] as [number, number][];
+  return (
+    <Polygon
+      positions={[ring(outer), ring(STUDY_BOUNDS)]}
+      pathOptions={{ stroke: false, fillColor: '#f8fafc', fillOpacity: 0.6 }}
+      interactive={false}
+    />
+  );
+}
 
 /**
  * The reachable area's colour.
@@ -99,8 +125,9 @@ function ResizeHandler() {
 
 /**
  * Follows the origin: eases to a stop chosen by name, and returns to the default view
- * when the origin is cleared (AC 1.1.5). A map click is deliberately not followed —
- * the user is already looking at the point they tapped.
+ * when the origin is cleared (AC 1.1.5). A map click or drag is not re-centred — the user
+ * is already looking at that point — unless it has ended up at the very edge of the view,
+ * where the pin would be cut off; then the map pans just enough to bring it back in.
  */
 function ViewController({ origin }: { origin: Origin | null }) {
   const map = useMap();
@@ -110,7 +137,12 @@ function ViewController({ origin }: { origin: Origin | null }) {
       map.setView([NETWORK_CENTRE.lat, NETWORK_CENTRE.lon], DEFAULT_ZOOM);
       return;
     }
-    if (origin.source === 'map') return;
+    if (origin.source === 'map') {
+      if (!map.getBounds().pad(-0.1).contains([origin.at.lat, origin.at.lon])) {
+        map.panTo([origin.at.lat, origin.at.lon]);
+      }
+      return;
+    }
     map.setView([origin.at.lat, origin.at.lon], ORIGIN_ZOOM);
   }, [origin, map]);
 
@@ -166,19 +198,38 @@ function ServiceViewController({
  */
 const originIcon = divIcon({
   className: 'origin-marker',
-  html: '<div class="origin-marker-pin"></div><span class="origin-marker-ground"></span>',
+  // The "Start" tag names the pin outright: a shape alone still has to be learned, and a
+  // first-time rider looking at a journey drawn from here should not have to guess which
+  // end is theirs. It sits above the head so it never covers the point itself.
+  html:
+    '<span style="position:absolute;left:22px;top:-18px;transform:translateX(-50%);' +
+    'padding:1px 7px;border-radius:9999px;background:#0f766e;color:#fff;font:700 11px/16px system-ui,sans-serif;' +
+    'white-space:nowrap;border:1.5px solid #fff">Start</span>' +
+    '<div class="origin-marker-pin"></div><span class="origin-marker-ground"></span>',
   iconSize: [44, 46],
   iconAnchor: [22, 41],
 });
 
-function OriginPin({ at }: { at: LatLng }) {
+/**
+ * Draggable, so a rider can nudge the start onto the right side of a road or the right
+ * station entrance without hunting for the exact pixel to click. The drop goes through
+ * the same handler as a map click, so it gets the same study-area check.
+ */
+function OriginPin({ at, onMove }: { at: LatLng; onMove: (at: LatLng) => void }) {
   return (
     <Marker
       position={[at.lat, at.lon]}
       icon={originIcon}
-      // Above the area fill, and above the service dots that share markerPane.
+      // Above the area fill, and above the service pins that share markerPane.
       zIndexOffset={1000}
-      interactive={false}
+      draggable
+      title="Starting point — drag to move"
+      eventHandlers={{
+        dragend: e => {
+          const { lat, lng } = (e.target as LeafletMarker).getLatLng();
+          onMove({ lat, lon: lng });
+        },
+      }}
     />
   );
 }
@@ -217,31 +268,55 @@ function ReachabilityLayer({ regions }: { regions: IsochroneRegion[] }) {
   );
 }
 
+/**
+ * A service pin: the category's own icon on a disc of the category colour, ringed in
+ * white. Colour alone could not carry thirteen categories — Schools and Food read as the
+ * same orange dot — so the icon, the same one on the category's filter chip, is what
+ * tells them apart. The white ring still lets the colour read over the area fill.
+ *
+ * One icon per category and state, built once: the pins are re-rendered on every filter
+ * change and there can be hundreds of them.
+ */
+const serviceIconCache = new Map<string, DivIcon>();
+
+function serviceIcon(category: ServiceCategory, selected: boolean): DivIcon {
+  const key = `${category}:${selected}`;
+  const cached = serviceIconCache.get(key);
+  if (cached) return cached;
+
+  const meta = CATEGORY_META[category];
+  const size = selected ? 30 : 22;
+  const glyph = renderToStaticMarkup(
+    createElement(meta.icon, { size: selected ? 17 : 13, color: '#ffffff', strokeWidth: 2.5 }),
+  );
+  const icon = divIcon({
+    className: 'service-pin',
+    html:
+      `<div style="width:${size}px;height:${size}px;border-radius:9999px;background:${meta.color};` +
+      `border:${selected ? 3 : 2}px solid #ffffff;box-shadow:0 1px 3px rgba(15,23,42,.35);` +
+      `display:flex;align-items:center;justify-content:center;box-sizing:border-box">${glyph}</div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+  serviceIconCache.set(key, icon);
+  return icon;
+}
+
 function ServicePins({ services, selectedServiceId, onServiceSelect }: Pick<BaseMapProps, 'services' | 'selectedServiceId' | 'onServiceSelect'>) {
   return <>
     {(services ?? []).map(service => {
       if (service.lat === undefined || service.lon === undefined) return null;
-      const color = CATEGORY_META[service.category].color;
       const selected = service.id === selectedServiceId;
       return (
-        <CircleMarker
+        <Marker
           key={service.id}
-          center={[service.lat, service.lon]}
-          radius={selected ? 9 : 6}
-          pane="markerPane"
-          // A service click is an inspection action, not a new-origin map click.
-          // Leaflet Path events bubble to the map by default, which would otherwise
-          // trigger ClickHandler and move the user's starting point underneath the pin.
-          bubblingMouseEvents={false}
-          // White ring, category fill. Ringing every dot is what lets a category hue read
-          // against the area fill, against the base map, and against the dot beside it —
-          // stroking each dot in its own colour left it blending into whatever was behind.
-          pathOptions={{
-            color: '#ffffff',
-            weight: selected ? 3 : 1.5,
-            fillColor: color,
-            fillOpacity: selected ? 1 : 0.9,
-          }}
+          position={[service.lat, service.lon]}
+          icon={serviceIcon(service.category, selected)}
+          title={service.name}
+          // Selected pin above its neighbours; the origin pin (1000) stays above both.
+          zIndexOffset={selected ? 500 : 0}
+          // A service click is an inspection action, not a new-origin map click. Marker
+          // clicks do not bubble to the map, so ClickHandler never sees it.
           eventHandlers={{ click: () => onServiceSelect?.(service) }}
         />
       );
@@ -254,10 +329,18 @@ export function BaseMap({ origin, regions, onMapClick, services, selectedService
     <MapContainer
       center={[NETWORK_CENTRE.lat, NETWORK_CENTRE.lon]}
       zoom={DEFAULT_ZOOM}
+      minZoom={MIN_ZOOM}
+      maxBounds={MAP_BOUNDS}
+      maxBoundsViscosity={1}
       style={{ width: '100%', height: '100%' }}
       zoomControl={false}
     >
-      <TileLayer url={OSM_TILE_URL} attribution={OSM_ATTRIBUTION} maxZoom={19} />
+      {/*
+        Base map and its licence attribution (AC 1.3.3). Leaflet renders the attribution
+        control on every view; do not pass `attributionControl={false}`.
+      */}
+      <VectorBaseLayer />
+      <OutsideStudyAreaMask />
       {/* Must precede ViewController so the container size is correct before the view is set. */}
       <ResizeHandler />
       <ClickHandler onMapClick={onMapClick} />
@@ -267,7 +350,7 @@ export function BaseMap({ origin, regions, onMapClick, services, selectedService
       {regions && <ReachabilityLayer regions={regions} />}
       <ServicePins services={services} selectedServiceId={selectedServiceId} onServiceSelect={onServiceSelect} />
       {children}
-      {origin && <OriginPin at={origin.at} />}
+      {origin && <OriginPin at={origin.at} onMove={onMapClick} />}
     </MapContainer>
   );
 }

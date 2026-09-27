@@ -8,7 +8,7 @@ import {
   DEPARTURE_TIME_IS_PROVISIONAL,
 } from '@/shared/data/adapters/routingAdapter';
 import { polygonArea } from '@/shared/lib/spatial';
-import type { OsmPlace } from '@/shared/data/adapters/osmAdapter';
+import { loadPlaces, type OsmPlace } from '@/shared/data/adapters/osmAdapter';
 import type { MapPoint } from '@/shared/types/location';
 import type { BusStop } from '@/features/first-mile/busStopService';
 import type { LatLng, Origin, RailStop } from './types';
@@ -177,6 +177,30 @@ export const NETWORK_CENTRE: LatLng = {
 /** AC 1.1.2 — coordinates are shown to 5 decimal places. */
 export function formatCoord(p: LatLng): string {
   return `${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}`;
+}
+
+const AREA_KINDS = new Set(['suburb', 'town', 'city']);
+/** Beyond this, "near X" stops being a useful description of where the point is. */
+const NEAREST_AREA_MAX_KM = 4;
+
+/**
+ * The suburb, town or city nearest a point, so a map-clicked origin reads as "near
+ * Bangsar" rather than as a bare coordinate a rider cannot place. Uses the committed
+ * place extract only — no geocoder is called (AC 1.1.3).
+ */
+export function nearestAreaName(p: LatLng): string | null {
+  const kmPerDegLon = 111.32 * Math.cos((p.lat * Math.PI) / 180);
+  let best: string | null = null;
+  let bestKm = NEAREST_AREA_MAX_KM;
+  for (const place of loadPlaces()) {
+    if (!AREA_KINDS.has(place.kind)) continue;
+    const km = Math.hypot((place.lat - p.lat) * 110.57, (place.lon - p.lon) * kmPerDegLon);
+    if (km < bestKm) {
+      bestKm = km;
+      best = place.name;
+    }
+  }
+  return best;
 }
 
 /**
