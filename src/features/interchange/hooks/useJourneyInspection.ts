@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DEPARTURE_TIME } from '@/shared/data/adapters/routingAdapter';
 import type { ServiceLocation } from '@/shared/types/service';
+import type { WalkStep } from '@/shared/services/transitRoutingClient';
 import { inspectJourneys } from '../journeyInspectionService';
 import type {
   JourneyInspectionModel,
@@ -32,6 +33,7 @@ export function useJourneyInspection(
   const [selectedJourneyId, setSelectedJourneyId] = useState<string | null>(null);
   const [highlightedJourneyId, setHighlightedJourneyId] = useState<string | null>(null);
   const [highlightedLegId, setHighlightedLegId] = useState<string | null>(null);
+  const [focusedStep, setFocusedStep] = useState<WalkStep | null>(null);
   const [retryToken, setRetryToken] = useState(0);
 
   useEffect(() => {
@@ -44,6 +46,7 @@ export function useJourneyInspection(
   useEffect(() => {
     setHighlightedLegId(null);
     setHighlightedJourneyId(null);
+    setFocusedStep(null);
   }, [selectedJourneyId]);
 
   useEffect(() => {
@@ -124,6 +127,8 @@ export function useJourneyInspection(
     highlightJourney: setHighlightedJourneyId,
     highlightedLegId,
     highlightLeg: setHighlightedLegId,
+    focusedStep,
+    focusStep: setFocusedStep,
     retry,
   };
 }

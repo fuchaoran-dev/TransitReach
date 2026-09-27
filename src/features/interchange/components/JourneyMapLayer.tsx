@@ -7,14 +7,34 @@ import {
 } from 'react-leaflet';
 import { latLngBounds } from 'leaflet';
 import type { ServiceLocation } from '@/shared/types/service';
+import type { WalkStep } from '@/shared/services/transitRoutingClient';
 import type { JourneyLeg, ModelledJourney } from '../types';
-import { displayModeLabel } from '../interchangeService';
+import { describeStep, displayModeLabel } from '../interchangeService';
 
 interface Props {
   journey: ModelledJourney;
   destination: ServiceLocation;
   /** A leg to emphasise, from Journey Detail; the others are dimmed while it is set. */
   highlightedLegId?: string | null;
+  /** A walking step clicked in Journey Detail: the map moves to it and marks the spot. */
+  focusedStep?: WalkStep | null;
+}
+
+/** Flies to a clicked walking step, close enough to see the turn it describes. */
+function StepFocus({ step }: { step: WalkStep }) {
+  const map = useMap();
+  useEffect(() => {
+    map.flyTo([step.lat, step.lon], Math.max(map.getZoom(), 18), { duration: 0.6 });
+  }, [step, map]);
+  return (
+    <CircleMarker
+      center={[step.lat, step.lon]}
+      radius={8}
+      pathOptions={{ color: '#0f766e', weight: 3, fillColor: '#ffffff', fillOpacity: 1 }}
+    >
+      <Tooltip direction="top" permanent>{describeStep(step)}</Tooltip>
+    </CircleMarker>
+  );
 }
 
 /** Unselected journeys in the list view: present, but quiet enough not to compete. */
@@ -64,7 +84,7 @@ function DestinationMarker({ destination }: { destination: ServiceLocation }) {
   );
 }
 
-export function JourneyMapLayer({ journey, destination, highlightedLegId = null }: Props) {
+export function JourneyMapLayer({ journey, destination, highlightedLegId = null, focusedStep = null }: Props) {
   const allPoints = useMemo(
     () => journey.legs.flatMap(leg => leg.geometry),
     [journey],
@@ -120,6 +140,7 @@ export function JourneyMapLayer({ journey, destination, highlightedLegId = null 
       })}
 
       <DestinationMarker destination={destination} />
+      {focusedStep && <StepFocus step={focusedStep} />}
     </>
   );
 }

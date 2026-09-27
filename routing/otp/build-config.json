@@ -4,7 +4,7 @@
 
   "osm": [
     {
-      "source": "malaysia-singapore-brunei-latest.osm.pbf",
+      "source": "malaysia-singapore-brunei-walkfix.osm.pbf",
       "osmTagMapping": "default"
     }
   ],
@@ -14,6 +14,11 @@
       "type": "gtfs",
       "source": "gtfs-rapid-rail-kl-expanded",
       "feedId": "prasarana-rapid-rail-kl"
+    },
+    {
+      "type": "gtfs",
+      "source": "gtfs-rapid-bus-mrtfeeder",
+      "feedId": "prasarana-mrt-feeder"
     }
   ]
 }

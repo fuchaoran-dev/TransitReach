@@ -259,6 +259,7 @@ useEffect(() => {
                 journey={journeyInspection.selectedJourney!}
                 destination={services.selected}
                 highlightedLegId={journeyInspection.highlightedLegId}
+                focusedStep={journeyInspection.focusedStep}
               />
             ) : journeyView === 'preview' && services.selected ? (
               <JourneyPreviewLayer

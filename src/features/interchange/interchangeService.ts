@@ -5,7 +5,7 @@ import type {
   JourneyLeg,
   ModelledJourney,
 } from './types';
-import type { TransitPlanItinerary } from '@/shared/services/transitRoutingClient';
+import type { TransitPlanItinerary, WalkStep } from '@/shared/services/transitRoutingClient';
 
 const EARTH_RADIUS_METRES = 6_371_000;
 
@@ -50,6 +50,49 @@ export function displayModeLabel(leg: JourneyLeg): string {
   if (leg.mode === 'TRAM') return 'Rail';
   if (leg.mode === 'BUS') return 'Bus';
   return leg.mode.charAt(0) + leg.mode.slice(1).toLowerCase();
+}
+
+/**
+ * The way a walking step follows, as a rider would say it, or null when it has no name
+ * worth reading out. OSM-named ways keep their name. Unnamed ways keep OTP's tag-derived
+ * description ("footbridge", "steps") — those are exactly what a rider needs to hear —
+ * but not a raw identifier like "way 803164605 from 1".
+ */
+export function describeStreet(step: WalkStep): string | null {
+  const name = step.streetName.trim();
+  if (!name) return null;
+  if (!step.bogusName) return name;
+  if (/^way \d+/i.test(name)) return null;
+  return `the ${name.toLowerCase()}`;
+}
+
+const TURN_PHRASES: Record<string, string> = {
+  DEPART: 'Start',
+  LEFT: 'Turn left',
+  RIGHT: 'Turn right',
+  SLIGHTLY_LEFT: 'Bear left',
+  SLIGHTLY_RIGHT: 'Bear right',
+  HARD_LEFT: 'Turn sharp left',
+  HARD_RIGHT: 'Turn sharp right',
+  UTURN_LEFT: 'Turn back',
+  UTURN_RIGHT: 'Turn back',
+  CONTINUE: 'Continue',
+  CIRCLE_CLOCKWISE: 'Go round the roundabout',
+  CIRCLE_COUNTERCLOCKWISE: 'Go round the roundabout',
+};
+
+/** One walking step as a sentence: "Turn left onto the footbridge". */
+export function describeStep(step: WalkStep): string {
+  switch (step.relativeDirection) {
+    case 'ELEVATOR': return 'Take the lift';
+    case 'ENTER_STATION': return 'Enter the station';
+    case 'EXIT_STATION': return 'Leave the station';
+    case 'FOLLOW_SIGNS': return 'Follow the signs';
+  }
+  const turn = TURN_PHRASES[step.relativeDirection] ?? 'Continue';
+  const street = describeStreet(step);
+  if (!street) return turn;
+  return `${turn} ${step.relativeDirection === 'DEPART' ? 'along' : 'onto'} ${street}`;
 }
 
 function pairingAllowanceSeconds(from: JourneyLeg, to: JourneyLeg): number {

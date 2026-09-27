@@ -74,6 +74,46 @@ serialisation version ids). Changing OTP version means rebuilding the graph.
 Geofabrik publishes **no sub-region extract for Malaysia**, so this is the whole country
 plus Singapore and Brunei. See "Clipping" below.
 
+### 2a. Prepare the street network
+
+The graph is built from a corrected copy of the OSM extract, not the download itself.
+Osmosis applies `routing/otp/walk-access-fixes.xml`, which closes motorcycle lanes to
+walking. Osmosis is pure Java, so it needs nothing beyond the Java already installed for OTP.
+From `routing/otp/`:
+
+```bash
+curl -L -o osmosis-0.49.2.zip   https://github.com/openstreetmap/osmosis/releases/download/0.49.2/osmosis-0.49.2.zip
+unzip -q -o osmosis-0.49.2.zip -d osmosis
+
+java -Xmx4G -cp "osmosis/osmosis-0.49.2/lib/*" org.openstreetmap.osmosis.core.Osmosis   --read-pbf file=malaysia-singapore-brunei-latest.osm.pbf   --tag-transform file=walk-access-fixes.xml stats=walk-access-fixes.stats.txt   --write-pbf file=malaysia-singapore-brunei-walkfix.osm.pbf
+```
+
+This takes about 30 s.
+
+> ### Why the extract is corrected
+>
+> Walking routes were sending people along the Federal Highway's motorcycle lane, in one
+> test making a 4.5 km detour down it instead of using a footbridge 130 m away. In OSM,
+> almost every Klang Valley motorcycle lane is `highway=service` + `motorcycle=designated`
+> with no `foot` tag, and a service road without one is walkable under OTP's default tag
+> mapping. OTP 2.5 cannot be told to read a tag differently, since `osmTagMapping` only
+> picks a country preset. So the input is corrected: every `motorcycle=designated` way that
+> does not explicitly admit pedestrians gets `foot=no`. The extract inspected on
+> 2026-09-27 had 887 such ways.
+>
+> Measured on 32 walks across mapped footbridges around Asia Jaya and Section 14:
+>
+> | | Before | After |
+> |---|---|---|
+> | Walks using a motorcycle lane | 5 | 0 |
+> | Longest detour | 4,486 m | 697 m |
+>
+> Reachable areas changed by under 0.5%. The fix reroutes walks off the lanes and cuts
+> nobody off.
+>
+> Footbridges were already used wherever they are mapped and connected in OSM. A footbridge
+> missing from OSM cannot be used; the fix for that is an OSM edit, not a setting here.
+
 ### 3. Expand the GTFS feed
 
 Do **not** hand OTP the raw feed. Run this from the repo root:
@@ -153,6 +193,30 @@ because Kwasa Damansara is nowhere near the BRT Sunway line.
 
 Do **not** use a `plan` query as the check: it uses a different Raptor profile and will
 happily return a rail itinerary even when the isochrone path is misconfigured.
+
+### 3b. Prepare the MRT feeder bus feed
+
+The feeder feed is a real timetable, so it is not expanded, but it is prepared. From the
+repo root:
+
+```bash
+curl -L -o data/gtfs/rapid-bus-mrtfeeder.zip   "https://api.data.gov.my/gtfs-static/prasarana?category=rapid-bus-mrtfeeder"
+unzip -o data/gtfs/rapid-bus-mrtfeeder.zip -d data/gtfs/rapid-bus-mrtfeeder
+node scripts/prepare-bus-feeder-gtfs.mjs
+```
+
+It writes `routing/otp/gtfs-rapid-bus-mrtfeeder/` (feed id `prasarana-mrt-feeder`). Two
+changes are made to that copy, and both are explained in the script:
+
+- **Calendars are widened to 2026.** Each edition of the feed covers only about five weeks
+  ahead; the one inspected on 2026-09-27 ran 28 Sep – 31 Oct. The app computes at one
+  modelled departure (a typical Tuesday 08:00), which fell outside it, so no feeder bus
+  would have run in any result. The published weekday/weekend pattern is used as the typical
+  week, as the rail feed already is.
+- **`route_short_name` is filled** from `route_long_name`, where the feed puts the route
+  number (`T117`).
+
+Inspected edition: 91 routes (all `route_type` 3, bus), 2,112 stops, 6,291 trips.
 
 ### 4. Build the graph
 
@@ -264,7 +328,10 @@ Two notes for whoever re-runs it:
   bbox extract from <https://extract.bbbike.org/> covering roughly lat 2.79–3.37,
   lon 101.31–101.93 would cut the input to about 40–60 MB. Not needed locally; likely
   mandatory before hosting.
-- **Rail only.** The bus and feeder-bus feeds are not loaded, so the engine computes
-  rail-only reachability. The app must keep saying so on every result it affects.
+- **Rail and MRT feeder buses only.** Since 2026-09-27 the local build also loads the MRT
+  feeder bus feed (section 3b). The Rapid KL trunk bus feed (`rapid-bus-kl`) is still not
+  loaded, and the app must keep saying so on every result it affects. The Nectar host
+  serves whatever graph was last built there. Until it is rebuilt with the feeder feed, the
+  deployed site is still rail-only.
 - **Departure time is unowned.** OTP requires one for any transit search, and Epics 1, 2,
   5, 6 and 8 must all use the same default or their numbers will not reconcile.

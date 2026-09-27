@@ -14,6 +14,22 @@ export interface TransitPlanPoint {
   lon: number;
 }
 
+/**
+ * One instruction along a walking leg, as OTP reports it.
+ *
+ * `bogusName` is true when the way has no name in OSM. OTP then substitutes either a
+ * description it derived from the tags ("footbridge", "steps", "path") — worth showing —
+ * or a raw identifier ("way 803164605 from 1"), which is not. See describeStreet().
+ */
+export interface WalkStep {
+  relativeDirection: string;
+  streetName: string;
+  bogusName: boolean;
+  distanceMeters: number;
+  lat: number;
+  lon: number;
+}
+
 export interface TransitPlanLeg {
   mode: string;
   routeId: string | null;
@@ -28,6 +44,8 @@ export interface TransitPlanLeg {
   to: TransitPlanPoint;
   geometry: Array<{ lat: number; lon: number }>;
   transitLeg: boolean;
+  /** Turn-by-turn steps; present on walking legs, empty otherwise. */
+  steps: WalkStep[];
 }
 
 export interface TransitPlanItinerary {
@@ -65,6 +83,14 @@ interface OtpLeg {
   legGeometry?: {
     points?: string;
   };
+  steps?: Array<{
+    relativeDirection?: string;
+    streetName?: string;
+    bogusName?: boolean;
+    distance?: number;
+    lat?: number;
+    lon?: number;
+  }>;
 }
 
 interface OtpItinerary {
@@ -181,6 +207,14 @@ function normalizeLeg(leg: OtpLeg): TransitPlanLeg {
     to: pointFromOtp(leg.to, 'Journey point'),
     geometry: leg.legGeometry?.points ? decodePolyline(leg.legGeometry.points) : [],
     transitLeg: leg.transitLeg ?? mode !== 'WALK',
+    steps: (leg.steps ?? []).map(step => ({
+      relativeDirection: step.relativeDirection ?? 'CONTINUE',
+      streetName: step.streetName ?? '',
+      bogusName: step.bogusName ?? false,
+      distanceMeters: Math.max(0, step.distance ?? 0),
+      lat: step.lat ?? 0,
+      lon: step.lon ?? 0,
+    })),
   };
 }
 

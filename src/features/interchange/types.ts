@@ -1,4 +1,5 @@
 import type { ServiceLocation } from '@/shared/types/service';
+import type { WalkStep } from '@/shared/services/transitRoutingClient';
 
 export interface JourneyPoint {
   name: string;
@@ -22,6 +23,8 @@ export interface JourneyLeg {
   to: JourneyPoint;
   geometry: Array<{ lat: number; lon: number }>;
   transitLeg: boolean;
+  /** Turn-by-turn steps from the routing engine; walking legs only. */
+  steps: WalkStep[];
   /** True when this walking leg is part of an estimated interchange explanation. */
   partOfInterchange: boolean;
 }
@@ -80,5 +83,8 @@ export interface JourneyInspectionModel {
   /** The leg under the pointer in Journey Detail, emphasised on the map. */
   highlightedLegId: string | null;
   highlightLeg: (legId: string | null) => void;
+  /** A walking step the rider clicked in Journey Detail; the map moves to it. */
+  focusedStep: WalkStep | null;
+  focusStep: (step: WalkStep | null) => void;
   retry: () => void;
 }
