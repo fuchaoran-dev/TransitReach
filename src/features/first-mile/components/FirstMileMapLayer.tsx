@@ -13,6 +13,7 @@ import L, {
 } from 'leaflet';
 
 import type {
+  FirstMileBusStopResult,
   FirstMileStopResult,
 } from '../types';
 
@@ -27,6 +28,8 @@ const ROUTE_MAX_ZOOM = 16;
 
 interface FirstMileMapLayerProps {
   stops: FirstMileStopResult[];
+  /** Bus stops in the walking window; drawn smaller than stations, and selectable the same way. */
+  busStops?: FirstMileBusStopResult[];
   selectedStopId: string | null;
   onSelect: (stopId: string) => void;
 }
@@ -92,8 +95,26 @@ function stationIcon(
 }
 
 
+/** A first-mile bus stop: a rounded square like a station's, smaller, in slate. */
+function busStopIcon(selected: boolean) {
+  const size = selected ? 28 : 22;
+  return L.divIcon({
+    className: 'first-mile-bus-stop-marker',
+    html:
+      `<div style="width:${size}px;height:${size}px;border-radius:7px;` +
+      `background:${selected ? '#334155' : '#ffffff'};border:2.5px solid #334155;` +
+      `box-shadow:0 2px 6px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;` +
+      `font-size:${selected ? 15 : 12}px">` +
+      `<span style="filter:${selected ? 'brightness(0) invert(1)' : 'none'}">🚏</span></div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -size / 2],
+  });
+}
+
 export function FirstMileMapLayer({
   stops,
+  busStops = [],
   selectedStopId,
   onSelect,
 }: FirstMileMapLayerProps) {
@@ -102,7 +123,9 @@ export function FirstMileMapLayer({
     stops.find(
       item =>
         item.stop.stopId === selectedStopId,
-    ) ?? null;
+    ) ??
+    busStops.find(item => item.stop.stopId === selectedStopId) ??
+    null;
 
   /*
    * AC 3.1.4 — bring the chosen walking connection into view.
@@ -164,6 +187,22 @@ export function FirstMileMapLayer({
           </Marker>
         );
       })}
+
+      {busStops.map(result => (
+        <Marker
+          key={result.stop.stopId}
+          position={[result.stop.lat, result.stop.lon]}
+          icon={busStopIcon(result.stop.stopId === selectedStopId)}
+          eventHandlers={{ click: () => onSelect(result.stop.stopId) }}
+        >
+          <Popup>
+            <div>
+              <strong>{result.stop.name}</strong>
+              <div>Bus stop · {result.routes.map(route => route.name).join(', ')}</div>
+            </div>
+          </Popup>
+        </Marker>
+      ))}
 
       {/* AC 3.1.2 + 3.1.4 — actual OSM walking geometry */}
       {selected &&

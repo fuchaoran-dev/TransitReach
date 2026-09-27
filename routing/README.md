@@ -218,6 +218,28 @@ changes are made to that copy, and both are explained in the script:
 
 Inspected edition: 91 routes (all `route_type` 3, bus), 2,112 stops, 6,291 trips.
 
+### 3c. Expand the Rapid KL trunk bus feed
+
+Like rail, the trunk bus feed is frequency-based, so it is expanded with the same script,
+naming the feed and output folders:
+
+```bash
+curl -L -o data/gtfs/rapid-bus-kl.zip   "https://api.data.gov.my/gtfs-static/prasarana?category=rapid-bus-kl"
+unzip -o data/gtfs/rapid-bus-kl.zip -d data/gtfs/rapid-bus-kl
+node scripts/expand-gtfs-frequencies.mjs rapid-bus-kl gtfs-rapid-bus-kl-expanded
+```
+
+Feed id `prasarana-rapid-bus-kl`. Inspected edition: 137 routes and 4,053 stops, the same
+stops as `src/shared/data/bus/stops.json`. 2,097 template trips expand to 10,399. Its
+calendars run to 2027-03-31, so unlike the feeder feed they are used as published. It also
+contains the BRT Sunway line as a bus route, which the rail feed carries as `TRAM`.
+
+With both bus feeds downloaded, regenerate the first-mile bus-stop data the app ships:
+
+```bash
+node scripts/build-bus-stop-services.mjs
+```
+
 ### 4. Build the graph
 
 ```bash
@@ -328,10 +350,10 @@ Two notes for whoever re-runs it:
   bbox extract from <https://extract.bbbike.org/> covering roughly lat 2.79–3.37,
   lon 101.31–101.93 would cut the input to about 40–60 MB. Not needed locally; likely
   mandatory before hosting.
-- **Rail and MRT feeder buses only.** Since 2026-09-27 the local build also loads the MRT
-  feeder bus feed (section 3b). The Rapid KL trunk bus feed (`rapid-bus-kl`) is still not
-  loaded, and the app must keep saying so on every result it affects. The Nectar host
-  serves whatever graph was last built there. Until it is rebuilt with the feeder feed, the
-  deployed site is still rail-only.
+- **Rail and bus.** Since 2026-09-27 the local build loads rail, MRT feeder buses (3b) and
+  Rapid KL trunk buses (3c). KTM Komuter and other operators are not loaded. The Nectar host
+  serves whatever graph was last built there. Until it is rebuilt with both bus feeds, the
+  deployed site is still rail-only, and the app's "bus not included" wording stays true
+  there.
 - **Departure time is unowned.** OTP requires one for any transit search, and Epics 1, 2,
   5, 6 and 8 must all use the same default or their numbers will not reconcile.

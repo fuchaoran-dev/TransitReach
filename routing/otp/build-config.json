@@ -19,6 +19,11 @@
       "type": "gtfs",
       "source": "gtfs-rapid-bus-mrtfeeder",
       "feedId": "prasarana-mrt-feeder"
+    },
+    {
+      "type": "gtfs",
+      "source": "gtfs-rapid-bus-kl-expanded",
+      "feedId": "prasarana-rapid-bus-kl"
     }
   ]
 }

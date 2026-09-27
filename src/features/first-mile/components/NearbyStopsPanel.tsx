@@ -1,11 +1,13 @@
 import {
   AlertTriangle,
+  BusFront,
   Footprints,
   Loader2,
   Train,
 } from 'lucide-react';
 
 import type {
+  FirstMileBusStopResult,
   FirstMileState,
 } from '../types';
 
@@ -46,6 +48,98 @@ function formatDistance(
   }
 
   return `${(metres / 1000).toFixed(1)} km`;
+}
+
+/** At most this many rail stations are named per bus route; the rest are counted. */
+const RAIL_STATIONS_SHOWN = 2;
+
+function railSummary(stations: string[]): string {
+  const named = stations.slice(0, RAIL_STATIONS_SHOWN).join(', ');
+  const more = stations.length - RAIL_STATIONS_SHOWN;
+  return more > 0 ? `${named} +${more} more` : named;
+}
+
+/**
+ * US 3.1 — bus stops in the walking window.
+ *
+ * For most of the Klang Valley the nearest boardable service is a bus, so a first mile
+ * of stations alone told most riders there was nothing nearby. Each stop is shown with
+ * the routes that make it worth walking to, and for each route the rail stations it
+ * passes: a feeder bus matters because it is the way to the train. Stops are the nearest
+ * that between them cover every distinct route, so a street lined with stops for the same
+ * bus shows once.
+ */
+function BusStopsSection({
+  busStops,
+  thresholdMinutes,
+  selectedStopId,
+  onSelectStop,
+  afterStations,
+}: {
+  busStops: FirstMileBusStopResult[];
+  thresholdMinutes: number;
+  selectedStopId: string | null;
+  onSelectStop: (stopId: string | null) => void;
+  afterStations: boolean;
+}) {
+  return (
+    <div className={`space-y-2 ${afterStations ? 'pt-2 border-t border-slate-200/70' : ''}`}>
+      <div className="text-xs text-slate-500 leading-snug">
+        {busStops.length} bus stop{busStops.length === 1 ? '' : 's'} within a{' '}
+        {thresholdMinutes} min walk, one for each bus route in reach, nearest first.
+      </div>
+
+      {busStops.map(result => {
+        const selected = selectedStopId === result.stop.stopId;
+        return (
+          <button
+            key={result.stop.stopId}
+            type="button"
+            onClick={() => onSelectStop(selected ? null : result.stop.stopId)}
+            className={`w-full text-left rounded-xl border p-3 transition ${
+              selected ? 'border-teal-400 bg-teal-50/80' : 'border-slate-200 bg-white/70 hover:bg-white'
+            }`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex items-start gap-1.5">
+                <BusFront size={14} className="text-slate-500 shrink-0 mt-0.5" />
+                <div className="font-semibold text-sm text-slate-800">{result.stop.name}</div>
+              </div>
+              <div className="text-right shrink-0">
+                <div className="text-sm font-bold text-slate-800">
+                  {Math.ceil(result.route.durationSeconds / 60)} min
+                </div>
+                <div className="text-[11px] text-slate-500">
+                  {formatDistance(result.route.distanceMeters)}
+                </div>
+              </div>
+            </div>
+
+            <ul className="mt-2 space-y-1">
+              {result.routes.map(route => (
+                <li key={route.routeId} className="rounded-lg bg-white/60 px-2 py-1.5">
+                  <div className="text-[11px] text-slate-700">
+                    <span className="font-bold">{route.name}</span>
+                    {route.description && <span className="text-slate-500"> · {route.description}</span>}
+                  </div>
+                  {route.railStations.length > 0 && (
+                    <div className="text-[10px] text-teal-700 mt-0.5">
+                      Connects to rail at {railSummary(route.railStations)}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </button>
+        );
+      })}
+
+      <p className="text-[10px] text-slate-400 leading-snug">
+        Rapid KL and MRT feeder bus routes from the published timetables. Walking times use the
+        same pedestrian routing as stations.
+      </p>
+    </div>
+  );
 }
 
 export function NearbyStopsPanel({
@@ -98,7 +192,7 @@ export function NearbyStopsPanel({
         </div>
 
         <p className="text-[11px] text-teal-800 leading-snug">
-          Stations within a{' '}
+          Stations and bus stops within a{' '}
           <span className="font-bold">
             {thresholdMinutes} min
           </span>{' '}
@@ -114,7 +208,7 @@ export function NearbyStopsPanel({
             className="spinner text-teal-600"
           />
 
-          Routing walking access to nearby stations…
+          Routing walking access to nearby stations and bus stops…
         </div>
       )}
 
@@ -132,7 +226,8 @@ export function NearbyStopsPanel({
 
       {/* No nearby station */}
       {state.status === 'ready' &&
-        state.stops.length === 0 && (
+        state.stops.length === 0 &&
+        state.busStops.length === 0 && (
           <div className="text-sm text-slate-600 bg-slate-50 rounded-xl p-3">
             No usable public transport stop was found within a{' '}
             {thresholdMinutes}-minute walking route.
@@ -366,6 +461,17 @@ export function NearbyStopsPanel({
               no stop is ranked or recommended over another.
             </p>
           </>
+        )}
+
+      {state.status === 'ready' &&
+        state.busStops.length > 0 && (
+          <BusStopsSection
+            busStops={state.busStops}
+            thresholdMinutes={thresholdMinutes}
+            selectedStopId={selectedStopId}
+            onSelectStop={onSelectStop}
+            afterStations={state.stops.length > 0}
+          />
         )}
     </div>
   );

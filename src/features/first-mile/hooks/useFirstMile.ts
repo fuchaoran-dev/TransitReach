@@ -6,6 +6,7 @@ import {
 
 import {
   computeFirstMileAccess,
+  computeFirstMileBusAccess,
 } from '../firstMileService';
 
 import type {
@@ -41,17 +42,26 @@ export function useFirstMile(
       status: 'loading',
     });
 
-    computeFirstMileAccess(
-      origin,
-      thresholdMinutes,
-      controller.signal,
-    )
-      .then(result => {
+    Promise.all([
+      computeFirstMileAccess(
+        origin,
+        thresholdMinutes,
+        controller.signal,
+      ),
+      // Bus stops add to the answer; they must not take the stations down with them.
+      computeFirstMileBusAccess(
+        origin,
+        thresholdMinutes,
+        controller.signal,
+      ).catch(() => []),
+    ])
+      .then(([result, busStops]) => {
         if (controller.signal.aborted) return;
 
         setState({
           status: 'ready',
           stops: result.stops,
+          busStops,
           unroutableCandidateCount:
             result.unroutableCandidateCount,
         });

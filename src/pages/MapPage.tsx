@@ -184,11 +184,22 @@ useEffect(() => {
     reach.state,
   ]);
   const displayedBusStops = useMemo(() => {
-    if (!selectedBusStop || nearbyBusStops.some(stop => stop.stopId === selectedBusStop.stopId)) {
-      return nearbyBusStops;
+    // A stop already drawn as a first-mile bus stop is not drawn a second time on top.
+    const firstMileIds = new Set(
+      firstMile.state.status === 'ready'
+        ? firstMile.state.busStops.map(result => result.stop.stopId)
+        : [],
+    );
+    const nearby = nearbyBusStops.filter(stop => !firstMileIds.has(stop.stopId));
+    if (
+      !selectedBusStop ||
+      firstMileIds.has(selectedBusStop.stopId) ||
+      nearby.some(stop => stop.stopId === selectedBusStop.stopId)
+    ) {
+      return nearby;
     }
-    return [...nearbyBusStops, selectedBusStop];
-  }, [nearbyBusStops, selectedBusStop]);
+    return [...nearby, selectedBusStop];
+  }, [nearbyBusStops, selectedBusStop, firstMile.state]);
 
   const services = useMapServices(
     reach.origin?.at ?? null,
@@ -287,6 +298,7 @@ useEffect(() => {
                 {firstMile.state.status === 'ready' && (
                   <FirstMileMapLayer
                     stops={firstMile.state.stops}
+                    busStops={firstMile.state.busStops}
                     selectedStopId={firstMile.selectedStopId}
                     onSelect={handleSelectStop}
                   />

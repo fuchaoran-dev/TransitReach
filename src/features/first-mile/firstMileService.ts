@@ -12,6 +12,7 @@ import {
 } from '@/shared/services/walkingRoutingClient';
 
 import type {
+  FirstMileBusStopResult,
   FirstMileStopResult,
   GeoPoint,
   WalkingRoute,
@@ -199,4 +200,132 @@ export async function computeFirstMileAccess(
     stops: routed,
     unroutableCandidateCount,
   };
+}
+// ---------------------------------------------------------------- bus stops
+
+interface StopServicesDoc {
+  routes: Array<{
+    id: string;
+    feed: string;
+    name: string;
+    description: string;
+    railLinks: string[];
+  }>;
+  /** [stopId, name, lat, lon, routeIndexes] */
+  stops: Array<[string, string, number, number, number[]]>;
+}
+
+/**
+ * How many bus stops are routed on foot per origin. Dense parts of the city have well over
+ * a hundred stops inside a 15-minute walk, and each costs a request to the routing engine;
+ * picking by new routes (below) means a handful already covers every distinct service.
+ */
+const MAX_BUS_CANDIDATES = 6;
+
+/** How many bus stops are shown. More than this buries the answer. */
+const MAX_BUS_STOPS = 4;
+
+let stopServices: Promise<StopServicesDoc> | null = null;
+
+/**
+ * 6,000+ stops with their routes: loaded on first use rather than shipped in the main
+ * bundle, since nobody needs them until they set a starting point.
+ */
+function loadStopServices(): Promise<StopServicesDoc> {
+  stopServices ??= import('@/shared/data/bus/stop-services.json').then(
+    module => module.default as unknown as StopServicesDoc,
+  );
+  return stopServices;
+}
+
+const titleCase = (name: string) =>
+  name.toLowerCase().replace(/\b[a-z]/g, letter => letter.toUpperCase());
+
+/**
+ * Bus stops within the walking window (US 3.1).
+ *
+ * For most of the Klang Valley the nearest boardable service is a bus, not a train, so
+ * a first mile that lists only stations tells most riders there is nothing nearby. This
+ * lists the nearest stops that between them cover every distinct bus route in reach:
+ * candidates are taken nearest first, and a stop is kept only if it serves a route no
+ * nearer stop already does — one stop per service, not every pole on the street.
+ *
+ * Only stops in the feeds loaded into the routing engine are considered, so every one
+ * listed is one a modelled journey can board at. As with stations, distance and time
+ * come from a real walking route, never the straight line.
+ */
+export async function computeFirstMileBusAccess(
+  origin: GeoPoint,
+  thresholdMinutes = DEFAULT_FIRST_MILE_THRESHOLD_MINUTES,
+  signal: AbortSignal,
+): Promise<FirstMileBusStopResult[]> {
+  const doc = await loadStopServices();
+  signal.throwIfAborted();
+
+  const maximumMetres = thresholdMinutes * 60 * WALK_SPEED_MS;
+  const nearby = doc.stops
+    .map(([stopId, name, lat, lon, routes]) => ({
+      stop: { stopId, name, lat, lon },
+      routeIndexes: routes,
+      straight: straightLineMetres(origin, { lat, lon }),
+    }))
+    .filter(candidate => candidate.straight <= maximumMetres)
+    .sort((a, b) => a.straight - b.straight);
+
+  const covered = new Set<number>();
+  const candidates = nearby.filter(candidate => {
+    if (!candidate.routeIndexes.some(index => !covered.has(index))) return false;
+    candidate.routeIndexes.forEach(index => covered.add(index));
+    return true;
+  }).slice(0, MAX_BUS_CANDIDATES);
+
+  const stations = new Map(loadRailStops().map(stop => [stop.stopId, stop]));
+
+  const settled = await Promise.allSettled(
+    candidates.map(async candidate => {
+      const route: WalkingRoute = candidate.straight < 10
+        ? { distanceMeters: 0, durationSeconds: 0, geometry: [origin] }
+        : await routeWalking(origin, candidate.stop, signal);
+      return { candidate, route };
+    }),
+  );
+  signal.throwIfAborted();
+
+  const walked = settled
+    .flatMap(result => (result.status === 'fulfilled' ? [result.value] : []))
+    .filter(({ route }) => route.durationSeconds <= thresholdMinutes * 60)
+    .sort((a, b) => a.route.distanceMeters - b.route.distanceMeters);
+
+  // The walk can reorder stops the straight line put first, so routes are assigned again,
+  // nearest walk first: a stop keeps only the routes no nearer-by-foot stop offers.
+  const shown = new Set<number>();
+  const results: FirstMileBusStopResult[] = [];
+  for (const { candidate, route } of walked) {
+    const fresh = candidate.routeIndexes.filter(index => !shown.has(index));
+    if (fresh.length === 0) continue;
+    fresh.forEach(index => shown.add(index));
+    results.push({
+      stop: candidate.stop,
+      route,
+      routes: fresh.map(index => {
+        const r = doc.routes[index];
+        return {
+          routeId: r.id,
+          name: r.name,
+          description: r.description,
+          // Nearest to this stop first: those are where a rider boarding here would
+          // change to the train, which is what the list is for. A route's full station
+          // list, in any fixed order, would name the far end of the line just as readily.
+          railStations: r.railLinks
+            .flatMap(id => stations.get(id) ?? [])
+            .sort((a, b) =>
+              straightLineMetres(candidate.stop, stopPoint(a)) -
+              straightLineMetres(candidate.stop, stopPoint(b)))
+            .map(station => titleCase(station.name)),
+        };
+      }),
+    });
+    if (results.length === MAX_BUS_STOPS) break;
+  }
+  return results;
 }

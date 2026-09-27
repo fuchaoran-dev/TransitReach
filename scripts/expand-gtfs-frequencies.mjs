@@ -29,6 +29,11 @@
  * compute durations. Never display them.
  *
  *   node scripts/expand-gtfs-frequencies.mjs
+ *
+ * With no arguments it expands the rail feed. Another frequency-based feed can be named
+ * by its folder under data/gtfs/ and the output folder under routing/otp/:
+ *
+ *   node scripts/expand-gtfs-frequencies.mjs rapid-bus-kl gtfs-rapid-bus-kl-expanded
  */
 
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync } from 'node:fs';
@@ -36,8 +41,9 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const SRC = join(ROOT, 'data', 'gtfs', 'rapid-rail-kl');
-const OUT = join(ROOT, 'routing', 'otp', 'gtfs-rapid-rail-kl-expanded');
+const [feedArg = 'rapid-rail-kl', outArg = 'gtfs-rapid-rail-kl-expanded'] = process.argv.slice(2);
+const SRC = join(ROOT, 'data', 'gtfs', feedArg);
+const OUT = join(ROOT, 'routing', 'otp', outArg);
 
 // ---------------------------------------------------------------- csv
 
