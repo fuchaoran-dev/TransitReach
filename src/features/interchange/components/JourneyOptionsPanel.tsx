@@ -10,6 +10,7 @@ import {
 import type { ServiceLocation } from '@/shared/types/service';
 import { busRouteDescription, describeStep, legTitle } from '../interchangeService';
 import { BusLegDelayEstimate } from '@/features/transit-reliability';
+import { useEngineRoutesBuses } from '@/shared/hooks/useEngineRoutesBuses';
 import type { WalkStep } from '@/shared/services/transitRoutingClient';
 import type {
   JourneyInspectionModel,
@@ -292,6 +293,8 @@ function JourneyDetail({
 }
 
 export function JourneyOptionsPanel({ model, service, onChooseService }: Props) {
+  const routesBuses = useEngineRoutesBuses();
+
   if (!service) {
     return (
       <div className="py-4 text-sm text-slate-500">
@@ -352,6 +355,12 @@ export function JourneyOptionsPanel({ model, service, onChooseService }: Props) 
         </p>
       </div>
 
+      {!routesBuses && (
+        <p className="rounded-lg bg-amber-50 px-2.5 py-2 text-[11px] leading-snug text-amber-800">
+          Journeys here use walking and rail only. Buses are not in the journey planner yet, so a
+          bus that would be quicker is not shown.
+        </p>
+      )}
       {model.journeys.map(journey => (
         <JourneyCard
           key={journey.id}

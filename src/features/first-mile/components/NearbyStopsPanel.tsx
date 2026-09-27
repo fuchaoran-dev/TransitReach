@@ -6,6 +6,8 @@ import {
   Train,
 } from 'lucide-react';
 
+import { useEngineRoutesBuses } from '@/shared/hooks/useEngineRoutesBuses';
+
 import type {
   FirstMileBusStopResult,
   FirstMileState,
@@ -82,6 +84,7 @@ function BusStopsSection({
   onSelectStop: (stopId: string | null) => void;
   afterStations: boolean;
 }) {
+  const routesBuses = useEngineRoutesBuses();
   return (
     <div className={`space-y-2 ${afterStations ? 'pt-2 border-t border-slate-200/70' : ''}`}>
       <div className="text-xs text-slate-500 leading-snug">
@@ -133,6 +136,16 @@ function BusStopsSection({
           </button>
         );
       })}
+
+      {!routesBuses && (
+        // Stops and routes come from committed timetable data; journeys and reachable
+        // areas come from the routing engine, which may not have buses loaded. Without
+        // this a rider is shown a bus to their destination and then a journey that walks.
+        <p className="text-[11px] text-amber-800 bg-amber-50 rounded-lg px-2.5 py-2 leading-snug">
+          These buses run, but journeys and the reachable area here do not use buses yet:
+          they are walking and rail only.
+        </p>
+      )}
 
       <p className="text-[10px] text-slate-400 leading-snug">
         Rapid KL and MRT feeder bus routes from the published timetables. Walking times use the

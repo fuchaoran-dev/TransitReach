@@ -7,6 +7,29 @@
 
 const BASE_URL = (import.meta.env.VITE_OTP_BASE_URL ?? '').replace(/\/$/, '');
 
+let loadedFeeds: Promise<string[]> | null = null;
+
+/**
+ * The GTFS feed ids the routing engine has loaded, e.g. ["prasarana-rapid-rail-kl"].
+ *
+ * The engine a build talks to is not fixed: the local one and the hosted one are rebuilt
+ * separately, and for a while one may route buses while the other does not. Asking the
+ * engine lets the interface say what the results actually include. Fetched once per page
+ * load; a failure is not cached, so a later call retries.
+ */
+export function fetchLoadedFeeds(): Promise<string[]> {
+  loadedFeeds ??= fetch(`${BASE_URL}/otp/routers/default/index/feeds`)
+    .then(response => {
+      if (!response.ok) throw new Error(`Feed list returned ${response.status}`);
+      return response.json() as Promise<string[]>;
+    })
+    .catch(error => {
+      loadedFeeds = null;
+      throw error;
+    });
+  return loadedFeeds;
+}
+
 export interface TransitPlanPoint {
   name: string;
   stopId: string | null;
