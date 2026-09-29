@@ -1,6 +1,7 @@
 {
   "transitServiceStart": "-P1M",
   "transitServiceEnd": "P1Y",
+  "maxStopToShapeSnapDistance": 500,
 
   "osm": [
     {
