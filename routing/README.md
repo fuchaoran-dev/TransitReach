@@ -242,6 +242,48 @@ With both bus feeds downloaded, regenerate the first-mile bus-stop data the app 
 node scripts/build-bus-stop-services.mjs
 ```
 
+### 3d. Correct the bus timetables
+
+Run this after 3b and 3c, every time either bus feed is prepared again. It edits the two
+prepared copies in place:
+
+```bash
+node scripts/fix-bus-timetable.mjs gtfs-rapid-bus-mrtfeeder gtfs-rapid-bus-kl-expanded
+```
+
+Both bus feeds have two defects that it corrects. The script explains both in detail.
+
+- **Bus legs drawn as straight lines.**
+  - The feeds carry no `shape_dist_traveled`, so OTP places each stop on its route shape by
+    nearest point.
+  - On loop routes (T580 starts and ends at LRT Awan Besar) and routes that double back
+    along a road, that placement fails. OTP then silently draws the leg as straight
+    stop-to-stop lines.
+  - Before this step, 21 of 173 Rapid KL patterns were drawn that way.
+  - The script now matches each stop to its shape in order and writes the distance along it.
+  - OTP still rejects a trip's shape if any stop is too far from it. See
+    `maxStopToShapeSnapDistance` under `build-config.json` below.
+- **Physically impossible times.**
+  - Some published hops imply hundreds of km/h. T728 is published with all 45 stops at the
+    same minute, and T580 covers 2.1 km in 20 s.
+  - No hop may now beat **40 km/h**, measured along the shape (straight line where a stop
+    is more than 100 m off it). A hop that is too fast gets the minimum time that speed
+    allows.
+  - Plausible hops, and later published times that are still reachable, are kept.
+  - **The 40 km/h cap is our assumption, not a published figure.** It is recorded in the
+    epic scaffold under Epic 4.
+
+On the editions inspected on 2026-09-29, it corrected:
+
+| Feed | Hops corrected | Trips affected | Most added to one trip |
+|---|---|---|---|
+| Rapid KL trunk | 84,293 of 375,707 | 6,384 | 40 min (T728) |
+| MRT feeder | 3,484 of 168,902 | 565 | 24 min, recovered by the end of the trip |
+
+To check a built graph, compare each pattern's drawn geometry with its stop count. A pattern
+whose `/otp/routers/default/index/patterns/{id}/geometry` has about as many points as stops
+has fallen back to straight lines.
+
 ### 4. Build the graph
 
 ```bash
@@ -280,6 +322,21 @@ and `weekend` calendars ended 2026-03-31 and are referenced by no trip.
 
 The OSM and GTFS inputs are listed explicitly rather than relying on OTP's filename
 auto-scan, so the GTFS file does not have to be renamed to contain "gtfs".
+
+`maxStopToShapeSnapDistance: 500` (OTP's default is 150 m) allows up to 500 m between a
+stop and its place on the route shape.
+
+- **Why it's raised.** OTP accepts or rejects a trip's shape as a whole. If a single stop
+  is further off than this limit, the whole trip is drawn as straight stop-to-stop lines.
+- **Where it matters.** Several Rapid KL routes have one or two stops published 150–450 m
+  from their own shape: 772, 590, 420, 541, T580 and others. At 150 m, each of those was
+  drawn entirely as straight lines.
+- **The cost.** Where such a stop is boarded, the drawn bus line can start up to that far
+  from the stop marker.
+- **What still draws straight.** Routes whose shape does not match their stops at all stay
+  straight-line, because the shape does not describe them.
+  - Measured on 2026-09-29, that is 5 of 281 patterns: 771, T780, P108, KJ04 and HLB2.
+  - With the default 150 m limit it was 21.
 
 ### `router-config.json`
 
