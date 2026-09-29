@@ -27,7 +27,12 @@ interface AccessibleStopLike {
 const LIVE_TRANSIT_URL =
   '/gtfs-rt/rapid-bus-kl';
 
-const LIVE_TRANSIT_CACHE_MS = 60_000;
+/*
+ * Shorter than useLiveTransit's 30 s poll, so every poll gets a fresh snapshot. At 60 s
+ * every other poll was served from cache and a bus could be drawn ~2 minutes behind.
+ * The 429 handling below still backs off if data.gov.my objects.
+ */
+const LIVE_TRANSIT_CACHE_MS = 25_000;
 
 let cachedVehicles:
   LiveTransitVehicle[] | null = null;
@@ -137,7 +142,7 @@ export async function fetchLiveTransitVehicles(
 
   /*
    * Reuse the latest GTFS-Realtime snapshot for
-   * 60 seconds.
+   * LIVE_TRANSIT_CACHE_MS.
    *
    * Changing the user's location should not cause
    * another request to data.gov.my.

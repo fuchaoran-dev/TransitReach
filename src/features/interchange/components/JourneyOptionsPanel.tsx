@@ -8,7 +8,10 @@ import {
   TrainFront,
 } from 'lucide-react';
 import type { ServiceLocation } from '@/shared/types/service';
-import { displayModeLabel } from '../interchangeService';
+import { busRouteDescription, describeStep, legTitle } from '../interchangeService';
+import { BusLegDelayEstimate } from '@/features/transit-reliability';
+import { useEngineRoutesBuses } from '@/shared/hooks/useEngineRoutesBuses';
+import type { WalkStep } from '@/shared/services/transitRoutingClient';
 import type {
   JourneyInspectionModel,
   JourneyLeg,
@@ -31,7 +34,7 @@ function distance(metres: number): string {
 }
 
 function transitLabel(leg: JourneyLeg): string {
-  return leg.routeLongName ?? leg.routeShortName ?? displayModeLabel(leg);
+  return legTitle(leg);
 }
 
 function JourneyModeIcon({ leg }: { leg: JourneyLeg }) {
@@ -55,17 +58,24 @@ function JourneyCard({
   representative,
   selected,
   onSelect,
+  onHighlight,
 }: {
   journey: ModelledJourney;
   representative: boolean;
   selected: boolean;
   onSelect: () => void;
+  /** Called with true while the card is hovered or focused, false when it no longer is. */
+  onHighlight: (on: boolean) => void;
 }) {
   const summary = journeySummary(journey);
   return (
     <button
       type="button"
       onClick={onSelect}
+      onMouseEnter={() => onHighlight(true)}
+      onMouseLeave={() => onHighlight(false)}
+      onFocus={() => onHighlight(true)}
+      onBlur={() => onHighlight(false)}
       className={`w-full text-left rounded-xl border p-3 transition ${
         selected
           ? 'border-teal-400 bg-teal-50/70 ring-1 ring-teal-300'
@@ -113,7 +123,63 @@ function JourneyCard({
   );
 }
 
-function JourneyDetail({ journey, onBack }: { journey: ModelledJourney; onBack: () => void }) {
+/**
+ * Turn-by-turn directions for one walking leg, collapsed by default so the journey's
+ * overall shape reads first. Clicking a step moves the map to it, which is the quickest
+ * way to see which side of a road, or which footbridge, the route actually takes.
+ */
+function WalkingDirections({
+  steps,
+  focusedStep,
+  onFocusStep,
+}: {
+  steps: WalkStep[];
+  focusedStep: WalkStep | null;
+  onFocusStep: (step: WalkStep) => void;
+}) {
+  return (
+    <details className="mt-2 group">
+      <summary className="cursor-pointer text-[11px] font-semibold text-teal-700 select-none">
+        Walking directions · {steps.length} steps
+      </summary>
+      <ol className="mt-1.5 space-y-0.5">
+        {steps.map((step, index) => (
+          <li key={index}>
+            <button
+              type="button"
+              onClick={() => onFocusStep(step)}
+              className={`w-full text-left flex items-baseline gap-2 rounded px-1.5 py-1 text-[11px] transition ${
+                step === focusedStep ? 'bg-teal-50 text-teal-800' : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <span className="text-slate-400 w-4 shrink-0 text-right">{index + 1}</span>
+              <span className="flex-1">{describeStep(step)}</span>
+              {step.distanceMeters >= 1 && (
+                <span className="text-slate-400 shrink-0">{distance(step.distanceMeters)}</span>
+              )}
+            </button>
+          </li>
+        ))}
+      </ol>
+    </details>
+  );
+}
+
+function JourneyDetail({
+  journey,
+  onBack,
+  highlightedLegId,
+  onHighlightLeg,
+  focusedStep,
+  onFocusStep,
+}: {
+  journey: ModelledJourney;
+  onBack: () => void;
+  highlightedLegId: string | null;
+  onHighlightLeg: (legId: string | null) => void;
+  focusedStep: WalkStep | null;
+  onFocusStep: (step: WalkStep) => void;
+}) {
   const interchangeAfter = new Map(
     journey.interchanges.map(interchange => [interchange.fromLegIndex, interchange]),
   );
@@ -145,7 +211,15 @@ function JourneyDetail({ journey, onBack }: { journey: ModelledJourney; onBack: 
           const interchange = interchangeAfter.get(index);
           return (
             <div key={leg.id} className="space-y-2">
-              <div className="rounded-lg bg-white/80 border border-slate-100 p-2.5">
+              <div
+                className={`rounded-lg bg-white/80 border p-2.5 transition ${
+                  leg.id === highlightedLegId ? 'border-teal-400 ring-1 ring-teal-300' : 'border-slate-100'
+                }`}
+                // Hovering a step picks out its leg on the map, so the list and the drawn
+                // route can be read against each other.
+                onMouseEnter={() => onHighlightLeg(leg.id)}
+                onMouseLeave={() => onHighlightLeg(null)}
+              >
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
                   <JourneyModeIcon leg={leg} />
                   {leg.mode === 'WALK' ? 'Walk' : transitLabel(leg)}
@@ -154,9 +228,26 @@ function JourneyDetail({ journey, onBack }: { journey: ModelledJourney; onBack: 
                   </span>
                 </div>
                 <div className="mt-1 text-[11px] text-slate-500 leading-snug">
+                  {busRouteDescription(leg) && (
+                    <span className="block text-slate-600">{busRouteDescription(leg)}</span>
+                  )}
                   {leg.from.name} → {leg.to.name}
                   {leg.distanceMeters > 0 && ` · ${distance(leg.distanceMeters)}`}
                 </div>
+                {leg.mode === 'WALK' && leg.steps.length > 1 && (
+                  <WalkingDirections
+                    steps={leg.steps}
+                    focusedStep={focusedStep}
+                    onFocusStep={onFocusStep}
+                  />
+                )}
+                {leg.mode === 'BUS' && (
+                  <BusLegDelayEstimate
+                    routeId={leg.routeId}
+                    boardingStopId={leg.from.stopId}
+                    departureMs={leg.startTimeMs}
+                  />
+                )}
               </div>
 
               {interchange && (
@@ -193,7 +284,8 @@ function JourneyDetail({ journey, onBack }: { journey: ModelledJourney; onBack: 
       </div>
 
       <div className="rounded-lg bg-white/70 p-2.5 text-[10px] leading-relaxed text-slate-500">
-        This is a modelled journey used to explain the accessibility result, not turn-by-turn directions.
+        This is a modelled journey used to explain the accessibility result. Walking directions follow
+        OpenStreetMap's paths, so a footbridge or crossing that is not mapped there cannot be used.
         Transfer times are estimates derived from transfer distance, interchange layout and mode pairing.
       </div>
     </div>
@@ -201,6 +293,8 @@ function JourneyDetail({ journey, onBack }: { journey: ModelledJourney; onBack: 
 }
 
 export function JourneyOptionsPanel({ model, service, onChooseService }: Props) {
+  const routesBuses = useEngineRoutesBuses();
+
   if (!service) {
     return (
       <div className="py-4 text-sm text-slate-500">
@@ -235,7 +329,16 @@ export function JourneyOptionsPanel({ model, service, onChooseService }: Props) 
   if (model.status !== 'ready') return null;
 
   if (model.selectedJourney) {
-    return <JourneyDetail journey={model.selectedJourney} onBack={model.clearSelection} />;
+    return (
+      <JourneyDetail
+        journey={model.selectedJourney}
+        onBack={model.clearSelection}
+        highlightedLegId={model.highlightedLegId}
+        onHighlightLeg={model.highlightLeg}
+        focusedStep={model.focusedStep}
+        onFocusStep={model.focusStep}
+      />
+    );
   }
 
   return (
@@ -248,17 +351,27 @@ export function JourneyOptionsPanel({ model, service, onChooseService }: Props) 
           {service.name}
         </div>
         <p className="text-[11px] text-slate-500 leading-snug mt-1">
-          Select a journey to inspect only that path on the map. The representative journey is the shortest feasible modelled journey returned by the routing engine; other journeys may exist.
+          Every journey is drawn faintly on the map. Point at one, here or on the map, to pick it out; select it to inspect only that path. The representative journey is the shortest feasible modelled journey returned by the routing engine; other journeys may exist.
         </p>
       </div>
 
+      {!routesBuses && (
+        <p className="rounded-lg bg-amber-50 px-2.5 py-2 text-[11px] leading-snug text-amber-800">
+          Journeys here use walking and rail only. Buses are not in the journey planner yet, so a
+          bus that would be quicker is not shown.
+        </p>
+      )}
       {model.journeys.map(journey => (
         <JourneyCard
           key={journey.id}
           journey={journey}
           representative={journey.id === model.representativeJourneyId}
-          selected={false}
+          selected={journey.id === model.highlightedJourneyId}
           onSelect={() => model.selectJourney(journey.id)}
+          onHighlight={on => {
+            if (on) model.highlightJourney(journey.id);
+            else if (model.highlightedJourneyId === journey.id) model.highlightJourney(null);
+          }}
         />
       ))}
 

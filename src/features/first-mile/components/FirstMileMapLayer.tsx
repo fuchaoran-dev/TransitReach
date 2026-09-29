@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 
 import {
@@ -13,8 +13,11 @@ import L, {
 } from 'leaflet';
 
 import type {
+  FirstMileBusStopResult,
   FirstMileStopResult,
 } from '../types';
+import { mapBusStopById } from '../busStopService';
+import { MIN_BUS_STOP_ZOOM } from './BusStopMapLayer';
 
 /** Keeps the route clear of the panels overlaying the map's left and right edges. */
 const ROUTE_PADDING: [number, number] = [80, 80];
@@ -27,6 +30,8 @@ const ROUTE_MAX_ZOOM = 16;
 
 interface FirstMileMapLayerProps {
   stops: FirstMileStopResult[];
+  /** Bus stops in the walking window; drawn smaller than stations, and selectable the same way. */
+  busStops?: FirstMileBusStopResult[];
   selectedStopId: string | null;
   onSelect: (stopId: string) => void;
 }
@@ -92,17 +97,54 @@ function stationIcon(
 }
 
 
+/**
+ * A first-mile bus stop, drawn exactly like the map's own bus stops (BusStopMapLayer) so it
+ * reads as the same stop: white disc, blue ring, 🚏. Filled blue when selected.
+ */
+function busStopIcon(selected: boolean) {
+  const size = selected ? 28 : 22;
+  return L.divIcon({
+    className: 'first-mile-bus-stop-marker',
+    html:
+      `<div style="width:${size}px;height:${size}px;border-radius:50%;` +
+      `background:${selected ? '#2563eb' : '#ffffff'};border:2px solid #2563eb;` +
+      `box-shadow:0 1px 5px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;` +
+      `font-size:${selected ? 15 : 13}px">🚏</div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -size / 2],
+  });
+}
+
+/** The map's zoom, kept current. */
+function useZoom() {
+  const map = useMap();
+  const [zoom, setZoom] = useState(() => map.getZoom());
+  useEffect(() => {
+    const update = () => setZoom(map.getZoom());
+    map.on('zoomend', update);
+    return () => {
+      map.off('zoomend', update);
+    };
+  }, [map]);
+  return zoom;
+}
+
 export function FirstMileMapLayer({
   stops,
+  busStops = [],
   selectedStopId,
   onSelect,
 }: FirstMileMapLayerProps) {
   const map = useMap();
+  const zoom = useZoom();
   const selected =
     stops.find(
       item =>
         item.stop.stopId === selectedStopId,
-    ) ?? null;
+    ) ??
+    busStops.find(item => item.stop.stopId === selectedStopId) ??
+    null;
 
   /*
    * AC 3.1.4 — bring the chosen walking connection into view.
@@ -164,6 +206,27 @@ export function FirstMileMapLayer({
           </Marker>
         );
       })}
+
+      {busStops.map(result =>
+        // From MIN_BUS_STOP_ZOOM in, the map's bus-stop layer draws its own stops, first-
+        // mile's among them (MapPage adds them), with Epic 4's delay popup. Only stops that
+        // layer does not know, MRT feeder-only poles, are still drawn here.
+        zoom >= MIN_BUS_STOP_ZOOM && mapBusStopById(result.stop.stopId) ? null : (
+        <Marker
+          key={result.stop.stopId}
+          position={[result.stop.lat, result.stop.lon]}
+          icon={busStopIcon(result.stop.stopId === selectedStopId)}
+          eventHandlers={{ click: () => onSelect(result.stop.stopId) }}
+        >
+          <Popup>
+            <div>
+              <strong>{result.stop.name}</strong>
+              <div>Bus stop · {result.routes.map(route => route.name).join(', ')}</div>
+            </div>
+          </Popup>
+        </Marker>
+        ),
+      )}
 
       {/* AC 3.1.2 + 3.1.4 — actual OSM walking geometry */}
       {selected &&

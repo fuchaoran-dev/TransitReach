@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Osmosis tag-transform rules applied to the OSM extract before the OTP graph is built.
+  See routing/README.md, "Prepare the street network", for the command.
+
+  Motorcycle lanes are closed to walking.
+  Walking routes were sending people along the Federal Highway's motorcycle lane, in one
+  test making a 4.5 km detour down it rather than using a footbridge 130 m away. Almost
+  every Klang Valley motorcycle lane (155 ways named "Lorong Motosikal Lebuhraya
+  Persekutuan" or "LDP Motorcycle Lane", checked 2026-09-27) is tagged highway=service +
+  motorcycle=designated with no foot tag, and a service road without one is walkable under
+  OTP's default tag mapping. Six already carry foot=no; the rest are the same kind of lane,
+  only less completely tagged. OTP 2.5 cannot be told to read a tag differently
+  (osmTagMapping only picks a country preset), so the input is corrected instead.
+
+  Only ways designated for motorcycles that do not explicitly admit pedestrians are
+  touched. Everything else passes through unchanged.
+-->
+<translations>
+  <translation>
+    <name>Close motorcycle lanes to walking</name>
+    <description>motorcycle=designated ways without explicit pedestrian access get foot=no</description>
+    <match mode="and" type="way">
+      <tag k="motorcycle" v="designated"/>
+      <tag k="highway" v=".*"/>
+      <notag k="foot" v="yes|designated|permissive|no"/>
+    </match>
+    <output>
+      <copy-all/>
+      <tag k="foot" v="no"/>
+    </output>
+  </translation>
+</translations>

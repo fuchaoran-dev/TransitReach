@@ -26,6 +26,16 @@ export function loadBusStops(): BusStop[] {
   return databaseData().busStops as BusStop[];
 }
 
+const BUS_STOPS_BY_ID = new Map(BUS_STOPS.map(stop => [stop.stopId, stop]));
+
+/**
+ * The map's own bus stop for an id, or undefined for a stop the map's bus-stop layer does
+ * not draw (an MRT feeder-only stop).
+ */
+export function mapBusStopById(stopId: string): BusStop | undefined {
+  return BUS_STOPS_BY_ID.get(stopId);
+}
+
 export const BUS_STOP_RADIUS_METERS =
   1500;
 

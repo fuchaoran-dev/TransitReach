@@ -10,6 +10,7 @@ import {
 
 import {
   formatCoord,
+  nearestAreaName,
   STUDY_AREA_BUFFER_KM,
   BUDGET_COMPONENTS,
   BUDGET_ASSUMPTIONS,
@@ -27,6 +28,7 @@ import {
   SelectedLineReachabilityLayer,
   BusStopMapLayer,
   busStopsNearAccessibleStations,
+  mapBusStopById,
   useFirstMile,
   useLiveTransit,
   useSelectedLineReachability,
@@ -42,7 +44,7 @@ import { originFromHit } from '@/features/reachability/reachabilityService';
 
 import {MapAnalysisPanel,type MapAnalysisTab,} from './components/MapAnalysisPanel';
 import { useMapServices } from './components/useMapServices';
-import { JourneyMapLayer, useJourneyInspection } from '@/features/interchange';
+import { JourneyLegend, JourneyMapLayer, JourneyPreviewLayer, useJourneyInspection } from '@/features/interchange';
 import type { ServiceLocation } from '@/shared/types/service';
 
 /** One shared empty array, so "no stops yet" keeps a stable identity between renders. */
@@ -183,11 +185,21 @@ useEffect(() => {
     reach.state,
   ]);
   const displayedBusStops = useMemo(() => {
-    if (!selectedBusStop || nearbyBusStops.some(stop => stop.stopId === selectedBusStop.stopId)) {
-      return nearbyBusStops;
+    // First-mile's bus stops are the same Rapid KL stops this layer draws, so they join
+    // it: close in they appear as the map's own bus stops, delay popup included, rather
+    // than as a second marker on the same pole.
+    const stops = new Map(nearbyBusStops.map(stop => [stop.stopId, stop]));
+    if (firstMile.state.status === 'ready') {
+      for (const result of firstMile.state.busStops) {
+        const mapStop = mapBusStopById(result.stop.stopId);
+        if (mapStop && !stops.has(mapStop.stopId)) stops.set(mapStop.stopId, mapStop);
+      }
     }
-    return [...nearbyBusStops, selectedBusStop];
-  }, [nearbyBusStops, selectedBusStop]);
+    if (selectedBusStop && !stops.has(selectedBusStop.stopId)) {
+      stops.set(selectedBusStop.stopId, selectedBusStop);
+    }
+    return [...stops.values()];
+  }, [nearbyBusStops, selectedBusStop, firstMile.state]);
 
   const services = useMapServices(
     reach.origin?.at ?? null,
@@ -202,7 +214,20 @@ useEffect(() => {
     analysisTab === 'transfers',
   );
 
-  const inspectingJourney = journeyInspection.selectedJourney !== null;
+  /**
+   * What the map shows of the journeys, if anything. 'detail' is one opened journey;
+   * 'preview' is the list, every journey drawn faintly with the pointed-at one in full.
+   * Either way the map is about the journeys, so the other layers step aside.
+   */
+  const journeyView: 'detail' | 'preview' | null =
+    journeyInspection.selectedJourney !== null
+      ? 'detail'
+      : analysisTab === 'transfers' &&
+          journeyInspection.status === 'ready' &&
+          journeyInspection.journeys.length > 0
+        ? 'preview'
+        : null;
+  const inspectingJourney = journeyView !== null;
 
   const handleServiceSelect = (service: ServiceLocation) => {
     // Selecting a service keeps the user in the Services tab. The map focuses the
@@ -240,10 +265,20 @@ useEffect(() => {
             selectedService={services.selected}
             onServiceSelect={handleServiceSelect}
           >
-            {inspectingJourney && services.selected ? (
+            {journeyView === 'detail' && services.selected ? (
               <JourneyMapLayer
                 journey={journeyInspection.selectedJourney!}
                 destination={services.selected}
+                highlightedLegId={journeyInspection.highlightedLegId}
+                focusedStep={journeyInspection.focusedStep}
+              />
+            ) : journeyView === 'preview' && services.selected ? (
+              <JourneyPreviewLayer
+                journeys={journeyInspection.journeys}
+                destination={services.selected}
+                highlightedJourneyId={journeyInspection.highlightedJourneyId}
+                onHighlight={journeyInspection.highlightJourney}
+                onSelect={journeyInspection.selectJourney}
               />
             ) : (
               <>
@@ -263,6 +298,7 @@ useEffect(() => {
                 {firstMile.state.status === 'ready' && (
                   <FirstMileMapLayer
                     stops={firstMile.state.stops}
+                    busStops={firstMile.state.busStops}
                     selectedStopId={firstMile.selectedStopId}
                     onSelect={handleSelectStop}
                   />
@@ -291,6 +327,11 @@ useEffect(() => {
           <LiveTransitStatus
             state={liveTransit}
           />
+        )}
+        {inspectingJourney && (
+          <div className="absolute left-4 bottom-6 z-[550]">
+            <JourneyLegend />
+          </div>
         )}
       </div>
 
@@ -453,6 +494,10 @@ function OriginReadout({ origin }: { origin: NonNullable<ReturnType<typeof useRe
     : origin.source === 'place' ? 'Selected place'
     : origin.source === 'device' ? 'Your location'
     : 'Selected point';
+  const areaName = useMemo(
+    () => (origin.stop || origin.busStop || origin.place ? null : nearestAreaName(origin.at)),
+    [origin],
+  );
 
   return (
     <div className="glass-chip rounded-xl px-3 py-2.5">
@@ -479,7 +524,12 @@ function OriginReadout({ origin }: { origin: NonNullable<ReturnType<typeof useRe
           </div>
         </>
       ) : (
-        <div className="text-sm font-mono text-slate-700">{formatCoord(origin.at)}</div>
+        <>
+          {areaName && <div className="text-sm font-semibold text-slate-800">Near {areaName}</div>}
+          <div className={areaName ? 'text-xs font-mono text-slate-500' : 'text-sm font-mono text-slate-700'}>
+            {formatCoord(origin.at)}
+          </div>
+        </>
       )}
     </div>
   );

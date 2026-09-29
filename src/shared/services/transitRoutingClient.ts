@@ -7,9 +7,48 @@
 
 const BASE_URL = (import.meta.env.VITE_OTP_BASE_URL ?? '').replace(/\/$/, '');
 
+let loadedFeeds: Promise<string[]> | null = null;
+
+/**
+ * The GTFS feed ids the routing engine has loaded, e.g. ["prasarana-rapid-rail-kl"].
+ *
+ * The engine a build talks to is not fixed: the local one and the hosted one are rebuilt
+ * separately, and for a while one may route buses while the other does not. Asking the
+ * engine lets the interface say what the results actually include. Fetched once per page
+ * load; a failure is not cached, so a later call retries.
+ */
+export function fetchLoadedFeeds(): Promise<string[]> {
+  loadedFeeds ??= fetch(`${BASE_URL}/otp/routers/default/index/feeds`)
+    .then(response => {
+      if (!response.ok) throw new Error(`Feed list returned ${response.status}`);
+      return response.json() as Promise<string[]>;
+    })
+    .catch(error => {
+      loadedFeeds = null;
+      throw error;
+    });
+  return loadedFeeds;
+}
+
 export interface TransitPlanPoint {
   name: string;
   stopId: string | null;
+  lat: number;
+  lon: number;
+}
+
+/**
+ * One instruction along a walking leg, as OTP reports it.
+ *
+ * `bogusName` is true when the way has no name in OSM. OTP then substitutes either a
+ * description it derived from the tags ("footbridge", "steps", "path") — worth showing —
+ * or a raw identifier ("way 803164605 from 1"), which is not. See describeStreet().
+ */
+export interface WalkStep {
+  relativeDirection: string;
+  streetName: string;
+  bogusName: boolean;
+  distanceMeters: number;
   lat: number;
   lon: number;
 }
@@ -28,6 +67,8 @@ export interface TransitPlanLeg {
   to: TransitPlanPoint;
   geometry: Array<{ lat: number; lon: number }>;
   transitLeg: boolean;
+  /** Turn-by-turn steps; present on walking legs, empty otherwise. */
+  steps: WalkStep[];
 }
 
 export interface TransitPlanItinerary {
@@ -65,6 +106,14 @@ interface OtpLeg {
   legGeometry?: {
     points?: string;
   };
+  steps?: Array<{
+    relativeDirection?: string;
+    streetName?: string;
+    bogusName?: boolean;
+    distance?: number;
+    lat?: number;
+    lon?: number;
+  }>;
 }
 
 interface OtpItinerary {
@@ -181,6 +230,14 @@ function normalizeLeg(leg: OtpLeg): TransitPlanLeg {
     to: pointFromOtp(leg.to, 'Journey point'),
     geometry: leg.legGeometry?.points ? decodePolyline(leg.legGeometry.points) : [],
     transitLeg: leg.transitLeg ?? mode !== 'WALK',
+    steps: (leg.steps ?? []).map(step => ({
+      relativeDirection: step.relativeDirection ?? 'CONTINUE',
+      streetName: step.streetName ?? '',
+      bogusName: step.bogusName ?? false,
+      distanceMeters: Math.max(0, step.distance ?? 0),
+      lat: step.lat ?? 0,
+      lon: step.lon ?? 0,
+    })),
   };
 }
 
