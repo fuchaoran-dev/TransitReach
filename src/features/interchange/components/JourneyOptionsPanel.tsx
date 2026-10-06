@@ -242,11 +242,20 @@ function JourneyDetail({
                   />
                 )}
                 {leg.mode === 'BUS' && (
-                  <BusLegDelayEstimate
-                    routeId={leg.routeId}
-                    boardingStopId={leg.from.stopId}
-                    departureMs={leg.startTimeMs}
-                  />
+                  <>
+                    {/* The bus feeds contain impossible hops, which scripts/fix-bus-timetable.mjs
+                        slows to a 40 km/h cap before the graph is built. The time is therefore
+                        partly ours, and the rider should know that. */}
+                    <p className="mt-1 text-[10px] text-slate-500 leading-snug">
+                      Ride time from the published timetable, slowed where it implied more than
+                      40 km/h between stops.
+                    </p>
+                    <BusLegDelayEstimate
+                      routeId={leg.routeId}
+                      boardingStopId={leg.from.stopId}
+                      departureMs={leg.startTimeMs}
+                    />
+                  </>
                 )}
               </div>
 
