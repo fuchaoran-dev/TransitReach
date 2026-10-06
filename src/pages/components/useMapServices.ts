@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRealEssentialServices } from '@/features/essential-services';
 import { CATEGORY_META } from '@/shared/data';
 import { DEPARTURE_TIME, TRAVEL_MODE } from '@/shared/data/adapters/routingAdapter';
 import type { LatLng } from '@/features/reachability/types';
 import type { ServiceCategory, ServiceLocation } from '@/shared/types/service';
+import { arrivalAvailability } from '../../features/essential-services/arrivalAvailability';
 
 /**
  * Nothing is selected before the user chooses.
@@ -52,6 +53,10 @@ export interface MapServicesModel {
   awaitingChoice: boolean;
   selected: ServiceLocation | null;
   select: (service: ServiceLocation) => void;
+  clearSelection: () => void;
+  detailsOpen: boolean;
+  showDetails: () => void;
+  hideDetails: () => void;
 }
 
 /**
@@ -66,18 +71,26 @@ export function useMapServices(
   origin: LatLng | null,
   budgetMinutes: number,
   enabled: boolean,
+  departureTime = DEPARTURE_TIME,
 ): MapServicesModel {
   const [categories, setCategories] = useState<Set<ServiceCategory>>(
     () => new Set(DEFAULT_CATEGORIES),
   );
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<ServiceLocation | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(true);
+  useEffect(() => {
+    setSelectedId(null);
+    setSelectedLocation(null);
+    setDetailsOpen(true);
+  }, [origin?.lat, origin?.lon]);
 
   const data = useRealEssentialServices(
     enabled ? origin : null,
     budgetMinutes,
     TRAVEL_MODE,
-    DEPARTURE_TIME,
+    departureTime,
   );
 
   const counts = useMemo(
@@ -114,7 +127,23 @@ export function useMapServices(
     );
   }, [data.services, categories, query, awaitingChoice]);
 
-  const selected = data.services.find(service => service.id === selectedId) ?? null;
+  // Keep the chosen map focus when a new date temporarily clears routing results.
+  // Do not retain the old departure's travel/arrival estimates.
+  const selected = useMemo(() => data.services.find(service => service.id === selectedId) ??
+    (selectedLocation?.id === selectedId ? {
+      ...selectedLocation,
+      estimatedTravelTime: data.travelTimes?.[selectedLocation.id],
+      arrivalAvailability: arrivalAvailability(selectedLocation.hours, departureTime, data.travelTimes?.[selectedLocation.id]),
+    } : null), [data.services, data.travelTimes, selectedId, selectedLocation, departureTime]);
+
+  // Only the chosen place needs an itinerary estimate. Recalculate after a departure
+  // change, without launching dozens of requests for unselected list entries.
+  const { estimateFor, status } = data;
+  useEffect(() => {
+    if (enabled && status === 'ready' && selected && selected.estimatedTravelTime === undefined) {
+      void estimateFor(selected);
+    }
+  }, [enabled, status, estimateFor, selected]);
 
   return {
     status: data.status,
@@ -132,11 +161,17 @@ export function useMapServices(
     setSearch,
     awaitingChoice,
     selected,
+    detailsOpen,
+    showDetails: () => setDetailsOpen(true),
+    hideDetails: () => setDetailsOpen(false),
+    clearSelection: () => {
+      setSelectedId(null);
+      setSelectedLocation(null);
+    },
     select: service => {
+      setDetailsOpen(true);
       setSelectedId(service.id);
-      // Estimated travel time is fetched on demand for anything the background pass did
-      // not already cover, rather than shown as a guess.
-      if (service.estimatedTravelTime === undefined) void data.estimateFor(service);
+      setSelectedLocation(service);
     },
   };
 }

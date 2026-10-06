@@ -32,6 +32,13 @@ function otpTarget(): string {
   return match[1];
 }
 
+function apiTarget(): string {
+  if (process.env.DEV_API_TARGET) return process.env.DEV_API_TARGET;
+  const match = redirectsFile().match(/^\s*\/api\/data\/\*\s+(\S+?)\/api\/data\/:splat\s+200/m);
+  if (!match) throw new Error('No /api/data/* proxy rule found in public/_redirects.');
+  return match[1];
+}
+
 export default defineConfig({
   plugins: [react()],
 
@@ -49,6 +56,7 @@ export default defineConfig({
 
   server: {
     proxy: {
+      '/weather': { target: 'https://api.data.gov.my', changeOrigin: true, timeout: 20000, proxyTimeout: 20000 },
       /**
        * OpenTripPlanner
        */
@@ -86,14 +94,15 @@ export default defineConfig({
         proxyTimeout: 15_000,
       },
       '/api/reliability': {
-        target: 'http://localhost:8000',
+        target: apiTarget(),
         changeOrigin: true,
         timeout: 15_000,
       },
       '/api/data': {
-        target: 'http://localhost:8000',
+        target: apiTarget(),
         changeOrigin: true,
-        timeout: 60_000,
+        timeout: 90_000,
+        proxyTimeout: 90_000,
       },
     },
   },

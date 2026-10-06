@@ -28,6 +28,7 @@ export function useJourneyInspection(
   destination: ServiceLocation | null,
   budgetMinutes: number,
   enabled: boolean,
+  departureTime = DEPARTURE_TIME,
 ): JourneyInspectionModel {
   const [state, setState] = useState<JourneyState>(INITIAL_STATE);
   const [selectedJourneyId, setSelectedJourneyId] = useState<string | null>(null);
@@ -39,7 +40,9 @@ export function useJourneyInspection(
   useEffect(() => {
     setSelectedJourneyId(null);
     setHighlightedJourneyId(null);
-  }, [origin?.lat, origin?.lon, destination?.id]);
+    setHighlightedLegId(null);
+    setFocusedStep(null);
+  }, [origin?.lat, origin?.lon, destination?.id, destination?.lat, destination?.lon, departureTime, budgetMinutes, enabled, retryToken]);
 
   // Highlights belong to the view they were made in: opening or leaving a journey's
   // detail starts clean rather than carrying over a hover from the other view.
@@ -73,7 +76,7 @@ export function useJourneyInspection(
       origin,
       { lat: destination.lat, lon: destination.lon },
       budgetMinutes,
-      DEPARTURE_TIME,
+      departureTime,
       controller.signal,
     )
       .then(result => {
@@ -105,6 +108,7 @@ export function useJourneyInspection(
     destination?.lon,
     budgetMinutes,
     retryToken,
+    departureTime,
   ]);
 
   const selectedJourney = useMemo(

@@ -37,6 +37,7 @@ export type ReachabilityState =
   | { status: 'timedout'; budgetMinutes: number; limitMs: number };
 
 export interface ReachabilityOptions {
+  departureTime?: string;
   /**
    * The starting point, owned by the application rather than by this hook.
    *
@@ -58,6 +59,7 @@ export function useReachability({
   timeBudget,
   onTimeBudgetChange,
   onToast,
+  departureTime = DEPARTURE_TIME,
 }: ReachabilityOptions) {
   const setOrigin = onOriginChange;
   const [state, setState] = useState<ReachabilityState>({ status: 'idle' });
@@ -78,9 +80,9 @@ export function useReachability({
       // starts, not when it finishes, so two areas are never on the map at once.
       setState({ status: 'computing', budgetMinutes });
 
-      computeReachability(at, budgetMinutes, controller.signal, DEPARTURE_TIME, TRAVEL_MODE)
+      computeReachability(at, budgetMinutes, controller.signal, departureTime, TRAVEL_MODE)
         .then(({ result, walkingOnly }) => {
-          if (ticket !== runId.current) return; // superseded — discard, never render
+          if (controller.signal.aborted || ticket !== runId.current) return; // superseded — discard, never render
           setState({ status: 'ready', budgetMinutes, result, walkingOnly });
         })
         .catch(error => {
@@ -96,7 +98,7 @@ export function useReachability({
           setState({ status: 'failed', budgetMinutes });
         });
     },
-    [],
+    [departureTime],
   );
 
   // Recompute whenever the origin or the budget changes, and only then.
@@ -110,7 +112,7 @@ export function useReachability({
     run(origin.at, timeBudget);
   }, [origin, timeBudget, run]);
 
-  useEffect(() => () => inFlight.current?.abort(), []);
+  useEffect(() => () => { inFlight.current?.abort(); runId.current++; }, []);
 
   /** Selecting a stop places the origin at its stop_lat / stop_lon from the feed. */
   const selectStop = (stop: RailStop) => {

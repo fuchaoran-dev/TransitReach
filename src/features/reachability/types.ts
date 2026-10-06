@@ -42,6 +42,11 @@ export interface Origin {
  * assumption rather than describe a trip.
  */
 export interface Journey {
+  departure?: string;
+  onDepartureChange?: (value: string) => void;
+  outing?: import('@/shared/types/service').ServiceLocation[];
+  onAddToOuting?: (service: import('@/shared/types/service').ServiceLocation) => void;
+  onRemoveFromOuting?: (id: string) => void;
   origin: Origin | null;
   onOriginChange: (origin: Origin | null) => void;
   timeBudget: number;

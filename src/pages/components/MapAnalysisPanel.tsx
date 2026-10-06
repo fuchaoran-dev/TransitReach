@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import {
   CircleHelp,
@@ -24,6 +24,7 @@ import { MapServicesContent } from './MapServicesContent';
 import type { MapServicesModel } from './useMapServices';
 import { JourneyOptionsPanel, type JourneyInspectionModel } from '@/features/interchange';
 import type { ServiceLocation } from '@/shared/types/service';
+import { arrivalAvailability } from '@/features/essential-services/arrivalAvailability';
 
 export type MapAnalysisTab =
   | 'first-mile'
@@ -31,6 +32,7 @@ export type MapAnalysisTab =
   | 'transfers';
 
 interface MapAnalysisPanelProps {
+  departureTime?: string;
   reachState: ReachabilityState;
   firstMileState: FirstMileState;
 
@@ -86,6 +88,7 @@ interface MapAnalysisPanelProps {
  * finding (AC 1.2.4), and the retry control for a failure or timeout (AC 1.3.2).
  */
 export function MapAnalysisPanel({
+  departureTime,
   reachState,
   firstMileState,
   walkThresholdMinutes,
@@ -103,6 +106,14 @@ export function MapAnalysisPanel({
   onSelectRoute
 }: MapAnalysisPanelProps) {
   const [helpOpen, setHelpOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(true);
+  const selectedServiceId = services.selected?.id;
+  useEffect(() => {
+    if (selectedServiceId) setPanelOpen(true);
+  }, [selectedServiceId]);
+  const inspectedAvailability = journeys.selectedJourney && services.selected && departureTime
+    ? arrivalAvailability(services.selected.hours, departureTime, journeys.selectedJourney.endTimeMs == null ? journeys.selectedJourney.totalDurationSeconds / 60 : (journeys.selectedJourney.endTimeMs - new Date(departureTime).getTime()) / 60000)
+    : null;
   const [walkingNoteDismissedFor, setWalkingNoteDismissedFor] =
     useState<number | null>(null);
 
@@ -112,8 +123,10 @@ export function MapAnalysisPanel({
   // Every tab below renders its own idle state.
 
   return (
-    <div className="absolute top-4 right-4 sm:right-6 z-[500] w-[360px] max-w-[calc(100vw-2rem)]">
-      <div className="glass overflow-visible">
+    <div className="map-analysis-panel absolute top-4 right-4 sm:right-6 z-[500] w-[360px] max-w-[calc(100vw-2rem)]">
+      <button className="analysis-panel-toggle" aria-expanded={panelOpen} aria-controls="map-analysis-content" onClick={() => setPanelOpen(value => !value)}>{panelOpen ? 'Hide panel →' : '← Show results'}</button>
+      <div id="map-analysis-content" hidden={!panelOpen} className="glass overflow-visible">
+        {inspectedAvailability && <div className="p-3 text-xs text-slate-500"><strong>{inspectedAvailability.status} at arrival · {Math.ceil((journeys.selectedJourney?.walkTimeSeconds ?? 0) / 60)} min walking</strong><details className="planning-disclosure"><summary>Arrival & walking notes</summary><p>{inspectedAvailability.reason}</p><p>Weather is advisory; it does not alter this route.</p></details></div>}
 
         {/* =====================================================
             HEADLINE RESULT
@@ -214,7 +227,7 @@ export function MapAnalysisPanel({
                   </div>
 
                   <div
-                    className="text-3xl font-bold text-slate-900 mt-0.5"
+                    className="text-xl font-bold text-slate-900 mt-0.5"
                     style={{
                       fontFamily:
                         "'Plus Jakarta Sans', sans-serif",
@@ -227,7 +240,7 @@ export function MapAnalysisPanel({
                     </span>
                   </div>
 
-                  <div className="text-[11px] text-slate-500 mt-0.5">
+                  <details className="planning-disclosure"><summary>Modelled area · details</summary><div className="text-[11px] text-slate-500 mt-0.5">
                     {reachState.result.regions.length === 1
                       ? 'one continuous area'
                       : `${reachState.result.regions.length} separate areas`}
@@ -243,7 +256,7 @@ export function MapAnalysisPanel({
                   <p className="text-[11px] text-slate-500 leading-snug mt-1.5">
                     A modelled boundary, not a precise line. A point just outside
                     it is not meaningfully less reachable than one just inside.
-                  </p>
+                  </p></details>
                 </>
               )}
             </div>
@@ -263,6 +276,7 @@ export function MapAnalysisPanel({
             */}
             {reachState.status === 'ready' && (
               <DataBasisHelp
+                departureTime={departureTime}
                 open={helpOpen}
                 onOpenChange={setHelpOpen}
               />
@@ -390,13 +404,15 @@ export function MapAnalysisPanel({
  * This replaces the former DataBasisNote component in MapPage.
  */
 function DataBasisHelp({
+  departureTime,
   open,
   onOpenChange,
 }: {
+  departureTime?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const basis = getDataBasis();
+  const basis = getDataBasis(departureTime);
 
   return (
     <div

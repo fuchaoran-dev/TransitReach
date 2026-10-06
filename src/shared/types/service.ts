@@ -30,6 +30,7 @@ export interface ServiceCategoryMeta {
 }
 
 export interface ServiceLocation {
+  arrivalAvailability?: import('@/features/essential-services/arrivalAvailability').ArrivalAvailability;
   id: string;
   name: string;
   category: ServiceCategory;

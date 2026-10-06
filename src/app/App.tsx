@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { NavBar } from './NavBar';
 import { VISIBLE_NAV_ITEMS } from './nav';
 import type { PageId } from './routes';
@@ -14,7 +14,12 @@ import { MethodologyPage } from '@/pages/MethodologyPage';
 import { DEFAULT_TIME_BUDGET } from '@/features/reachability';
 import { originFromHit, type SearchHit } from '@/features/reachability/reachabilityService';
 import type { Origin } from '@/features/reachability/types';
-import { MeetingPointPage, hasRoomLink } from '@/features/meeting-point';
+import { hasRoomLink } from '@/features/meeting-point/roomLink';
+import { malaysiaToday } from '@/pages/components/WeatherPlanning';
+import type { ServiceLocation } from '@/shared/types/service';
+
+// Supabase/realtime and meeting ranking are not needed to open the map.
+const MeetingPointPage = lazy(() => import('@/features/meeting-point/MeetingPointPage').then(module => ({ default: module.MeetingPointPage })));
 
 /**
  * The journey state, held here rather than on each screen.
@@ -30,9 +35,11 @@ import { MeetingPointPage, hasRoomLink } from '@/features/meeting-point';
  */
 function App() {
   // Epic 6 — a meeting-room link (`?meet=<code>`) opens straight onto the meeting screen.
-  const [activePage, setActivePage] = useState<PageId>(() => (hasRoomLink() ? 'meeting' : 'landing'));
+  const [activePage, setActivePage] = useState<PageId>(() => (hasRoomLink() ? 'meeting' : 'map'));
   const [origin, setOrigin] = useState<Origin | null>(null);
   const [timeBudget, setTimeBudget] = useState(DEFAULT_TIME_BUDGET);
+  const [departure, setDeparture] = useState(() => `${malaysiaToday()}T09:00`);
+  const [outing, setOuting] = useState<ServiceLocation[]>([]);
   const [analysisTab, setAnalysisTab] = useState<MapAnalysisTab>('first-mile');
   const { toasts, addToast, removeToast } = useToasts();
 
@@ -57,6 +64,11 @@ function App() {
   const handleSearchSelect = (hit: SearchHit) => setOrigin(originFromHit(hit));
 
   const journey = {
+    departure,
+    onDepartureChange: setDeparture,
+    outing,
+    onAddToOuting: (service: ServiceLocation) => setOuting(previous => previous.some(stop => stop.id === service.id) ? previous : [...previous, service]),
+    onRemoveFromOuting: (id: string) => setOuting(previous => previous.filter(stop => stop.id !== id)),
     origin,
     onOriginChange: setOrigin,
     timeBudget,
@@ -64,7 +76,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F7FAFC]">
+    <div className="transit-shell min-h-screen">
       <NavBar items={VISIBLE_NAV_ITEMS} activePage={activePage} onNavigate={handleNavigate} />
 
       {/* Map and Services are the same screen, so they share a transition key and the map
@@ -84,7 +96,7 @@ function App() {
         {activePage === 'time' && <TimeComparisonPage journey={journey} />}
         {activePage === 'scenario' && <ScenarioPage />}
         {activePage === 'typology' && <TypologyPage />}
-        {activePage === 'meeting' && <MeetingPointPage />}
+        {activePage === 'meeting' && <Suspense fallback={<p className="p-6 text-center" role="status">Loading meeting planner…</p>}><MeetingPointPage /></Suspense>}
         {activePage === 'methodology' && <MethodologyPage />}
       </PageTransition>
 

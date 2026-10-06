@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import {CircleHelp, Crosshair, Maximize2, Minimize2, X,} from 'lucide-react';import { Tooltip } from '@/shared/ui';
+import { CircleHelp, Crosshair, Minimize2, X } from 'lucide-react';
+import { Tooltip } from '@/shared/ui';
 import {
   BaseMap,
   LocationSearch,
@@ -17,7 +18,7 @@ import {
   hitFromOrigin,
 } from '@/features/reachability/reachabilityService';
 import type { Journey } from '@/features/reachability/types';
-import { linesForStop } from '@/shared/data/adapters/gtfsAdapter';
+import { linesForStop, loadRailFeedMetadata } from '@/shared/data/adapters/gtfsAdapter';
 
 // Epic3
 import {
@@ -46,6 +47,10 @@ import {MapAnalysisPanel,type MapAnalysisTab,} from './components/MapAnalysisPan
 import { useMapServices } from './components/useMapServices';
 import { JourneyLegend, JourneyMapLayer, JourneyPreviewLayer, useJourneyInspection } from '@/features/interchange';
 import type { ServiceLocation } from '@/shared/types/service';
+import { MapDaylight, malaysiaToday, addDays, periodForecast, forecastCode, useWeatherForecast, weatherKind, WeatherPlanningBar } from './components/WeatherPlanning';
+import { compareCoverage, DepartureComparisonLayer, DepartureComparisonSummary } from './components/DepartureComparison';
+import { WeatherAtmosphere } from './components/WeatherAtmosphere';
+import type { IsochroneRegion } from '@/shared/data/adapters/routingAdapter';
 
 /** One shared empty array, so "no stops yet" keeps a stable identity between renders. */
 const NO_STOPS: FirstMileStopResult[] = [];
@@ -59,7 +64,36 @@ interface MapPageProps {
 }
 
 export function MapPage({ journey, onToast, analysisTab, onAnalysisTabChange }: MapPageProps) {
+  const [localDeparture, setLocalDeparture] = useState(() => `${malaysiaToday()}T09:00`);
+  const departure = journey.departure ?? localDeparture;
+  const [today, setToday] = useState(malaysiaToday);
+  useEffect(() => {
+    const timer = setInterval(() => setToday(malaysiaToday()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+  const setDeparture = (next: string | ((previous: string) => string)) => {
+    const value = typeof next === 'function' ? next(departure) : next;
+    if (journey.onDepartureChange) journey.onDepartureChange(value); else setLocalDeparture(value);
+  };
+  const supportedDates = useMemo(() => {
+    const feed = loadRailFeedMetadata().feeds[0];
+    const iso = (value: string) => value.replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3');
+    return Array.from({ length: 7 }, (_, index) => addDays(today, index)).filter(date => feed && date >= iso(feed.serviceDateRange.start) && date <= iso(feed.serviceDateRange.end));
+  }, [today]);
+  const [comparison, setComparison] = useState<{ departure: string; area: number; budget: number; regions: IsochroneRegion[]; weather: string } | null>(null);
+  const forecast = useWeatherForecast();
+  const selectedWeather = forecast.days.find(day => day.date === departure.slice(0, 10));
+  const weatherPeriod = selectedWeather ? periodForecast(selectedWeather, departure.slice(11)) : null;
+  const condition = weatherPeriod ? weatherKind(forecastCode(weatherPeriod.summary)) : 'neutral';
+  const daylight = Number(departure.slice(11, 13)) >= 7 && Number(departure.slice(11, 13)) < 19;
+  const departureTime = `${departure}:00+08:00`;
   const [configOpen, setConfigOpen] = useState(true);
+  const originLabel = journey.origin?.place?.name ?? journey.origin?.stop?.name ?? journey.origin?.busStop?.name ?? 'Starting point';
+  const departureLabel = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'Asia/Kuala_Lumpur' }).format(new Date(departureTime));
+  useEffect(() => {
+    if (journey.origin) setConfigOpen(false);
+    else setConfigOpen(true);
+  }, [journey.origin]);
   const [selectedBusStop, setSelectedBusStop] = useState<BusStop | null>(null);
   const [reliabilityServices, setReliabilityServices] = useState<ReliabilityService[]>([]);
   const [reliabilityLoading, setReliabilityLoading] = useState(true);
@@ -84,12 +118,18 @@ export function MapPage({ journey, onToast, analysisTab, onAnalysisTabChange }: 
     if (journey.origin?.busStop) setSelectedBusStop(journey.origin.busStop);
   }, [journey.origin?.busStop]);
 const reach = useReachability({
-  origin: journey.origin,
+  departureTime,
+  origin: supportedDates.includes(departure.slice(0, 10)) ? journey.origin : null,
   onOriginChange: journey.onOriginChange,
   timeBudget: journey.timeBudget,
   onTimeBudgetChange: journey.onTimeBudgetChange,
   onToast,
 });
+  useEffect(() => setComparison(null), [journey.origin, journey.timeBudget]);
+  const coverageComparison = useMemo(() => {
+    if (!comparison || reach.state.status !== 'ready') return null;
+    try { return compareCoverage(comparison.regions, reach.state.result.regions); } catch { return null; }
+  }, [comparison, reach.state]);
 
 const [selectedRouteId, setSelectedRouteId] =
   useState<string | null>(null);
@@ -145,6 +185,7 @@ const selectedLineReachability =
     selectedRailLine,
     journey.timeBudget,
     mainReachabilityRegions,
+    departureTime,
   );
 
 const handleSelectStop = (
@@ -205,6 +246,7 @@ useEffect(() => {
     reach.origin?.at ?? null,
     journey.timeBudget,
     analysisTab === 'services' || analysisTab === 'transfers',
+    departureTime,
   );
 
   const journeyInspection = useJourneyInspection(
@@ -212,6 +254,7 @@ useEffect(() => {
     services.selected,
     journey.timeBudget,
     analysisTab === 'transfers',
+    departureTime,
   );
 
   /**
@@ -233,6 +276,7 @@ useEffect(() => {
     // Selecting a service keeps the user in the Services tab. The map focuses the
     // selected service and the detail card below provides the explicit Journey action.
     services.select(service);
+    onAnalysisTabChange('services');
   };
 
   const handleJourneyForService = (service: ServiceLocation) => {
@@ -243,12 +287,19 @@ useEffect(() => {
   return (
     // top-16 rather than pt-16: an absolutely positioned child resolves inset-0 against
     // the padding box, so padding here would let the map slide under the navbar.
-    <div className="fixed left-0 right-0 bottom-0 top-16 overflow-hidden">
+    <MapDaylight.Provider value={daylight}>
+    <div className={`epic7-map weather-${condition} ${daylight ? 'map-daylight' : 'map-night'} fixed left-0 right-0 bottom-0 top-16 overflow-hidden`}>
+      <WeatherPlanningBar forecast={forecast} clock={departure.slice(11)} supportedDates={supportedDates} date={departure.slice(0, 10)} onDateChange={date => setDeparture(previous => `${date}T${previous.slice(11)}`)} />
+      <WeatherAtmosphere />
       <div className="absolute inset-0">
           <BaseMap
+            journey={journeyInspection.selectedJourney ?? journeyInspection.journeys.find(option => option.id === journeyInspection.highlightedJourneyId) ?? (analysisTab === 'transfers' ? journeyInspection.journeys[0] : null)}
+            highlightedLegId={journeyInspection.highlightedLegId}
+            focusedStep={journeyInspection.focusedStep}
             origin={reach.origin}
+            coverage={inspectingJourney ? null : coverageComparison}
             regions={
-              inspectingJourney
+              inspectingJourney || coverageComparison
                 ? null
                 : reach.state.status === 'ready'
                   ? reach.state.result.regions
@@ -265,6 +316,7 @@ useEffect(() => {
             selectedService={services.selected}
             onServiceSelect={handleServiceSelect}
           >
+            {!inspectingJourney && coverageComparison && <DepartureComparisonLayer coverage={coverageComparison} />}
             {journeyView === 'detail' && services.selected ? (
               <JourneyMapLayer
                 journey={journeyInspection.selectedJourney!}
@@ -324,18 +376,19 @@ useEffect(() => {
             )}
           </BaseMap>
         {!inspectingJourney && (
+          <div className="map-live-status">
           <LiveTransitStatus
             state={liveTransit}
           />
+          </div>
         )}
         {inspectingJourney && (
-          <div className="absolute left-4 bottom-6 z-[550]">
-            <JourneyLegend />
-          </div>
+          <details className="map-legend-disclosure absolute left-4 bottom-6 z-[550] glass"><summary>Route legend</summary><JourneyLegend /></details>
         )}
       </div>
 
       <MapAnalysisPanel
+        departureTime={departureTime}
         reachState={reach.state}
 
         firstMileState={
@@ -390,13 +443,13 @@ useEffect(() => {
       {/* The budget composition note makes the panel tall enough to overflow a short
           viewport, so it scrolls internally rather than running off the bottom — the
           note has to stay reachable to satisfy AC 1.2.3. */}
-      <div className={`absolute top-4 left-4 sm:left-6 z-[500] max-h-[calc(100%-2rem)] transition-all duration-300 ease-out ${configOpen ? 'w-[340px] max-w-[calc(100vw-2rem)]' : 'w-12'}`}>
+      <div data-expanded={configOpen} className="map-config-panel absolute top-4 left-4 sm:left-6 z-[500] w-[340px] max-w-[calc(100vw-2rem)] max-h-[calc(100%-2rem)] transition-all duration-300 ease-out">
         {/* Collapsed, the panel is 48px wide. p-4 would leave 16px of content box for a
             32px button, pushing it off-centre and out of the rounded corner; p-2 leaves
             exactly 32px. The header margin goes too, since nothing follows it. */}
         <div className={`glass max-h-[calc(100vh-6rem)] overflow-y-auto overflow-x-hidden scrollbar-thin ${configOpen ? 'p-4' : 'p-2'}`}>
           <div className={`flex items-center ${configOpen ? 'justify-between mb-3' : 'justify-center'}`}>
-            {configOpen && <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Starting Point</h2>}
+            {configOpen ? <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Starting Point</h2> : <div className="map-origin-summary"><strong title={originLabel}>{originLabel}</strong><span>{departureLabel} · {journey.timeBudget} min</span></div>}
             <Tooltip content={configOpen ? 'Collapse' : 'Expand'}>
               {/* The tooltip is visual only, so the button needs its own name — without
                   one a screen reader announces nothing but "button". */}
@@ -404,10 +457,10 @@ useEffect(() => {
                 onClick={() => setConfigOpen(prev => !prev)}
                 aria-label={configOpen ? 'Collapse starting point panel' : 'Expand starting point panel'}
                 aria-expanded={configOpen}
-                className="btn-icon shrink-0"
-                style={{ width: 32, height: 32 }}
+                className={`${configOpen ? 'btn-icon' : 'btn-secondary text-xs'} shrink-0`}
+                style={configOpen ? { width: 32, height: 32 } : undefined}
               >
-                {configOpen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                {configOpen ? <Minimize2 size={16} /> : 'Edit'}
               </button>
             </Tooltip>
           </div>
@@ -472,6 +525,20 @@ useEffect(() => {
               </div>
 
               <div className="pt-2 border-t border-slate-200/70">
+                <label className="block text-xs font-semibold text-slate-500 mb-2" htmlFor="departure-time">Departure · Malaysia time (UTC+8)</label>
+                <input id="departure-time" type="datetime-local" value={departure} disabled={!supportedDates.length} min={`${supportedDates[0]}T00:00`} max={`${supportedDates[supportedDates.length - 1]}T23:59`} className="input w-full" onChange={event => { if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(event.target.value) && supportedDates.includes(event.target.value.slice(0, 10)) && event.target.validity.valid) setDeparture(event.target.value); }} />
+                {!supportedDates.length && <p role="alert">The loaded transit timetable does not support the coming week.</p>}
+                <div className="departure-presets" aria-label="Departure time presets">{['09:00', '13:00', '18:00', '20:00'].map(clock => <button key={clock} disabled={!supportedDates.includes(departure.slice(0, 10))} aria-pressed={departure.slice(11) === clock} onClick={() => setDeparture(previous => `${previous.slice(0, 10)}T${clock}`)}>{clock}</button>)}</div>
+                <p className="weather-context-chip">{weatherPeriod ? `${weatherPeriod.period} · ${condition === 'sunny' ? 'No rain forecast' : condition === 'storm' ? 'Thunderstorms' : condition === 'rainy' ? 'Rain expected' : 'Cloudy'}` : 'Weather unknown'}</p>
+                <details className="planning-disclosure"><summary>Forecast & routing notes</summary><p>Scheduled GTFS / OSM estimates, not live arrivals. {weatherPeriod?.summary} · MET Malaysia, Kuala Lumpur district. Regional outlook only; check conditions before leaving.</p></details>
+                {reach.state.status === 'ready' && <details className="departure-comparison planning-disclosure"><summary>Compare departure times</summary>
+                  <button className="btn-secondary text-xs" onClick={() => { if (reach.state.status === 'ready') setComparison({ departure, area: reach.state.result.areaKm2, budget: reach.state.budgetMinutes, regions: reach.state.result.regions, weather: weatherPeriod ? `${weatherPeriod.period}: ${weatherPeriod.summary}` : 'Weather unknown' }); }}>Use this departure as baseline</button>
+                  {comparison && <p role="status" className="text-xs text-slate-500 mt-2">Baseline {comparison.departure.replace('T', ' ')} · {comparison.budget} min: {comparison.area.toFixed(1)} km².<br />Current area: {(reach.state.result.areaKm2 - comparison.area).toFixed(1)} km² change. Same origin and travel budget.</p>}
+                  {comparison && <><p className="text-xs text-slate-500 mt-2">Baseline weather: {comparison.weather}. More area does not necessarily mean less walking or more open destinations.</p><button className="btn-secondary text-xs mt-2" onClick={() => setComparison(null)}>Clear comparison</button></>}
+                  {coverageComparison && <DepartureComparisonSummary coverage={coverageComparison} />}
+                </details>}
+              </div>
+              <div className="pt-2 border-t border-slate-200/70">
                 <CoveredAreaNote />
               </div>
             </div>
@@ -479,6 +546,7 @@ useEffect(() => {
         </div>
       </div>
     </div>
+    </MapDaylight.Provider>
   );
 }
 
@@ -791,10 +859,10 @@ function BudgetCompositionHelp() {
  */
 function CoveredAreaNote() {
   return (
-    <p className="text-[11px] text-slate-500 leading-relaxed">
+    <details className="planning-disclosure"><summary>Coverage details</summary><p className="text-[11px] text-slate-500 leading-relaxed">
       <span className="font-semibold text-slate-600">Covered area</span> is the extent of the
       loaded rail network plus {STUDY_AREA_BUFFER_KM} km. This is provisional — the boundary
       depends on the bus feed, which is not yet loaded.
-    </p>
+    </p></details>
   );
 }

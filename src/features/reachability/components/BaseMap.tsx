@@ -13,6 +13,10 @@ import { NETWORK_CENTRE, STUDY_AREA } from '../reachabilityService';
 import type { ServiceCategory, ServiceLocation } from '@/shared/types/service';
 import { CATEGORY_META } from '@/shared/data';
 import { VectorBaseLayer } from './VectorBaseLayer';
+import { CityFocusView } from './CityFocusView';
+import type { ModelledJourney } from '@/features/interchange/types';
+import type { WalkStep } from '@/shared/services/transitRoutingClient';
+import type { DepartureCoverage } from './journeyScene';
 
 const DEFAULT_ZOOM = 11;
 const ORIGIN_ZOOM = 15;
@@ -52,13 +56,17 @@ const MAP_BOUNDS = latLngBounds(
  * actually traces when asking how far the area extends.
  */
 const FILL_OPACITY = 0.18;
-const AREA_COLOR = '#475569';
-const AREA_STROKE_COLOR = '#334155';
+const AREA_COLOR = '#34d9cb';
+const AREA_STROKE_COLOR = '#70eee4';
 
 interface BaseMapProps {
+  journey?: ModelledJourney | null;
+  highlightedLegId?: string | null;
+  focusedStep?: WalkStep | null;
   origin: Origin | null;
   /** Disjoint reachable regions, or null when there is nothing to draw. */
   regions: IsochroneRegion[] | null;
+  coverage?: DepartureCoverage | null;
   onMapClick: (at: LatLng) => void;
   services?: ServiceLocation[];
   selectedServiceId?: string | null;
@@ -300,8 +308,9 @@ function ServicePins({ services, selectedServiceId, onServiceSelect }: Pick<Base
   </>;
 }
 
-export function BaseMap({ origin, regions, onMapClick, services, selectedServiceId, selectedService, onServiceSelect, children, }: BaseMapProps) {
+export function BaseMap({ origin, regions, coverage, onMapClick, services, selectedServiceId, selectedService, onServiceSelect, children, journey, highlightedLegId, focusedStep }: BaseMapProps) {
   return (
+    <div className="city-map-frame" style={{ width: '100%', height: '100%', position: 'relative' }}>
     <MapContainer
       center={[NETWORK_CENTRE.lat, NETWORK_CENTRE.lon]}
       zoom={DEFAULT_ZOOM}
@@ -327,5 +336,7 @@ export function BaseMap({ origin, regions, onMapClick, services, selectedService
       {children}
       {origin && <OriginPin at={origin.at} onMove={onMapClick} />}
     </MapContainer>
+    <CityFocusView service={selectedService} origin={origin} regions={regions} coverage={coverage} journey={journey} highlightedLegId={highlightedLegId} focusedStep={focusedStep} />
+    </div>
   );
 }

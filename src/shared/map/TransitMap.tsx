@@ -49,21 +49,21 @@ export function TransitMap({
       <defs>
         {/* Land base gradient */}
         <radialGradient id="land-grad" cx="40%" cy="35%" r="80%">
-          <stop offset="0%" stopColor="#f8fafc" />
-          <stop offset="60%" stopColor="#f1f5f9" />
-          <stop offset="100%" stopColor="#e8eef5" />
+          <stop offset="0%" stopColor="#173044" />
+          <stop offset="60%" stopColor="#102333" />
+          <stop offset="100%" stopColor="#091623" />
         </radialGradient>
 
         {/* Water gradient */}
         <linearGradient id="water-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#bae6fd" />
-          <stop offset="100%" stopColor="#7dd3fc" />
+          <stop offset="0%" stopColor="#103a52" />
+          <stop offset="100%" stopColor="#071724" />
         </linearGradient>
 
         {/* Park / green area gradient */}
         <radialGradient id="park-grad" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#bbf7d0" />
-          <stop offset="100%" stopColor="#86efac" />
+          <stop offset="0%" stopColor="#1d4e45" />
+          <stop offset="100%" stopColor="#12332f" />
         </radialGradient>
 
         {/* Subtle grid pattern */}

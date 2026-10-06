@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   computeReachability,
   estimateTravelTime,
@@ -9,6 +9,7 @@ import { loadEssentialServices } from '@/shared/data/adapters/essentialServicesA
 import type { ServiceLocation } from '@/shared/types/service';
 import type { LatLng } from '@/features/reachability/types';
 import { deduplicateServices, missingServiceFields } from '../serviceDataRules';
+import { arrivalAvailability } from '../arrivalAvailability';
 
 export type RealServicesStatus = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -58,73 +59,68 @@ export function useRealEssentialServices(
   });
   const [travelTimes, setTravelTimes] = useState<Record<string, number | null>>({});
   const runId = useRef(0);
+  const estimates = useRef(new Map<string, { controller: AbortController; promise: Promise<void> }>());
+  const lat = origin?.lat;
+  const lon = origin?.lon;
   const baseServices = useMemo(() => loadEssentialServices(), []);
 
   useEffect(() => {
-    if (!origin) {
+    // Invalidate on every transition, including clearing/disabling the origin.
+    // On-demand estimates do not share the coverage controller.
+    const ticket = ++runId.current;
+    const activeEstimates = estimates.current;
+    for (const task of activeEstimates.values()) task.controller.abort();
+    activeEstimates.clear();
+    if (lat === undefined || lon === undefined) {
+      setTravelTimes({});
       setState({ status: 'idle', services: [], allServices: [], result: null, error: null, travelMode });
       return;
     }
 
     const controller = new AbortController();
-    const ticket = ++runId.current;
     setState({ status: 'loading', services: [], allServices: baseServices, result: null, error: null, travelMode });
     setTravelTimes({});
 
-    computeReachability(origin, budgetMinutes, controller.signal, departureTime, travelMode)
+    computeReachability({ lat, lon }, budgetMinutes, controller.signal, departureTime, travelMode)
       .then(({ result }) => {
-        if (ticket !== runId.current) return;
+        if (controller.signal.aborted || ticket !== runId.current) return;
         const reachable = deduplicateServices(baseServices.filter(service => inside(service, result)));
         setState({ status: 'ready', services: reachable, allServices: baseServices, result, error: null, travelMode });
-        populateTravelTimes(reachable.slice(0, 80), origin, travelMode, departureTime, controller.signal, setTravelTimes, ticket, runId);
       })
       .catch(error => {
         if (controller.signal.aborted || ticket !== runId.current) return;
         setState({ status: 'error', services: [], allServices: baseServices, result: null, error: error instanceof Error ? error.message : 'Unable to calculate reachable services.', travelMode });
       });
 
-    return () => controller.abort();
-  }, [origin, budgetMinutes, travelMode, departureTime, baseServices]);
+    return () => {
+      controller.abort();
+      for (const task of activeEstimates.values()) task.controller.abort();
+      activeEstimates.clear();
+      runId.current = ticket + 1;
+    };
+  }, [lat, lon, budgetMinutes, travelMode, departureTime, baseServices]);
 
   const services = useMemo(() => state.services.map(service => ({
     ...service,
     estimatedTravelTime: travelTimes[service.id],
+    arrivalAvailability: arrivalAvailability(service.hours, departureTime, travelTimes[service.id]),
     estimatedMode: travelMode,
     missingFields: missingServiceFields({ ...service, estimatedTravelTime: travelTimes[service.id] }),
-  })), [state.services, travelTimes, travelMode]);
+  })), [state.services, travelTimes, travelMode, departureTime]);
 
-  const estimateFor = async (service: ServiceLocation) => {
-    if (!origin || service.lat === undefined || service.lon === undefined) return;
-    const value = await estimateTravelTime(origin, { lat: service.lat, lon: service.lon }, travelMode, departureTime);
-    setTravelTimes(previous => ({ ...previous, [service.id]: value }));
-  };
+  const estimateFor = useCallback((service: ServiceLocation): Promise<void> => {
+    if (lat === undefined || lon === undefined || service.lat === undefined || service.lon === undefined) return Promise.resolve();
+    const existing = estimates.current.get(service.id);
+    if (existing) return existing.promise;
+    const ticket = runId.current;
+    const controller = new AbortController();
+    const promise = estimateTravelTime({ lat, lon }, { lat: service.lat, lon: service.lon }, travelMode, departureTime, controller.signal)
+      .then(value => { if (!controller.signal.aborted && ticket === runId.current) setTravelTimes(previous => ({ ...previous, [service.id]: value })); })
+      .catch(() => { if (!controller.signal.aborted && ticket === runId.current) setTravelTimes(previous => ({ ...previous, [service.id]: null })); })
+      .finally(() => { if (estimates.current.get(service.id)?.controller === controller) estimates.current.delete(service.id); });
+    estimates.current.set(service.id, { controller, promise });
+    return promise;
+  }, [lat, lon, travelMode, departureTime]);
 
   return { ...state, services, travelTimes, estimateFor };
-}
-
-async function populateTravelTimes(
-  services: ServiceLocation[],
-  origin: LatLng,
-  mode: TravelMode,
-  departureTime: string,
-  signal: AbortSignal,
-  setTravelTimes: Dispatch<SetStateAction<Record<string, number | null>>>,
-  ticket: number,
-  runId: MutableRefObject<number>,
-) {
-  let next = 0;
-  async function worker() {
-    while (next < services.length && !signal.aborted && ticket === runId.current) {
-      const service = services[next++];
-      if (service.lat === undefined || service.lon === undefined) continue;
-      try {
-        const value = await estimateTravelTime(origin, { lat: service.lat, lon: service.lon }, mode, departureTime, signal);
-        if (ticket === runId.current) setTravelTimes(previous => ({ ...previous, [service.id]: value }));
-      } catch {
-        if (signal.aborted) return;
-        if (ticket === runId.current) setTravelTimes(previous => ({ ...previous, [service.id]: null }));
-      }
-    }
-  }
-  await Promise.all([worker(), worker(), worker(), worker()]);
 }

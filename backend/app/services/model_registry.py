@@ -8,6 +8,7 @@ from pathlib import Path
 from catboost import CatBoostRegressor, Pool
 
 from backend.app.database import connection
+from backend.app.cache import TTLCache
 from backend.app.schemas.reliability import ReliabilityPrediction, RiskLevel
 
 
@@ -15,6 +16,9 @@ REGISTRY_DIR = Path(__file__).resolve().parents[2] / "models" / "registry"
 FEATURES = ["route_id", "stop_id", "stop_sequence", "hour", "day_of_week", "is_weekend",
             "scheduled_headway", "historical_median_delay", "historical_mean_delay"]
 CATEGORICAL_INDICES = [0, 1]
+_catalog_cache = TTLCache(60)
+_metadata_cache = TTLCache(30)
+_prediction_cache = TTLCache(30, 512)
 
 
 @lru_cache(maxsize=1)
@@ -24,8 +28,11 @@ def _model() -> CatBoostRegressor:
     return model
 
 
-@lru_cache(maxsize=1)
 def service_catalog() -> list[dict]:
+    return _catalog_cache.get("catalog", _load_service_catalog)
+
+
+def _load_service_catalog() -> list[dict]:
     with connection() as database:
         rows = database.execute("""
             select r.route_id as line_id, r.long_name as name, s.stop_id,
@@ -65,8 +72,7 @@ def _risk(delay: float, profile: dict) -> tuple[RiskLevel, float]:
     return RiskLevel.very_high, 87.5
 
 
-def predict_historical(line_id: str, stop_id: str, travel_at: datetime) -> ReliabilityPrediction | None:
-    weekend = int(travel_at.isoweekday() >= 6)
+def _active_metadata() -> dict | None:
     with connection() as database:
         metadata = database.execute("""
             select * from public.model_versions where prediction_enabled
@@ -74,6 +80,29 @@ def predict_historical(line_id: str, stop_id: str, travel_at: datetime) -> Relia
         """).fetchone()
         if metadata is None:
             return None
+        metadata["data_sources"] = [row["source_name"] for row in database.execute("""
+            select source_name from public.model_data_sources
+            where model_version=%s order by source_name
+        """, (metadata["model_version"],))]
+        return metadata
+
+
+def predict_historical(line_id: str, stop_id: str, travel_at: datetime) -> ReliabilityPrediction | None:
+    metadata = _metadata_cache.get("active-model", _active_metadata)
+    if metadata is None:
+        return None
+    # The current model uses local hour and weekday, not minutes or the calendar date.
+    # Include the complete metadata snapshot so a changed version/evaluation is never
+    # served from an old prediction entry after metadata refresh.
+    key = (tuple((name, repr(value)) for name, value in sorted(metadata.items())),
+           line_id, stop_id, travel_at.hour, travel_at.isoweekday())
+    value = _prediction_cache.get(key, lambda: _calculate_prediction(line_id, stop_id, travel_at, metadata))
+    return value.model_copy(deep=True) if value is not None else None
+
+
+def _calculate_prediction(line_id: str, stop_id: str, travel_at: datetime, metadata: dict) -> ReliabilityPrediction | None:
+    weekend = int(travel_at.isoweekday() >= 6)
+    with connection() as database:
         version = metadata["model_version"]
         profile = _profile(database, version, "stop_time",
                            f"{line_id}|{stop_id}|{travel_at.hour}|{weekend}")
@@ -88,10 +117,6 @@ def predict_historical(line_id: str, stop_id: str, travel_at: datetime) -> Relia
         if profile is None:
             profile = _profile(database, version, "network", f"{travel_at.hour}|{weekend}")
             level, confidence = "network", "low"
-        data_sources = [row["source_name"] for row in database.execute("""
-            select source_name from public.model_data_sources
-            where model_version=%s order by source_name
-        """, (version,))]
     if profile is None:
         return None
     row: list[object] = [
@@ -127,7 +152,7 @@ def predict_historical(line_id: str, stop_id: str, travel_at: datetime) -> Relia
         historical_percentile=percentile, prediction_lower_min=round(lower, 2),
         prediction_upper_min=round(upper, 2), realtime_used=False,
         model_version=metadata["model_version"], model_type=metadata["model_type"],
-        data_sources=data_sources,
+        data_sources=metadata["data_sources"],
         training_period=f"{metadata['training_start']} to {metadata['training_end']}",
         evaluation={"mae": metadata["model_mae"], "rmse": metadata["model_rmse"],
                     "baseline_mae": metadata["baseline_mae"],

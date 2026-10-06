@@ -1,0 +1,53 @@
+import assert from 'node:assert/strict';
+import { build } from 'esbuild';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const Module = require('node:module');
+async function load(entry) {
+  const result = await build({ entryPoints: [entry], bundle: true, platform: 'node', format: 'cjs', write: false, logLevel: 'silent' });
+  const compiled = new Module(`${process.cwd()}/scripts/epic7-test-bundle.cjs`);
+  compiled.filename = `${process.cwd()}/scripts/epic7-test-bundle.cjs`;
+  compiled.paths = Module._nodeModulePaths(process.cwd());
+  compiled._compile(result.outputFiles[0].text, compiled.filename);
+  return compiled.exports;
+}
+const { arrivalAvailability } = await load('src/features/essential-services/arrivalAvailability.ts');
+let checks = 0;
+for (const timezone of ['UTC', 'Asia/Kuala_Lumpur', 'America/New_York']) {
+  process.env.TZ = timezone;
+  const status = (hours, departure, minutes) => arrivalAvailability(hours, departure, minutes).status;
+  assert.equal(status('Mo-Su 09:00-18:00', '2026-10-03T09:00:00+08:00', 30), 'Open');
+  assert.equal(status('Mo-Su 09:00-18:00', '2026-10-03T17:45:00+08:00', 30), 'Closing before arrival');
+  assert.equal(status('Mo-Su 09:00-18:00', '2026-10-03T20:00:00+08:00', 30), 'Closed');
+  assert.equal(status('24/7', '2026-10-03T23:50:00+08:00', 30), 'Open');
+  assert.equal(status('Mo-Su 22:00-02:00', '2026-10-03T23:50:00+08:00', 30), 'Open');
+  assert.equal(status(undefined, '2026-10-03T09:00:00+08:00', 30), 'Unknown');
+  assert.equal(status('24/7', '2026-10-03T09:00:00+08:00', null), 'Unknown');
+  assert.equal(status('PH off; Mo-Su 09:00-18:00', '2026-10-03T09:00:00+08:00', 30), 'Unknown');
+  assert.equal(status('not valid hours', '2026-10-03T09:00:00+08:00', 30), 'Unknown');
+  checks += 9;
+}
+const { updateJourneyScene, updateCoverageScene } = await load('src/features/reachability/components/journeyScene.ts');
+const sources = new Map(); const layers = new Map();
+const map = { getSource: id => sources.get(id), addSource: (id, value) => sources.set(id, { ...value, setData(data) { this.data = data; } }), getLayer: id => layers.get(id), addLayer: layer => layers.set(layer.id, layer) };
+const point = { name: 'Test fixture', stopId: null, lat: 3.1, lon: 101.6 };
+const journey = { legs: [{ id: 'walk', mode: 'WALK', transitLeg: false, from: point, to: point, geometry: [{ lat: 3.1, lon: 101.6 }, { lat: 3.2, lon: 101.7 }] }, { id: 'rail', mode: 'SUBWAY', transitLeg: true, from: point, to: point, routeColor: '#f00', geometry: [{ lat: 3.2, lon: 101.7 }, { lat: 3.3, lon: 101.8 }] }] };
+updateJourneyScene(map, journey, 'rail');
+assert.deepEqual(sources.get('journey-paths').data.features[0].geometry.coordinates[0], [101.6, 3.1]);
+assert.equal(sources.get('journey-paths').data.features[0].properties.opacity, .25);
+assert.equal(sources.get('journey-paths').data.features[1].properties.opacity, 1);
+assert.equal(sources.get('journey-stops').data.features.length, 2);
+assert.equal(sources.get('journey-endpoints').data.features.length, 2);
+assert.ok(layers.get('journey-walks').paint['line-dasharray']);
+updateJourneyScene(map, null, null);
+assert.equal(sources.get('journey-paths').data.features.length, 0);
+assert.equal(sources.get('journey-stops').data.features.length, 0);
+checks += 8;
+const polygon = [[[101.6, 3.1], [101.7, 3.1], [101.7, 3.2], [101.6, 3.1]]];
+updateCoverageScene(map, { onlyA: [polygon], onlyB: [polygon], both: [polygon] });
+assert.equal(sources.get('departure-coverage').data.features.length, 3);
+assert.deepEqual(sources.get('departure-coverage').data.features.map(feature => feature.properties.color), ['#ffb454', '#a989ff', '#32cab7']);
+assert.ok(layers.get('departure-coverage-fill')); assert.ok(layers.get('departure-coverage-edge'));
+updateCoverageScene(map, null);
+assert.equal(sources.get('departure-coverage').data.features.length, 0); checks += 5;
+console.log(`Epic 7 and 3D journey unit checks passed: ${checks}. Fixtures only; not live data.`);

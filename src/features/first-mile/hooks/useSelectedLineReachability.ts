@@ -45,6 +45,7 @@ export function useSelectedLineReachability(
   selectedLine: RailLine | null,
   totalBudgetMinutes: number,
   totalReachabilityRegions: IsochroneRegion[],
+  departureTime?: string,
 ): SelectedLineReachabilityState {
   const [state, setState] =
     useState<SelectedLineReachabilityState>({
@@ -71,6 +72,7 @@ export function useSelectedLineReachability(
     });
 
     computeSelectedLineReachability({
+      departureTime,
       selectedStation,
       selectedLine,
       totalBudgetMinutes,
@@ -103,6 +105,7 @@ export function useSelectedLineReachability(
       controller.abort();
     };
   }, [
+    departureTime,
     selectedStation,
     selectedLine,
     totalBudgetMinutes,

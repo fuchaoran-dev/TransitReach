@@ -1,0 +1,9 @@
+# Vite assets are content-hashed. Cache only these static files, not API/OTP/weather.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Always revalidate the entry document so a deployment picks up the new asset hashes.
+/
+  Cache-Control: public, max-age=0, must-revalidate
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate

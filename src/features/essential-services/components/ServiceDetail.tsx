@@ -1,4 +1,4 @@
-import { Accessibility, ArrowRight, Clock, MapPin, Route } from 'lucide-react';
+import { Accessibility, ArrowRight, Clock, MapPin, Route, X } from 'lucide-react';
 import { CATEGORY_META } from '@/shared/data';
 import type { ServiceLocation } from '@/shared/types/service';
 
@@ -6,9 +6,11 @@ import type { ServiceLocation } from '@/shared/types/service';
 export function ServiceDetail({
   service,
   onJourney,
+  onClear,
 }: {
   service: ServiceLocation;
   onJourney?: (service: ServiceLocation) => void;
+  onClear?: () => void;
 }) {
   const meta = CATEGORY_META[service.category];
   const Icon = meta.icon;
@@ -16,20 +18,25 @@ export function ServiceDetail({
     <div className="glass p-4 space-y-3">
       <div className="flex items-start gap-3">
         <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: meta.colorLight }}><Icon size={21} style={{ color: meta.color }} /></div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: meta.color }}>{meta.label}</div>
           <div className="font-bold text-slate-900">{service.name}</div>
         </div>
+        {onClear && <button type="button" onClick={onClear} aria-label="Clear selected service" title="Clear selected service" className="service-detail-clear"><X size={18} /></button>}
       </div>
-      <div className="grid grid-cols-2 gap-2 text-sm">
-        <div className="glass-chip p-2"><span className="text-xs text-slate-500">Location</span><div className="font-mono text-xs mt-1">{service.lat?.toFixed(5) ?? 'Unavailable'}, {service.lon?.toFixed(5) ?? 'Unavailable'}</div></div>
-        <div className="glass-chip p-2"><span className="text-xs text-slate-500">Estimated travel</span><div className="font-semibold mt-1">{service.estimatedTravelTime == null ? 'Unavailable' : `${service.estimatedTravelTime} min`}</div></div>
+      <div className="text-sm">
+        <div className="glass-chip p-2"><span className="text-xs text-slate-500">Estimated travel</span><div className="font-semibold mt-1" role="status">{service.estimatedTravelTime === undefined ? 'Calculating…' : service.estimatedTravelTime === null ? 'Unavailable' : `${service.estimatedTravelTime} min`}</div></div>
       </div>
-      <div className="text-sm text-slate-600"><MapPin size={14} className="inline mr-1 text-teal-600" />{service.address || 'Address unavailable'}</div>
-      <div className="text-sm text-slate-600"><Clock size={14} className="inline mr-1 text-teal-600" />{service.hours || 'Opening hours unavailable'}</div>
+      {service.address && <div className="text-sm text-slate-600"><MapPin size={14} className="inline mr-1 text-teal-600" />{service.address}</div>}
+      <div className="arrival-availability text-sm"><strong>{service.arrivalAvailability?.status ?? 'Unknown'} at estimated arrival</strong>{service.arrivalAvailability?.arrival && <div>{new Date(service.arrivalAvailability.arrival).toLocaleString('en-GB', { timeZone: 'Asia/Kuala_Lumpur' })} MYT</div>}</div>
+      <details className="planning-disclosure"><summary>Place & data details</summary>
+      <div className="text-xs text-slate-500 mt-2">Coordinates: {service.lat?.toFixed(5) ?? 'Unavailable'}, {service.lon?.toFixed(5) ?? 'Unavailable'}</div>
+      {!service.address && <p>Address unavailable</p>}
+      <div className="text-xs text-slate-500"><Clock size={14} className="inline mr-1" />{service.hours || 'Opening hours unavailable'}</div>
+      <p>{service.arrivalAvailability?.reason ?? 'Arrival estimate or opening-hour information unavailable.'}</p>
       <div className="text-xs text-slate-500">Source tag: <span className="font-mono">{service.sourceCategory || 'Unavailable'}</span></div>
       <div className="text-xs text-slate-500 flex items-center gap-1"><Accessibility size={13} />{service.accessible === undefined ? 'Wheelchair information unavailable' : service.accessible ? 'Wheelchair accessible' : 'Wheelchair access marked no'}</div>
-      {service.missingFields && service.missingFields.length > 0 && <div className="text-xs text-amber-700">Unavailable fields: {service.missingFields.join(', ')}</div>}
+      </details>
 
       {onJourney && (
         <button

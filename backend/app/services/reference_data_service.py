@@ -1,8 +1,23 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from hashlib import sha256
+
+from fastapi.encoders import jsonable_encoder
+from starlette.responses import JSONResponse
 
 from backend.app.database import connection
+from backend.app.cache import TTLCache
+
+_bootstrap_cache = TTLCache(60)
+
+
+def bootstrap_payload() -> tuple[bytes, str]:
+    """Cache public reference data and its serialization for at most 60 seconds."""
+    def load():
+        body = JSONResponse(jsonable_encoder(application_data())).body
+        return body, f'W/"{sha256(body).hexdigest()}"'
+    return _bootstrap_cache.get("public-reference-data", load)
 
 
 EPIC_LINES = {

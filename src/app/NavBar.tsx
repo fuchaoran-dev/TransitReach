@@ -45,7 +45,7 @@ export function NavBar({ items, activePage, onNavigate }: NavBarProps) {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <button
-            onClick={() => onNavigate('landing')}
+            onClick={() => onNavigate('map')}
             className="flex items-center gap-2.5 group"
           >
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center shadow-md shadow-teal-500/20 group-hover:scale-105 transition-transform">
@@ -56,7 +56,7 @@ export function NavBar({ items, activePage, onNavigate }: NavBarProps) {
                 TransitReach
               </div>
               <div className="text-[10px] text-slate-500 leading-tight font-medium tracking-wide uppercase">
-                Mobility Accessibility
+                Klang Valley · City Explorer
               </div>
             </div>
           </button>
@@ -88,6 +88,7 @@ export function NavBar({ items, activePage, onNavigate }: NavBarProps) {
                       ? 'text-teal-700'
                       : 'text-slate-500 hover:text-teal-700'
                   }`}
+                  aria-current={active ? 'page' : undefined}
                 >
                   <Icon size={15} strokeWidth={2.2} />
                   {item.label}
@@ -112,6 +113,7 @@ function MobileNav({ items, activePage, onNavigate }: { items: NavItem[]; active
         onClick={() => setOpen(!open)}
         className="btn-icon"
         aria-label="Menu"
+        aria-expanded={open}
       >
         <Navigation size={18} />
       </button>

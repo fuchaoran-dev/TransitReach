@@ -10,6 +10,7 @@
  */
 
 import { loadRailFeedMetadata } from './gtfsAdapter';
+import { createSharedRequestCache } from '../sharedRequestCache';
 
 /**
  * Where the routing service lives.
@@ -241,13 +242,30 @@ export interface ReachabilityComputation {
  * it is what gets displayed when nothing can be boarded, and comparing the two is how
  * that condition is detected — OTP does not report it.
  */
-export async function computeReachability(
+const sharedCoverage = createSharedRequestCache<ReachabilityComputation>(60_000, 24);
+const sharedEstimates = createSharedRequestCache<number | null>(60_000, 256);
+
+export function computeReachability(
   origin: { lat: number; lon: number },
   budgetMinutes: number,
   signal: AbortSignal,
   departureTime = DEPARTURE_TIME,
   mode: TravelMode = 'multimodal',
 ): Promise<ReachabilityComputation> {
+  // Exact inputs, not rounded coordinates/times. Two consumers share the intentional
+  // transit + walking-only pair; cancelling one never cancels the other consumer.
+  const key = JSON.stringify([BASE_URL, origin.lat, origin.lon, budgetMinutes, departureTime, mode]);
+  return sharedCoverage(key, sharedSignal => calculateReachability(origin, budgetMinutes, sharedSignal, departureTime, mode), signal);
+}
+
+async function calculateReachability(
+  origin: { lat: number; lon: number },
+  budgetMinutes: number,
+  signal: AbortSignal,
+  departureTime = DEPARTURE_TIME,
+  mode: TravelMode = 'multimodal',
+): Promise<ReachabilityComputation> {
+  if (signal.aborted) throw new DOMException('Request cancelled', 'AbortError');
   assertSentinelUnused();
 
   // The caller's signal (a superseded run) and the time limit both cancel the requests,
@@ -368,7 +386,34 @@ interface OtpPlanResponse {
  * Returns the shortest OTP itinerary duration for one real OSM service coordinate.
  * The duration includes walking access/egress, transit and schedule waiting time.
  */
-export async function estimateTravelTime(
+export function estimateTravelTime(
+  origin: { lat: number; lon: number },
+  destination: { lat: number; lon: number },
+  mode: TravelMode,
+  departureTime = DEPARTURE_TIME,
+  signal?: AbortSignal,
+): Promise<number | null> {
+  const key = JSON.stringify([BASE_URL, origin.lat, origin.lon, destination.lat, destination.lon, mode, departureTime]);
+  return sharedEstimates(key, async sharedSignal => {
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    sharedSignal.addEventListener('abort', abort, { once: true });
+    if (sharedSignal.aborted) controller.abort();
+    let timedOut = false;
+    const timer = setTimeout(() => { timedOut = true; controller.abort(); }, COMPUTATION_TIMEOUT_MS);
+    try {
+      return await calculateTravelTime(origin, destination, mode, departureTime, controller.signal);
+    } catch (error) {
+      if (timedOut) throw new RoutingTimeoutError(COMPUTATION_TIMEOUT_MS);
+      throw error;
+    } finally {
+      clearTimeout(timer);
+      sharedSignal.removeEventListener('abort', abort);
+    }
+  }, signal);
+}
+
+async function calculateTravelTime(
   origin: { lat: number; lon: number },
   destination: { lat: number; lon: number },
   mode: TravelMode,

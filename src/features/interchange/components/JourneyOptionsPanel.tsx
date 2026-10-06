@@ -283,11 +283,11 @@ function JourneyDetail({
         })}
       </div>
 
-      <div className="rounded-lg bg-white/70 p-2.5 text-[10px] leading-relaxed text-slate-500">
+      <details className="planning-disclosure"><summary>Modelled journey · limitations</summary><p>
         This is a modelled journey used to explain the accessibility result. Walking directions follow
         OpenStreetMap's paths, so a footbridge or crossing that is not mapped there cannot be used.
         Transfer times are estimates derived from transfer distance, interchange layout and mode pairing.
-      </div>
+      </p></details>
     </div>
   );
 }
@@ -350,9 +350,9 @@ export function JourneyOptionsPanel({ model, service, onChooseService }: Props) 
         <div className="text-sm font-bold text-slate-800 mt-0.5 truncate">
           {service.name}
         </div>
-        <p className="text-[11px] text-slate-500 leading-snug mt-1">
+        <details className="planning-disclosure"><summary>Choose a journey to inspect</summary><p className="text-xs text-slate-500 leading-snug mt-1">
           Every journey is drawn faintly on the map. Point at one, here or on the map, to pick it out; select it to inspect only that path. The representative journey is the shortest feasible modelled journey returned by the routing engine; other journeys may exist.
-        </p>
+        </p></details>
       </div>
 
       {!routesBuses && (

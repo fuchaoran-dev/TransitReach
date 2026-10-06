@@ -89,11 +89,11 @@ export function LandingPage({ onNavigate, onSearchSelect }: LandingPageProps) {
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-chip mb-6">
                 <Sparkles size={14} className="text-teal-600" />
-                <span className="text-xs font-semibold text-teal-700">Transit-Oriented Accessibility Mapping</span>
+                <span className="text-xs font-semibold text-teal-700">YOUR CITY. WITHIN REACH.</span>
               </div>
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 leading-[1.05] mb-5 text-balance">
-                See how far you can go in{' '}
-                <span className="bg-gradient-to-r from-teal-600 to-teal-500 bg-clip-text text-transparent">30 minutes</span>
+                Discover your city,{' '}
+                <span className="text-teal-600">one journey at a time.</span>
               </h1>
               {/* AC 1.4.1 — claims only what is loaded. The previous copy promised essential
                   services and implied bus coverage; neither is in the computation. */}
@@ -110,7 +110,7 @@ export function LandingPage({ onNavigate, onSearchSelect }: LandingPageProps) {
                   belongs to an epic that is not built (AC 1.4.3). */}
               <div className="flex flex-wrap items-center gap-3">
                 <button onClick={() => onNavigate('map')} className="btn-primary inline-flex items-center gap-2">
-                  Explore the Map
+                  Enter City Explorer
                   <ArrowRight size={18} />
                 </button>
               </div>

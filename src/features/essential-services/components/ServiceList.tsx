@@ -4,6 +4,7 @@ import { CATEGORY_META, CATEGORY_ORDER } from '@/shared/data';
 import type { ServiceLocation } from '@/shared/types/service';
 
 interface ServiceListProps {
+  compact?: boolean;
   services: ServiceLocation[];
   hoveredService: ServiceLocation | null;
   selectedService: ServiceLocation | null;
@@ -21,7 +22,7 @@ interface ServiceListProps {
 const PAGE_SIZE = 50;
 
 /** Epic 5.1.2 — service records are visibly grouped by the documented category. */
-export function ServiceList({ services, hoveredService, selectedService, onHover, onSelect }: ServiceListProps) {
+export function ServiceList({ services, hoveredService, selectedService, onHover, onSelect, compact = false }: ServiceListProps) {
   const [limit, setLimit] = useState(PAGE_SIZE);
 
   // A new result set starts from the top again, rather than keeping a limit the reader
@@ -32,7 +33,7 @@ export function ServiceList({ services, hoveredService, selectedService, onHover
   const remaining = services.length - shown.length;
 
   return (
-    <div className="space-y-3 max-h-[560px] overflow-y-auto scrollbar-thin pr-1">
+    <div className={`space-y-3 ${compact ? '' : 'max-h-[560px] overflow-y-auto scrollbar-thin pr-1'}`}>
       {services.length > 0 && (
         <div className="text-xs text-slate-500 px-1">
           Showing <span className="font-semibold text-slate-700">{shown.length}</span> of{' '}
@@ -57,11 +58,16 @@ export function ServiceList({ services, hoveredService, selectedService, onHover
               return (
                 <div
                   key={service.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`View ${service.name}`}
+                  aria-pressed={isSelected}
                   className={`card p-3.5 cursor-pointer transition-all duration-200 ${isSelected ? 'ring-2 ring-teal-400' : isHovered ? 'shadow-md' : ''}`}
                   style={{ animationDelay: `${index * 30}ms` }}
                   onMouseEnter={() => onHover(service)}
                   onMouseLeave={() => onHover(null)}
                   onClick={() => onSelect(service)}
+                  onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(service); } }}
                 >
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: meta.colorLight }}>
@@ -69,18 +75,19 @@ export function ServiceList({ services, hoveredService, selectedService, onHover
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-bold text-slate-900 truncate">{service.name}</div>
-                      <div className="text-xs text-slate-500 truncate">{service.address || 'Address unavailable'}</div>
+                      {service.arrivalAvailability && <div className="text-xs text-slate-500">{service.arrivalAvailability.status} at arrival</div>}
+                      {(service.address || !compact) && <div className="text-xs text-slate-500 truncate">{service.address || 'Address unavailable'}</div>}
                       <div className="flex flex-wrap items-center gap-2 mt-1.5">
                         <span className="flex items-center gap-1 text-xs font-semibold text-slate-600">
                           <Clock size={11} className="text-teal-600" />
-                          {service.estimatedTravelTime === undefined ? 'Calculating…' : service.estimatedTravelTime === null ? 'Time unavailable' : `${service.estimatedTravelTime} min`}
+                          {service.estimatedTravelTime === undefined ? 'Select to check travel time' : service.estimatedTravelTime === null ? 'Time unavailable' : `${service.estimatedTravelTime} min`}
                         </span>
-                        {service.lat !== undefined && service.lon !== undefined && (
+                        {!compact && service.lat !== undefined && service.lon !== undefined && (
                           <span className="flex items-center gap-1 text-xs text-slate-500"><MapPin size={11} />{service.lat.toFixed(4)}, {service.lon.toFixed(4)}</span>
                         )}
                         {service.accessible === true && <Accessibility size={12} className="text-teal-600" />}
                       </div>
-                      {missing.length > 0 && <div className="text-[10px] text-amber-700 mt-1">Unavailable: {missing.join(', ')}</div>}
+                      {missing.length > 0 && <div className="text-xs text-slate-500 mt-1" title={`Unavailable: ${missing.join(', ')}`}>{compact ? 'Some place details unavailable' : `Unavailable: ${missing.join(', ')}`}</div>}
                     </div>
                     <ChevronRight size={16} className="text-slate-300 mt-1" />
                   </div>

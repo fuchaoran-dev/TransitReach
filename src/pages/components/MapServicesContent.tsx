@@ -46,6 +46,15 @@ export function MapServicesContent({
     );
   }
 
+  if (model.selected && model.detailsOpen) {
+    return <div className="space-y-3" ref={selectedDetailRef}>
+      <button className="btn-secondary text-xs" onClick={model.hideDetails}>← Service list</button>
+      {model.status === 'loading' && <p role="status" className="text-xs text-slate-500">Updating arrival estimates…</p>}
+      {model.status === 'error' && <p role="alert" className="text-xs text-rose-500">Current estimates unavailable.</p>}
+      <ServiceDetail service={model.selected} onJourney={onJourney} onClear={model.clearSelection} />
+    </div>;
+  }
+
   if (model.status === 'loading') {
     return (
       <div className="py-4 text-sm text-slate-600">
@@ -64,6 +73,7 @@ export function MapServicesContent({
 
   return (
     <div className="space-y-3">
+      {model.selected && <div className="selected-service-strip"><button onClick={model.showDetails}>View {model.selected.name}</button><button aria-label="Clear selected service" onClick={model.clearSelection}>×</button></div>}
       <div className="flex items-start gap-2">
         <BusFront size={17} className="text-teal-600 shrink-0 mt-0.5" />
         <div>
@@ -73,11 +83,11 @@ export function MapServicesContent({
           {/* Provenance and scope travel with the result, as they did on the screen this
               replaced. Dropping the bus-and-feeder line would have quietly removed a
               disclosure the project relies on elsewhere. */}
-          <p className="text-[11px] text-slate-500 leading-snug mt-0.5">
+          <details className="planning-disclosure"><summary>Data & estimates</summary><p className="text-[11px] text-slate-500 leading-snug mt-0.5">
             From {metadata.recordCount.toLocaleString()} deduplicated OpenStreetMap records.
             Travel times use OTP's scheduled route for the selected mode and departure time.
             Bus and feeder services are not loaded.
-          </p>
+          </p></details>
         </div>
       </div>
 
@@ -108,9 +118,7 @@ export function MapServicesContent({
       */}
       {model.awaitingChoice ? (
         <p className="text-[11px] text-slate-500 leading-snug">
-          Choose a category above, or search, to see what is in reach. Nothing is shown
-          by default — {model.reachableCount.toLocaleString()} services at once is more
-          than a map can say anything useful with.
+          Choose a category or search to show reachable places.
         </p>
       ) : (
         /* The headline counts everything reachable; the list counts what passed the
@@ -128,20 +136,12 @@ export function MapServicesContent({
         )
       )}
 
-      {model.selected && (
-        <div ref={selectedDetailRef}>
-          <ServiceDetail
-            service={model.selected}
-            onJourney={onJourney}
-          />
-        </div>
-      )}
-
       {/* Suppressed while awaiting a choice: ServiceList's empty state reads "No services
           found — try a longer travel time", which would contradict the prompt above by
           blaming the budget for a list the reader has not asked for yet. */}
       {!model.awaitingChoice && (
         <ServiceList
+          compact
           services={model.displayed}
           hoveredService={null}
           selectedService={model.selected}

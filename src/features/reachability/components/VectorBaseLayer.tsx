@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
+import { MapDaylight } from '@/pages/components/WeatherPlanning';
 import { TileLayer, useMap } from 'react-leaflet';
-import type { Layer } from 'leaflet';
-import type { StyleSpecification } from 'maplibre-gl';
+import type { Map as GLMap, StyleSpecification } from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 
 /**
@@ -18,14 +18,14 @@ import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&ur
  * If MapLibre cannot load — the style fetch fails, or the device has no WebGL — this falls
  * back to the OSM raster tiles the map used before, so the map is never blank.
  */
-const STYLE_URL = 'https://tiles.openfreemap.org/styles/positron';
+export const STYLE_URL = 'https://tiles.openfreemap.org/styles/positron';
 const VECTOR_ATTRIBUTION =
   '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> ' +
   '&copy; <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> ' +
   'Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
 
 /** How long the vector map gets to finish its first draw before raster tiles take over. */
-const LOAD_DEADLINE_MS = 10_000;
+const LOAD_DEADLINE_MS = 25_000;
 
 const OSM_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
@@ -88,12 +88,15 @@ const PAINT_OVERRIDES: Record<string, Record<string, unknown>> = {
   railway: { 'line-color': '#cdc5b6' },
 };
 
-function trimStyle(style: StyleSpecification): StyleSpecification {
+export function trimStyle(style: StyleSpecification, daylight = false): StyleSpecification {
   const layers = style.layers
     .filter(layer => !DROPPED_LAYERS.has(layer.id))
     .map(layer => {
-      const paint = PAINT_OVERRIDES[layer.id];
+      const paint = daylight ? PAINT_OVERRIDES[layer.id] : NIGHT_PAINT[layer.id] ?? PAINT_OVERRIDES[layer.id];
       const recoloured = paint ? { ...layer, paint: { ...layer.paint, ...paint } } : layer;
+      if (layer.type === 'symbol') {
+        return { ...recoloured, ...(layer.id === 'highway-name-major' ? { filter: ['match', ['get', 'class'], NAMED_ROAD_CLASSES, true, false] } : {}), paint: { ...recoloured.paint, 'text-color': daylight ? '#40576a' : '#a7bfd0', 'text-halo-color': daylight ? '#f5f1e8' : '#0b1724', 'text-halo-width': 1.4 } };
+      }
       return layer.id === 'highway-name-major'
         ? { ...recoloured, filter: ['match', ['get', 'class'], NAMED_ROAD_CLASSES, true, false] }
         : recoloured;
@@ -101,62 +104,132 @@ function trimStyle(style: StyleSpecification): StyleSpecification {
   return { ...style, layers };
 }
 
+const NIGHT_PAINT: Record<string, Record<string, unknown>> = {
+  background: { 'background-color': '#0b1521' },
+  landuse_residential: { 'fill-color': '#101e2c' },
+  park: { 'fill-color': '#12312e' },
+  landcover_wood: { 'fill-color': '#102a27' },
+  water: { 'fill-color': '#07101c' },
+  waterway: { 'line-color': '#163348' },
+  building: { 'fill-color': '#21374b', 'fill-outline-color': '#36556b' },
+  highway_path: { 'line-color': '#294356' },
+  highway_minor: { 'line-color': '#273b4c' },
+  highway_major_casing: { 'line-color': '#142536' },
+  highway_major_inner: { 'line-color': '#3b566a' },
+  highway_motorway_casing: { 'line-color': '#172b3c' },
+  highway_motorway_inner: { 'line-color': '#4b697c' },
+  railway_transit: { 'line-color': '#4c8092' },
+  railway: { 'line-color': '#3b6476' },
+};
+
+/** Recolour existing layers without replacing sources, tiles or camera state. */
+export function applyMapDaylight(map: GLMap, style: StyleSpecification, daylight: boolean) {
+  for (const layer of trimStyle(style, daylight).layers) {
+    if (!map.getLayer(layer.id) || !layer.paint) continue;
+    for (const [property, value] of Object.entries(layer.paint)) map.setPaintProperty(layer.id, property as Parameters<GLMap['setPaintProperty']>[1], value);
+  }
+  if (map.getLayer('city-buildings')) map.setPaintProperty('city-buildings', 'fill-extrusion-color', daylight ? '#c6c2b6' : '#376079');
+}
+
 export function VectorBaseLayer() {
+  const daylight = useContext(MapDaylight);
   const map = useMap();
   const [failed, setFailed] = useState(false);
+  const scene = useRef<{ map: GLMap; style: StyleSpecification } | null>(null);
+  const daylightRef = useRef(daylight);
+  daylightRef.current = daylight;
+  useEffect(() => {
+    if (scene.current?.map.getLayer('background')) applyMapDaylight(scene.current.map, scene.current.style, daylight);
+  }, [daylight]);
 
   useEffect(() => {
+    setFailed(false);
     let cancelled = false;
-    let layer: Layer | null = null;
-
-    let loadTimer: ReturnType<typeof setTimeout> | undefined;
+    const controller = new AbortController();
+    let nativeMap: GLMap | null = null;
+    let container: HTMLDivElement | null = null;
+    let detach: (() => void) | undefined;
 
     const removeLayer = () => {
-      if (!layer) return;
-      map.removeLayer(layer);
+      detach?.();
+      detach = undefined;
+      nativeMap?.remove();
+      nativeMap = null;
+      container?.remove();
+      container = null;
+      scene.current = null;
       map.attributionControl?.removeAttribution(VECTOR_ATTRIBUTION);
-      layer = null;
     };
+
+    // Include the style download in the deadline; an indefinitely pending fetch
+    // must fall back to raster too, not leave a blank map before GL is created.
+    const loadTimer = setTimeout(() => {
+      if (cancelled) return;
+      cancelled = true;
+      controller.abort();
+      removeLayer();
+      setFailed(true);
+    }, LOAD_DEADLINE_MS);
 
     Promise.all([
       import('maplibre-gl'),
-      import('@maplibre/maplibre-gl-leaflet'),
+      import('leaflet'),
       import('maplibre-gl/dist/maplibre-gl.css'),
-      fetch(STYLE_URL).then(response => {
+      fetch(STYLE_URL, { signal: controller.signal }).then(response => {
         if (!response.ok) throw new Error(`Style request failed: ${response.status}`);
         return response.json() as Promise<StyleSpecification>;
       }),
     ])
-      .then(([maplibre, { maplibreGL }, , style]) => {
+      .then(([maplibre, leaflet, , style]) => {
         if (cancelled) return;
         // MapLibre derives its worker's URL at runtime, which Vite cannot see, so the
         // worker is never bundled and the map silently draws nothing. Hand it the URL of
         // a worker Vite has built.
         maplibre.setWorkerUrl(maplibreWorkerUrl);
         // Throws when WebGL is unavailable; caught below and answered with raster tiles.
-        const gl = maplibreGL({ style: trimStyle(style), attributionControl: false });
-        layer = gl.addTo(map);
+        // Use public APIs: the older bridge relies on private renderer internals.
+        container = document.createElement('div');
+        container.className = 'city-vector-surface';
+        container.style.pointerEvents = 'none';
+        map.getPane('tilePane')!.appendChild(container);
+        const centre = map.getCenter();
+        const gl = new maplibre.Map({ container, style: trimStyle(style, daylightRef.current), center: [centre.lng, centre.lat], zoom: map.getZoom() - 1, interactive: false, attributionControl: false, trackResize: false });
+        nativeMap = gl;
+        const syncView = () => {
+          if (!container || cancelled) return;
+          const size = map.getSize();
+          const width = `${size.x}px`; const height = `${size.y}px`;
+          if (container.style.width !== width || container.style.height !== height) {
+            container.style.width = width; container.style.height = height; gl.resize();
+          }
+          leaflet.DomUtil.setPosition(container, map.containerPointToLayerPoint([0, 0]));
+          const center = map.getCenter();
+          gl.jumpTo({ center: [center.lng, center.lat], zoom: map.getZoom() - 1 });
+        };
+        map.on('move zoom resize', syncView);
+        detach = () => map.off('move zoom resize', syncView);
+        syncView();
         map.attributionControl?.addAttribution(VECTOR_ATTRIBUTION);
 
         // A failure after this point (worker, tiles) is asynchronous and throws nothing,
         // so give the map a deadline to draw and fall back if it misses it.
-        loadTimer = setTimeout(() => {
-          if (cancelled) return;
-          removeLayer();
-          setFailed(true);
-        }, LOAD_DEADLINE_MS);
-        gl.getMaplibreMap().once('load', () => clearTimeout(loadTimer));
+        scene.current = { map: gl, style };
+        gl.once('load', () => {
+          clearTimeout(loadTimer);
+          if (!cancelled) applyMapDaylight(gl, style, daylightRef.current);
+        });
       })
       .catch(() => {
-        if (!cancelled) setFailed(true);
+        if (!cancelled) { clearTimeout(loadTimer); removeLayer(); setFailed(true); }
       });
 
     return () => {
       cancelled = true;
+      controller.abort();
       clearTimeout(loadTimer);
       removeLayer();
     };
   }, [map]);
 
-  return failed ? <TileLayer url={OSM_TILE_URL} attribution={OSM_ATTRIBUTION} maxZoom={19} /> : null;
+  return failed ? <TileLayer className="city-raster-fallback" url={OSM_TILE_URL} attribution={OSM_ATTRIBUTION} maxZoom={19} /> : null;
 }

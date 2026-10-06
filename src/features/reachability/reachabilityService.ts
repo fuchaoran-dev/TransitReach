@@ -269,11 +269,11 @@ export interface DataBasis {
  * they are present in calendar.txt but referenced by no trip, and the graph build bounds
  * the service period besides, so no result can be drawn from them.
  */
-export function getDataBasis(): DataBasis {
+export function getDataBasis(departureTime = DEPARTURE_TIME): DataBasis {
   const meta = loadRailFeedMetadata();
   const feed = meta.feeds[0];
 
-  const [datePart] = DEPARTURE_TIME.split('T');
+  const [datePart] = departureTime.split('T');
   const [y, m, d] = datePart.split('-').map(Number);
   const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
   const dayName = DAY_NAMES[dow];
@@ -286,7 +286,7 @@ export function getDataBasis(): DataBasis {
     licence: feed.licence,
     licenceStatus: feed.licenceStatus,
     dayType,
-    dayLabel: DEPARTURE_TIME_LABEL,
+    dayLabel: `${datePart} ${departureTime.slice(11, 16)} (UTC+8)`,
     activeCalendars: feed.serviceCalendars
       .filter(c => c.referencedByTrips && !c.expired && c.days.includes(dayName))
       .map(c => c.serviceId),
