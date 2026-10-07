@@ -53,6 +53,19 @@ check uses only public station coordinates, not another member's starting point.
 .venv/bin/python scripts/check-meeting-database.py --check-routing
 ```
 
+For an explicitly authorized live release smoke test against Netlify, run:
+
+```bash
+.venv/bin/python scripts/check-meeting-online.py --api-base https://transitreach-kl-fuchaorantransitreach.netlify.app --run-live
+```
+
+This creates two temporary anonymous Auth identities and one temporary room,
+uses public station coordinates, checks live authenticated ranking/arrive-by
+journeys and cross-session realtime, and removes only its own records in `finally`.
+It requires the local database and public Auth settings to identify the same
+project. It does not apply SQL or edit existing rooms/deployment variables. No
+tokens or keys are printed. `check-meeting-realtime.mjs` is its internal companion.
+
 See [MD8-6 acceptance record](md8-6-acceptance.md) for what was actually verified and
 the remaining authentication/multi-device release checks.
 

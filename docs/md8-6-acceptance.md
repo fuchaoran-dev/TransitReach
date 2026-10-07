@@ -22,10 +22,12 @@ no Epic 2 multi-stop optimiser or Add errands action.
 - After the user enabled and saved anonymous sign-in, a live Auth settings check
   on 8 October 2026 returned HTTP 200 and `external.anonymous_users=true`.
   New signups are allowed and email confirmation remains enabled. Configuration
-  is verified; actual anonymous login and the full meeting flow remain separate
-  end-to-end checks. No test Auth user was created by this read-only check.
-- Existing Netlify variables identify a different project (`sfwkznjvzhgpforitzwd`)
-  and were not copied or overwritten. Local configuration does not update them.
+  is verified. The subsequent local and online browser checks also signed in
+  anonymously. No test Auth user was created by the read-only settings check.
+- Netlify's production `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` were updated
+  to the same project and supplied public key. Existing unrelated values were not
+  listed or copied. The deployed build uses this project and contains no database
+  connection string.
 - A live local browser check signed in anonymously, created a temporary room and
   joined it in a separate Chrome incognito session. Members selected KL Sentral
   and Pasar Seni. The authenticated local FastAPI ranked actual public venues;
@@ -36,42 +38,63 @@ no Epic 2 multi-stop optimiser or Add errands action.
   succeeded, with a new check timestamp after reopening. Physical QR scanning,
   the first member's pass and prompt cross-session version updates remain pending.
 - The user authorized an independent deployment branch on the fork, without
-  modifying either remote main branch. Online deployment is in progress; a healthy
-  old Render service did not yet expose the meeting endpoint at preflight.
+  modifying either remote main branch. Runtime commit `00a0f7d` on
+  `deploy/md8-6-20261008` is deployed on Render. Only `SUPABASE_URL`, the public
+  `SUPABASE_ANON_KEY` and `OTP_BASE_URL` were added; existing secrets and
+  `DATABASE_URL` were not expanded or modified.
+- Render deployment: `dep-db395v60tbcc738289d0`. Netlify production deployment:
+  `6ac693591cb9227c51d93d88`. Production URL:
+  https://transitreach-kl-fuchaorantransitreach.netlify.app.
+- Online health and bootstrap returned HTTP 200; unauthenticated and invalid
+  bearer requests returned HTTP 401. OTP feed and weather proxies returned actual
+  JSON. OTP reports Rapid KL rail, Rapid KL bus and MRT feeder feeds loaded.
+- The production browser displayed the confirmed invitation and a new anonymous
+  test member joined successfully. Automated native keyboard/clipboard input then
+  became unreliable, so the online starting-point/pass UI was not claimed as
+  browser-verified. The remaining online checks used the real Auth/REST/API/OTP
+  and realtime SDK, not simulated responses or extracted browser tokens.
+- `scripts/check-meeting-online.py` passed 23 live checks against the production
+  URL: two anonymous sessions, private origins/RLS, server venue ranking, shared
+  confirmation, two actual arrive-by journeys, a cross-session realtime update,
+  unchanged agreement after a suggestion, and invalidated status after plan v2.
+  The script removed only its own temporary room and anonymous identities.
+  The separately created browser-QA room remains temporary and expires through
+  the normal cleanup job; its browser sessions were not deleted underneath users.
 
 ## Acceptance traceability
 
 “Fixture” means controlled regression evidence, not live multi-device acceptance.
 “SQL live” means the real PostgreSQL behaviour was exercised inside a transaction
-that was rolled back. Authenticated browser, QR scanning and realtime delivery
-still require final end-to-end checks.
+that was rolled back. “Online API” uses two actual anonymous sessions against the
+production stack. Realtime delivery was verified using the real SDK; physical QR
+scanning and all remaining browser interactions are not inferred from API tests.
 
 | Criterion | Implementation / evidence | Current verification |
 |---|---|---|
-| 8-6.1.1 Confirmed place/time | `confirm_meeting_plan`, canonical venue and proposal validation | SQL live |
-| 8-6.1.2 Shared confirmation | `get_meeting_room_state`, room subscription | SQL live; realtime UI pending |
-| 8-6.1.3 Changed agreement | `plan_version`, coarse-status version comparison | SQL live + UI fixture |
+| 8-6.1.1 Confirmed place/time | `confirm_meeting_plan`, canonical venue and proposal validation | SQL live + local browser + online API |
+| 8-6.1.2 Shared confirmation | `get_meeting_room_state`, room subscription | SQL live + online API/realtime SDK; UI version propagation pending |
+| 8-6.1.3 Changed agreement | `plan_version`, coarse-status version comparison | SQL live + online API + UI fixture |
 | 8-6.1.4 Unconfirmed planning | `RoomLobby`, null confirmed plan | SQL live + fixture |
-| 8-6.2.1 Personal arrive-by journey | `usePersonalPass`, `routeArriveByJourneys` | Live public-station OTP + fixture; personal Auth flow pending |
+| 8-6.2.1 Personal arrive-by journey | `usePersonalPass`, `routeArriveByJourneys` | Local authenticated browser + online arrive-by OTP for both origins |
 | 8-6.2.2 Connection spare time | `passCheckService.connectionChecks` | Fixture |
 | 8-6.2.3 Typical delay propagation | `checkedLegs`, `reliabilityClient` | Fixture; historical evidence disclosed |
-| 8-6.2.4 Arrival/closing margins | `buildPass`, `evaluateClosingMargin` | Fixture, including missing/conditional hours |
+| 8-6.2.4 Arrival/closing margins | `buildPass`, `evaluateClosingMargin` | Local browser + fixture, including missing/conditional hours |
 | 8-6.2.5 Weather exposure | `weatherService`, period boundary splitting | Fixture; live pass forecast pending |
 | 8-6.2.6 Named weak point | `weakPoint`, no overall score | Fixture |
 | 8-6.2.7 Missing delay data | Explicit `not-checked` leg/status | Fixture |
-| 8-6.3.1 Group invitation | `InvitationCard`, `get_meeting_invitation` | SQL live + fixture; browser flow pending |
-| 8-6.3.2 Personal pass per member | Own origin from safe projection, `usePersonalPass` | SQL privacy + fixture; two-device UI pending |
-| 8-6.3.3 Pass contents | `PersonalPassView`, `PrivateJourneyMap` | UI fixture; real journey display pending |
+| 8-6.3.1 Group invitation | `InvitationCard`, `get_meeting_invitation` | SQL live + local/production browser invitation and join |
+| 8-6.3.2 Personal pass per member | Own origin from safe projection, `usePersonalPass` | Local second-member pass + online journeys for both origins; two-device UI pending |
+| 8-6.3.3 Pass contents | `PersonalPassView`, `PrivateJourneyMap` | UI fixture + real local browser journey/map |
 | 8-6.3.4 Estimated wording | `passPresentation`, renderer/export labels | Fixture |
 | 8-6.3.5 Canonical format | Shared `PersonalPass` model/renderer | Fixture; group scope only |
-| 8-6.3.6 Group privacy | RLS, safe member projection, server-only ranking | SQL live + frontend/backend privacy tests |
-| 8-6.4.1 Download | Canvas PNG export of the current member's pass | Implemented; browser download/offline readability pending |
+| 8-6.3.6 Group privacy | RLS, safe member projection, server-only ranking | SQL live + online RLS/projection/realtime + frontend/backend privacy tests |
+| 8-6.4.1 Download | Canvas PNG export of the current member's pass | Local browser download + inspected readable PNG; final rounding fix regression-checked |
 | 8-6.4.2 Group QR | `createRoomQrData`, invitation restore/join flow | Payload fixture + SQL invitation; scanning pending |
-| 8-6.4.3 My Passes | Identity-scoped local storage, `MyPassesPage` | Fixture; same-device reopen pending |
-| 8-6.4.4 Recheck on reopening | `usePersonalPass`, fresh route/evidence requests | Lifecycle fixture; live reopen pending |
+| 8-6.4.3 My Passes | Identity-scoped local storage, `MyPassesPage` | Fixture + same-browser live reopen |
+| 8-6.4.4 Recheck on reopening | `usePersonalPass`, fresh route/evidence requests | Lifecycle fixture + live reopen with new check timestamp |
 | 8-6.4.5 QR privacy | Room-only opaque reference; no origin or member id | Payload fixture + SQL invitation |
 | 8-6.5.1 Personal fix | Earlier target and alternative journey with group agreement preserved | Fixture; browser interaction pending |
-| 8-6.5.2 Proposed meeting time | `propose_meeting_time`, separate confirmation | SQL live + fixture |
+| 8-6.5.2 Proposed meeting time | `propose_meeting_time`, separate confirmation | SQL live + online API/realtime + fixture |
 | 8-6.5.3 Recheck after change | Request cancellation, version guards and origin invalidation | SQL live + lifecycle fixture |
 
 ## Bugs found and fixed
@@ -101,6 +124,7 @@ still require final end-to-end checks.
   its four database-dependent failures disappeared in the authorized network run.
 - Outing-pass domain: 42 checks; meeting privacy/lifecycle: 22; pass UI: 9.
 - Existing UI lifecycle: 44; desktop weather/map UI: 29.
+- Production Auth/API/OTP/realtime: 23 live checks passed; test fixtures cleaned up.
 - Frontend typecheck, Vite-config typecheck and production build passed.
 - ESLint completed with zero errors and 17 existing warnings. The build retains
   existing large-chunk/dynamic-import warnings.
@@ -110,17 +134,15 @@ still require final end-to-end checks.
 
 ## Release checks still required
 
-1. Verify actual anonymous login in the application. The live Auth setting is
-   enabled and local public keys are configured; do not mix Auth identities from
-   another project with these tables. Restart local Vite/FastAPI after env changes.
-2. On two browser profiles/devices create and join a room, set distinct origins,
-   obtain server-ranked public venues, and confirm a future place/time.
-3. Open each member's pass. Verify arrive-by routing, estimates, hours/weather and
-   unsupported-data states. Check that neither browser receives the other's origin.
-4. Change the agreement and origin. Verify realtime version propagation and a new
+1. Finish the first member's local pass and both members' production-browser pass
+   views. Local second-member UI and both online API journeys were verified, but
+   this is not yet two physical devices completing every interaction.
+2. Exercise a live pass with applicable bus-delay and supported weather evidence;
+   the rail test correctly displayed unsupported/unknown evidence, not a false pass.
+3. Change the agreement and origin in two browsers. Verify UI version propagation and a new
    check; a suggested time alone must not change the confirmed agreement.
-5. Download a PNG and inspect it offline. Scan its QR on the same and a new device;
-   the new device must join and provide its own origin. Reopen from My Passes and
-   verify the latest agreement/evidence is checked again.
-6. Configure/redeploy Netlify and Render when deployment is explicitly requested.
-   SQL and local configuration alone do not establish online feature completion.
+4. Scan the PNG QR on the same and a new physical device; the new device must join
+   and provide its own origin. Verify the personal “leave earlier” action in a browser.
+5. Keep the remaining dependency advisories/build warnings in the separate review
+   backlog. Deployment succeeded; that does not mean every acceptance criterion or
+   security-advisory remediation is complete.
