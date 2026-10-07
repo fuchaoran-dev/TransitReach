@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
+    "test:outing-pass": "node scripts/test-outing-pass.mjs",
     "data:essential-services": "node scripts/build-essential-services.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
@@ -21,6 +22,7 @@
     "maplibre-gl": "^6.11.2",
     "opening_hours": "^3.15.0",
     "polygon-clipping": "^0.15.7",
+    "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-leaflet": "^4.2.1"
@@ -28,6 +30,7 @@
   "devDependencies": {
     "@eslint/js": "^9.9.1",
     "@types/leaflet": "^1.9.22",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",

@@ -14,24 +14,69 @@ export interface MeetingRoom {
   code: string;
   timeBudget: number;
   expiresAt: string;
+  /** Safe invalidation timestamp for shared room state. */
+  updatedAt: string;
+  /** Changes only when membership, an origin or the shared travel budget changes. */
+  planningRevision: number;
+  /** The shared agreement. Null means the room is still planning. */
+  confirmedPlan: ConfirmedMeetingPlan | null;
+  /** A member's suggestion is visible, but never changes the agreement by itself. */
+  proposedArrivalTime: string | null;
+}
+
+export interface MeetingVenue {
+  id: string;
+  type: 'station' | 'cafe' | 'restaurant' | 'mall';
+  name: string;
+  kindLabel: string;
+  lat: number;
+  lon: number;
+  address?: string;
+  hours?: string;
+}
+
+export interface ConfirmedMeetingPlan {
+  venue: MeetingVenue;
+  /** ISO timestamp for the group's agreed arrival. */
+  arrivalTime: string;
+  /** Increases whenever the agreed place or time changes. */
+  version: number;
+}
+
+/** Public invitation fields obtainable with the opaque room code before joining. */
+export interface MeetingInvitation {
+  code: string;
+  confirmedPlan: ConfirmedMeetingPlan | null;
+}
+
+export type ArrivalStatus = 'Ready' | 'Check needed' | 'Not checked';
+
+/** The only per-person information shared with other room members. */
+export interface SharedMemberStatus {
+  /** Opaque participant row id, used only as a stable list key. */
+  id: string;
+  displayName: string;
+  arrivalStatus: ArrivalStatus;
+  isSelf: boolean;
 }
 
 export interface Participant {
   id: string;
-  /** The anonymous sign-in that owns this row; only that device may edit it. */
+  /** The anonymous sign-in that owns this row. This type is returned only for the caller. */
   userId: string;
   nickname: string | null;
   /** Null until this participant has chosen a starting point. */
   at: LatLng | null;
   /**
-   * How the point was chosen. Device location is excluded: a room shares the point with
-   * everyone in it, so a GPS fix would be broadcast to other people.
+   * How the point was chosen. The private room-state RPC returns it only to its owner.
    */
   source: Exclude<Origin['source'], 'device'> | null;
   /** The station or place name, when the point came from search. */
   label: string | null;
   /** 0–5, held for as long as this participant stays; see participantColours.ts. */
   colourSlot: number;
+  arrivalStatus: ArrivalStatus;
+  checkedPlanVersion: number | null;
 }
 
 /** A starting point as a participant sets it. */
@@ -55,7 +100,7 @@ export type RoomError = 'invalid_code' | 'not_found' | 'full' | 'unavailable';
 
 export const ROOM_ERROR_MESSAGES: Record<RoomError, string> = {
   invalid_code: 'Room codes are 8 letters and numbers. Check the code and try again.',
-  not_found: 'That room does not exist or has expired. Rooms last 24 hours.',
+  not_found: 'That room does not exist or is no longer available.',
   full: `That room is full. A room holds up to ${MAX_PARTICIPANTS} people.`,
   unavailable: 'Could not reach the room service. Try again.',
 };

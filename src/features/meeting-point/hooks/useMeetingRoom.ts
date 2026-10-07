@@ -3,24 +3,28 @@ import { supabase } from '../supabaseClient';
 import { normaliseRoomCode, roomParam, writeRoomCodeToUrl } from '../roomLink';
 import {
   createRoom,
+  confirmMeetingPlan,
   ensureSignedIn,
   joinRoom,
   leaveRoom,
+  loadMeetingInvitation,
   loadRoom,
+  proposeMeetingTime,
   RoomFullError,
   RoomNotFoundError,
+  setMyArrivalStatus,
   setMyPoint as saveMyPoint,
   setRoomBudget,
   subscribeToRoom,
 } from '../roomService';
-import type { MeetingRoom, Participant, RoomError, StartingPoint } from '../types';
+import type { ArrivalStatus, MeetingInvitation, MeetingRoom, MeetingVenue, Participant, RoomError, SharedMemberStatus, StartingPoint } from '../types';
 
 export type MeetingRoomView =
   | { status: 'unconfigured' }
   /** Not in a room. `invitedCode` is set when the page was opened from a room link. */
-  | { status: 'lobby'; invitedCode: string | null }
+  | { status: 'lobby'; invitedCode: string | null; invitation: MeetingInvitation | null }
   | { status: 'checking'; code: string }
-  | { status: 'ready'; room: MeetingRoom; participants: Participant[] };
+  | { status: 'ready'; room: MeetingRoom; me: Participant; members: SharedMemberStatus[] };
 
 function initialCode(): string | null {
   return normaliseRoomCode(roomParam() ?? '');
@@ -29,7 +33,7 @@ function initialCode(): string | null {
 function initialView(): MeetingRoomView {
   if (!supabase) return { status: 'unconfigured' };
   const code = initialCode();
-  return code ? { status: 'checking', code } : { status: 'lobby', invitedCode: null };
+  return code ? { status: 'checking', code } : { status: 'lobby', invitedCode: null, invitation: null };
 }
 
 function toRoomError(error: unknown): RoomError {
@@ -54,7 +58,7 @@ export function useMeetingRoom() {
     return raw && !normaliseRoomCode(raw) ? 'invalid_code' : null;
   });
   const [busy, setBusy] = useState(false);
-  const reloadRef = useRef<() => Promise<void>>();
+  const reloadRef = useRef<() => Promise<boolean>>();
 
   useEffect(() => {
     const client = supabase;
@@ -63,52 +67,62 @@ export function useMeetingRoom() {
     let cancelled = false;
     // Reloads can overlap when several changes arrive together; only the latest may render.
     let ticket = 0;
-    let knownIds = new Set<string>();
     let unsubscribe: (() => void) | undefined;
+    let subscribing = false;
+    let poll: number | undefined;
 
-    const reload = async () => {
+    const reload = async (): Promise<boolean> => {
       const mine = ++ticket;
       try {
         const snapshot = await loadRoom(client, code);
-        if (cancelled || mine !== ticket) return;
+        if (cancelled || mine !== ticket) return false;
         if (!snapshot) {
-          knownIds = new Set();
-          setView({ status: 'lobby', invitedCode: code });
-          return;
+          const invitation = await loadMeetingInvitation(client, code);
+          if (cancelled || mine !== ticket) return false;
+          setView({ status: 'lobby', invitedCode: code, invitation });
+          setError(invitation ? null : 'not_found');
+          return false;
         }
-        knownIds = new Set(snapshot.participants.map(p => p.id));
+        setError(null);
         setView({ status: 'ready', ...snapshot });
+        if (!unsubscribe && !subscribing) {
+          subscribing = true;
+          void subscribeToRoom(client, code, () => void reload())
+            .then(stop => {
+              if (cancelled) stop();
+              else unsubscribe = stop;
+            })
+            .catch(reason => console.error('Meeting room live updates are unavailable:', reason))
+            .finally(() => { subscribing = false; });
+        }
+        return true;
       } catch {
         if (!cancelled && mine === ticket) setError('unavailable');
+        return false;
       }
     };
     reloadRef.current = reload;
 
     setView({ status: 'checking', code });
     ensureSignedIn(client)
-      .then(id => {
+      .then(async id => {
         if (cancelled) return;
         setMyUserId(id);
-        // Loaded directly as well as on subscription, so the room still loads if realtime cannot
-        // connect — and a realtime failure costs live updates, not the room.
-        void reload();
-        subscribeToRoom(client, code, deletedId => {
-          if (deletedId === undefined || knownIds.has(deletedId)) void reload();
-        })
-          .then(stop => {
-            if (cancelled) stop();
-            else unsubscribe = stop;
-          })
-          .catch(reason => console.error('Meeting room live updates are unavailable:', reason));
+        await reload();
+        if (cancelled) return;
+        // Safe polling keeps invitation and member projections current without subscribing to
+        // participant rows. A room member also gets prompt room-level invalidations.
+        poll = window.setInterval(() => void reload(), 15_000);
       })
       .catch(() => {
         if (cancelled) return;
-        setView({ status: 'lobby', invitedCode: code });
+        setView({ status: 'lobby', invitedCode: code, invitation: null });
         setError('unavailable');
       });
 
     return () => {
       cancelled = true;
+      if (poll !== undefined) window.clearInterval(poll);
       unsubscribe?.();
     };
   }, [code]);
@@ -159,7 +173,7 @@ export function useMeetingRoom() {
       await leaveRoom(supabase, code, myUserId);
       writeRoomCodeToUrl(null);
       setCode(null);
-      setView({ status: 'lobby', invitedCode: null });
+      setView({ status: 'lobby', invitedCode: null, invitation: null });
     } catch (reason) {
       setError(toRoomError(reason));
     } finally {
@@ -167,16 +181,18 @@ export function useMeetingRoom() {
     }
   };
 
-  /** Applied locally at once; the realtime reload that follows confirms or corrects it. */
+  /** Persists before rendering so the authenticated ranking request sees the same budget. */
   const changeBudget = async (budget: number) => {
     if (!supabase || view.status !== 'ready') return;
+    setBusy(true);
     setError(null);
-    setView({ ...view, room: { ...view.room, timeBudget: budget } });
     try {
       await setRoomBudget(supabase, view.room.code, budget);
+      await reloadRef.current?.();
     } catch (reason) {
       setError(toRoomError(reason));
-      void reloadRef.current?.();
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -186,11 +202,7 @@ export function useMeetingRoom() {
     setError(null);
     setView({
       ...view,
-      participants: view.participants.map(participant =>
-        participant.userId === myUserId
-          ? { ...participant, at: point?.at ?? null, source: point?.source ?? null, label: point?.label ?? null }
-          : participant,
-      ),
+      me: { ...view.me, at: point?.at ?? null, source: point?.source ?? null, label: point?.label ?? null },
     });
     try {
       await saveMyPoint(supabase, view.room.code, myUserId, point);
@@ -200,5 +212,57 @@ export function useMeetingRoom() {
     }
   };
 
-  return { view, myUserId, error, busy, create, join, leave, changeBudget, setMyPoint };
+  const confirmPlan = async (venue: MeetingVenue, arrivalTime: string) => {
+    if (!supabase || view.status !== 'ready') return;
+    setBusy(true);
+    setError(null);
+    try {
+      await confirmMeetingPlan(supabase, view.room.code, venue, arrivalTime);
+      await reloadRef.current?.();
+    } catch (reason) {
+      setError(toRoomError(reason));
+      throw reason;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const suggestTime = async (arrivalTime: string) => {
+    if (!supabase || view.status !== 'ready') return;
+    setError(null);
+    try {
+      await proposeMeetingTime(supabase, view.room.code, arrivalTime);
+      await reloadRef.current?.();
+    } catch (reason) {
+      setError(toRoomError(reason));
+      throw reason;
+    }
+  };
+
+  const publishStatus = async (status: ArrivalStatus, planVersion: number) => {
+    if (!supabase || view.status !== 'ready') return;
+    setError(null);
+    try {
+      await setMyArrivalStatus(supabase, view.room.code, status, planVersion);
+      await reloadRef.current?.();
+    } catch (reason) {
+      setError(toRoomError(reason));
+      throw reason;
+    }
+  };
+
+  return {
+    view,
+    myUserId,
+    error,
+    busy,
+    create,
+    join,
+    leave,
+    changeBudget,
+    setMyPoint,
+    confirmPlan,
+    suggestTime,
+    publishStatus,
+  };
 }

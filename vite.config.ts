@@ -98,6 +98,12 @@ export default defineConfig({
         changeOrigin: true,
         timeout: 15_000,
       },
+      '/api/meetings': {
+        target: apiTarget(),
+        changeOrigin: true,
+        timeout: 90_000,
+        proxyTimeout: 90_000,
+      },
       '/api/data': {
         target: apiTarget(),
         changeOrigin: true,

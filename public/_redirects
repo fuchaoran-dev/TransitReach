@@ -15,6 +15,7 @@
 /gtfs-rt/rapid-bus-kl https://api.data.gov.my/gtfs-realtime/vehicle-position/prasarana/?category=rapid-bus-kl 200
 /api/reliability/* https://transitreach-reliability-api.onrender.com/api/reliability/:splat 200
 /api/data/* https://transitreach-reliability-api.onrender.com/api/data/:splat 200
+/api/meetings/* https://transitreach-reliability-api.onrender.com/api/meetings/:splat 200
 
 # SPA fallback — must remain last.
 /*        /index.html                               200

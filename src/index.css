@@ -659,6 +659,33 @@
   min-height: 100vh;
   color-scheme: dark;
 }
+
+/* Epic 8 uses the same city palette for invitations, private passes and the device library. */
+.outing-page { max-width: 1440px; margin: 0 auto; padding: 88px 24px 40px; }
+.outing-card { background: #151e27; border: 1px solid #293844; border-radius: 24px; padding: 24px; }
+.outing-card-inset { background: #1b2631; border-radius: 16px; padding: 20px; }
+.outing-muted { color: #afc0c9; }
+.outing-accent { color: #74fcea; }
+.outing-badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 5px 10px; font-size: 11px; font-weight: 700; background: #27333e; color: #c4d4df; }
+.outing-badge-ready { background: #163b39; color: #74fcea; }
+.outing-badge-attention { background: #41331b; color: #ffd88b; }
+.outing-badge-failed { background: #44202a; color: #ffb4ab; }
+.outing-ticket { position: relative; overflow: hidden; }
+.outing-ticket::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #74fcea, #04a38f); }
+.outing-ticket-divider { border-top: 1px dashed #42505a; margin: 24px 0; }
+.outing-warning { background: #361920; border: 1px solid #65353d; border-radius: 16px; padding: 20px; color: #ffd5ce; }
+.outing-private { border-left: 4px solid #74fcea; }
+.outing-map { height: min(72vh, 760px); min-height: 380px; border-radius: 24px; overflow: hidden; position: relative; }
+.outing-map .leaflet-container { width: 100%; height: 100%; }
+.outing-bottom-nav { position: fixed; z-index: 600; bottom: 0; left: 0; right: 0; display: flex; justify-content: space-around; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); background: #101c27f5; border-top: 1px solid #294456; backdrop-filter: blur(20px); }
+.outing-bottom-nav button { display: flex; min-width: 72px; min-height: 48px; align-items: center; justify-content: center; flex-direction: column; gap: 4px; color: #afc0c9; font-size: 11px; }
+.outing-bottom-nav button[aria-current='page'] { color: #74fcea; }
+.outing-qr { background: white; border-radius: 12px; padding: 12px; width: 144px; height: 144px; }
+@media (max-width: 767px) {
+  .outing-page { padding: 84px 16px calc(96px + env(safe-area-inset-bottom)); }
+  .outing-card { padding: 20px; border-radius: 22px; }
+  .outing-map { position: relative; top: auto; height: 340px; min-height: 0; }
+}
 .transit-shell h1, .transit-shell h2, .transit-shell h3, .transit-shell h4 { color: #f0f7fc; }
 .transit-shell .text-slate-900, .transit-shell .text-slate-800, .transit-shell .text-slate-700 { color: #e5eff7; }
 .transit-shell .text-slate-600, .transit-shell .text-slate-500 { color: #a7bdcd; }

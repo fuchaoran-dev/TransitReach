@@ -6,4 +6,5 @@ export type PageId =
   | 'scenario'
   | 'typology'
   | 'meeting'
+  | 'passes'
   | 'methodology';

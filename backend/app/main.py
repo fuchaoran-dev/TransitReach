@@ -11,6 +11,7 @@ from backend.app.database import get_pool, close_pool
 
 from backend.app.api.reliability import router as reliability_router
 from backend.app.api.data import router as data_router
+from backend.app.api.meetings import router as meetings_router
 
 
 @asynccontextmanager
@@ -49,11 +50,12 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
     allow_credentials=False,
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 app.include_router(reliability_router)
 app.include_router(data_router)
+app.include_router(meetings_router)
 
 
 @app.exception_handler(PoolTimeout)

@@ -1,6 +1,7 @@
 import { loadEssentialServices } from '@/shared/data/adapters/essentialServicesAdapter';
 import { linesForStop, loadRailStops } from '@/shared/data/adapters/gtfsAdapter';
 import { overlapContains, type OverlapPolygon } from './overlapService';
+import type { MeetingVenue } from './types';
 
 export type VenueType = 'station' | 'cafe' | 'restaurant' | 'mall';
 
@@ -19,16 +20,8 @@ export const VENUE_TYPES: { id: VenueType; label: string }[] = [
   { id: 'mall', label: 'Malls' },
 ];
 
-export interface Venue {
-  id: string;
+export interface Venue extends MeetingVenue {
   type: VenueType;
-  name: string;
-  /** What the place is, in words: "Café", "Fast food", or the lines serving a station. */
-  kindLabel: string;
-  lat: number;
-  lon: number;
-  address?: string;
-  hours?: string;
 }
 
 /**

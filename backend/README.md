@@ -37,6 +37,40 @@ and model profiles through `backend.app.services.model_registry`; neither reads 
 JSON files. The browser first requests `/api/data/bootstrap`, then keeps that PostgreSQL
 snapshot in memory for local search and map calculations.
 
+## Private meeting calculations
+
+Apply `supabase/meeting-rooms.sql` after the core schema. It stores the confirmed public
+venue, agreed arrival time and plan version, and restricts `meeting_participants` SELECTs
+to the caller's own row. `get_meeting_room_state()` is the safe shared projection: other
+members contribute only a display name and coarse arrival status. Changing a confirmed
+venue or time increments the plan version, so an earlier status or locally stored pass is
+outdated without deleting its audit context. Confirmation also extends room expiry through
+24 hours after the agreed arrival, so a future invitation does not disappear before the
+meeting.
+
+Creator identity is migrated to `meeting_room_creators`, which has no browser grants and is
+not in the realtime publication. The shared room row therefore contains no user id. Server
+ranking writes only its public venue results to `meeting_plan_proposals`, keyed by the room's
+planning revision. Joining, leaving, moving an origin, or changing the budget advances that
+revision; confirming an older proposal is rejected. Coarse pass-status changes update the
+shared room timestamp without invalidating an otherwise current ranking.
+
+`get_meeting_invitation()` is the narrower exception for a room link opened on a new
+device. Possession of the opaque room code reveals only the live room's confirmed public
+venue, arrival time and version. It never returns membership, creator, proposal, origin,
+route or check data; the person must still join before a personal pass can be calculated.
+
+The browser sends its Supabase access token to
+`POST /api/meetings/{code}/common-ground`. FastAPI validates that token with Supabase Auth,
+checks room membership in PostgreSQL, and only then reads private origins. It requests the
+self-hosted OTP 2.5 TravelTime surfaces and returns ranked public venues plus aggregate
+fairness figures. Participant origins, user ids, routes, individual times, and surface
+rasters never leave the server boundary.
+
+Configure `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `OTP_BASE_URL` as server variables; see
+`.env.example`. Do not use the browser's claimed user id for authorization. The optional
+`MEETING_ROUTING_TIME` defaults to the same provisional Tuesday 08:00 model used by Epic 6.
+
 ## Large-data cleaning
 
 Keep source files as Parquet. The cleaner uses DuckDB projection and predicate pushdown,

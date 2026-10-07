@@ -263,18 +263,19 @@ async function fetchPlan(
   origin: { lat: number; lon: number },
   destination: { lat: number; lon: number },
   mode: 'WALK' | 'TRANSIT,WALK',
-  departureTime: string,
+  journeyTime: string,
   numItineraries: number,
+  arriveBy: boolean,
   signal?: AbortSignal,
 ): Promise<TransitPlanItinerary[]> {
-  const [date, clock] = departureTime.split('T');
+  const { date, clock } = otpWallTime(journeyTime);
   const params = new URLSearchParams({
     fromPlace: `${origin.lat},${origin.lon}`,
     toPlace: `${destination.lat},${destination.lon}`,
     mode,
     date,
     time: clock.slice(0, 8),
-    arriveBy: 'false',
+    arriveBy: String(arriveBy),
     numItineraries: String(numItineraries),
     locale: 'en',
   });
@@ -324,6 +325,39 @@ async function fetchPlan(
     .filter((itinerary): itinerary is TransitPlanItinerary => itinerary !== null);
 }
 
+/**
+ * OTP's legacy API accepts a date and clock time without a timezone. Confirmed meeting
+ * times are persisted as instants, so convert those to Malaysia wall time. Existing
+ * timezone-less planning inputs already describe wall time and are kept as written.
+ */
+function otpWallTime(value: string): { date: string; clock: string } {
+  const wallTime = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}(?::\d{2})?)$/.exec(value);
+  if (wallTime) {
+    return { date: wallTime[1], clock: wallTime[2].padEnd(8, ':00') };
+  }
+
+  const instant = new Date(value);
+  if (!Number.isFinite(instant.getTime())) {
+    throw new TransitJourneyUnavailableError('The journey time is invalid.');
+  }
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kuala_Lumpur',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(instant);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find(item => item.type === type)?.value ?? '';
+  return {
+    date: `${part('year')}-${part('month')}-${part('day')}`,
+    clock: `${part('hour')}:${part('minute')}:${part('second')}`,
+  };
+}
+
 function itinerarySignature(itinerary: TransitPlanItinerary): string {
   const legSignature = itinerary.legs
     .map(leg => `${leg.mode}:${leg.routeId ?? leg.routeShortName ?? ''}`)
@@ -342,14 +376,39 @@ export async function routeJourneys(
   signal?: AbortSignal,
 ): Promise<TransitPlanItinerary[]> {
 
+  return routeJourneyOptions(origin, destination, departureTime, false, signal);
+}
+
+/**
+ * Returns walking and public-transport options that reach the destination by an agreed
+ * time. The returned OTP timestamps are estimates, never guaranteed departures.
+ */
+export async function routeArriveByJourneys(
+  origin: { lat: number; lon: number },
+  destination: { lat: number; lon: number },
+  arrivalTime: string,
+  signal?: AbortSignal,
+): Promise<TransitPlanItinerary[]> {
+  return routeJourneyOptions(origin, destination, arrivalTime, true, signal);
+}
+
+async function routeJourneyOptions(
+  origin: { lat: number; lon: number },
+  destination: { lat: number; lon: number },
+  journeyTime: string,
+  arriveBy: boolean,
+  signal?: AbortSignal,
+): Promise<TransitPlanItinerary[]> {
+
   const results =
     await Promise.allSettled([
       fetchPlan(
         origin,
         destination,
         'WALK',
-        departureTime,
+        journeyTime,
         1,
+        arriveBy,
         signal,
       ),
 
@@ -357,8 +416,9 @@ export async function routeJourneys(
         origin,
         destination,
         'TRANSIT,WALK',
-        departureTime,
+        journeyTime,
         6,
+        arriveBy,
         signal,
       ),
     ]);
@@ -367,62 +427,6 @@ export async function routeJourneys(
     throw new DOMException(
       'Aborted',
       'AbortError',
-    );
-  }
-
-  const [
-    walkingResult,
-    transitResult,
-  ] = results;
-
-  if (
-    walkingResult.status ===
-    'fulfilled'
-  ) {
-    console.log(
-      '[Epic 4] WALK journeys:',
-      walkingResult.value,
-    );
-  } else {
-    console.error(
-      '[Epic 4] WALK request failed:',
-      walkingResult.reason,
-    );
-  }
-
-  if (
-    transitResult.status ===
-    'fulfilled'
-  ) {
-    console.log(
-      '[Epic 4] TRANSIT journeys:',
-      transitResult.value,
-    );
-
-    console.table(
-      transitResult.value.flatMap(
-        itinerary =>
-          itinerary.legs.map(
-            leg => ({
-              mode: leg.mode,
-              routeId:
-                leg.routeId,
-              route:
-                leg.routeShortName,
-              from:
-                leg.from.name,
-              to:
-                leg.to.name,
-              duration:
-                leg.durationSeconds,
-            }),
-          ),
-      ),
-    );
-  } else {
-    console.error(
-      '[Epic 4] TRANSIT request failed:',
-      transitResult.reason,
     );
   }
 
@@ -483,8 +487,8 @@ export async function routeJourneys(
   return [
     ...unique.values(),
   ].sort(
-    (a, b) =>
-      a.durationSeconds -
-      b.durationSeconds,
+    (a, b) => arriveBy
+      ? (b.startTimeMs ?? 0) - (a.startTimeMs ?? 0) || a.durationSeconds - b.durationSeconds
+      : a.durationSeconds - b.durationSeconds,
   );
 }

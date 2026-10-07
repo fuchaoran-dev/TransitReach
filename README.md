@@ -1,5 +1,11 @@
 TransitReach
 
+## Group invitations and personal passes
+
+MD8-6 adds confirmed group meetings, private arrive-by passes, device storage,
+room invitation QR codes and image downloads. Service setup, privacy boundaries
+and verification are documented in [docs/group-passes.md](docs/group-passes.md).
+
 ## Epic 7 reliability
 
 The AI transit reliability feature has a separate FastAPI service and a data-gated ML

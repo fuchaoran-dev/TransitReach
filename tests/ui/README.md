@@ -1,5 +1,19 @@
 # Epic 7 UI checks
 
+## Epic 8 group pass checks
+
+Open `/tests/ui/outing-preview.html` for explicitly labelled synthetic invitation,
+personal-pass and coarse member-status views. Check desktop and 390px mobile
+layouts, expand walking directions, request the earlier-arrival action and generate
+the QR. Download an image and verify its route, weak point and room QR remain
+readable offline. This fixture does not write to the room service.
+
+Automated checks: `npm run test:outing-pass`, `node scripts/test-meeting-privacy.mjs`
+and `node scripts/test-outing-ui.mjs`. Live multi-device acceptance and service
+prerequisites are described in [group-passes.md](../../docs/group-passes.md).
+
+## Existing weather checks
+
 Start Vite and open `/tests/ui/weather-preview.html`. This development-only page
 is not part of the production build entry point. Sunny/rainy/storm/night are
 explicitly labelled visual fixtures, not forecasts. This round targets desktop

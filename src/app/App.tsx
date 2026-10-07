@@ -14,12 +14,13 @@ import { MethodologyPage } from '@/pages/MethodologyPage';
 import { DEFAULT_TIME_BUDGET } from '@/features/reachability';
 import { originFromHit, type SearchHit } from '@/features/reachability/reachabilityService';
 import type { Origin } from '@/features/reachability/types';
-import { hasRoomLink } from '@/features/meeting-point/roomLink';
+import { hasRoomLink, writeRoomCodeToUrl } from '@/features/meeting-point/roomLink';
 import { malaysiaToday } from '@/pages/components/WeatherPlanning';
 import type { ServiceLocation } from '@/shared/types/service';
 
 // Supabase/realtime and meeting ranking are not needed to open the map.
 const MeetingPointPage = lazy(() => import('@/features/meeting-point/MeetingPointPage').then(module => ({ default: module.MeetingPointPage })));
+const MyPassesPage = lazy(() => import('@/features/outing-pass/components/MyPassesPage').then(module => ({ default: module.MyPassesPage })));
 
 /**
  * The journey state, held here rather than on each screen.
@@ -41,6 +42,7 @@ function App() {
   const [departure, setDeparture] = useState(() => `${malaysiaToday()}T09:00`);
   const [outing, setOuting] = useState<ServiceLocation[]>([]);
   const [analysisTab, setAnalysisTab] = useState<MapAnalysisTab>('first-mile');
+  const [roomOpenKey, setRoomOpenKey] = useState(0);
   const { toasts, addToast, removeToast } = useToasts();
 
   /**
@@ -96,11 +98,26 @@ function App() {
         {activePage === 'time' && <TimeComparisonPage journey={journey} />}
         {activePage === 'scenario' && <ScenarioPage />}
         {activePage === 'typology' && <TypologyPage />}
-        {activePage === 'meeting' && <Suspense fallback={<p className="p-6 text-center" role="status">Loading meeting planner…</p>}><MeetingPointPage /></Suspense>}
+        {activePage === 'meeting' && <Suspense fallback={<p className="p-6 pt-24 text-center" role="status">Loading meeting planner…</p>}><MeetingPointPage key={roomOpenKey} /></Suspense>}
+        {activePage === 'passes' && <Suspense fallback={<p className="p-6 pt-24 text-center" role="status">Loading saved passes…</p>}><MyPassesPage onOpenRoom={code => {
+          writeRoomCodeToUrl(code);
+          setRoomOpenKey(previous => previous + 1);
+          handleNavigate('meeting');
+        }} /></Suspense>}
         {activePage === 'methodology' && <MethodologyPage />}
       </PageTransition>
 
       <ToastContainer toasts={toasts} onClose={removeToast} />
+      {(activePage === 'meeting' || activePage === 'passes') && (
+        <nav aria-label="Mobile navigation" className="outing-bottom-nav md:hidden">
+          {VISIBLE_NAV_ITEMS.map(item => {
+            const Icon = item.icon;
+            return <button key={item.id} aria-current={activePage === item.id ? 'page' : undefined} onClick={() => handleNavigate(item.id)}>
+              <Icon size={22} aria-hidden="true" /><span>{item.label}</span>
+            </button>;
+          })}
+        </nav>
+      )}
     </div>
   );
 }

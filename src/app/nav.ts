@@ -7,6 +7,7 @@ import {
   TrendingUp,
   BookOpen,
   Users,
+  Ticket,
   type LucideIcon,
 } from 'lucide-react';
 import type { PageId } from './routes';
@@ -32,6 +33,7 @@ export const NAV_ITEMS: NavItem[] = [
   { id: 'services', label: 'Services', icon: Building2, hidden: true },
   { id: 'time', label: 'Time', icon: Clock, hidden: true },
   { id: 'meeting', label: 'Meet', icon: Users },
+  { id: 'passes', label: 'My Passes', icon: Ticket },
   { id: 'scenario', label: 'Scenarios', icon: Route, hidden: true },
   { id: 'typology', label: 'Typology', icon: TrendingUp, hidden: true },
   { id: 'methodology', label: 'Method', icon: BookOpen, hidden: true },
