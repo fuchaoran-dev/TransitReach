@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import floor
+from math import floor, isfinite
 from struct import unpack_from
 
 
@@ -139,7 +139,16 @@ def decode_travel_time_surface(data: bytes) -> TravelTimeSurface:
         raise ValueError("Travel-time surface image data is incomplete.")
     seconds = unpack_from(f"{endian}{width * height}i", pixels[:expected])
     raw_no_data = tags.get(_TAGS["no_data"])
-    no_data = int(raw_no_data) if isinstance(raw_no_data, str) else -2147483648
+    no_data = -2147483648
+    if isinstance(raw_no_data, str):
+        # OTP/GeoTools writes the signed-int sentinel as either an integer or
+        # scientific notation (e.g. -2.147483648E9). All int32 values are exact
+        # in a Python float; reject non-integers rather than silently rounding.
+        numeric_no_data = float(raw_no_data)
+        if (not isfinite(numeric_no_data) or not numeric_no_data.is_integer()
+                or not -2147483648 <= numeric_no_data <= 2147483647):
+            raise ValueError("Travel-time surface no-data value must be a signed 32-bit integer.")
+        no_data = int(numeric_no_data)
     return TravelTimeSurface(
         width, height, origin_lon, origin_lat, lon_per_pixel, lat_per_pixel,
         tuple(seconds), no_data,

@@ -22,6 +22,40 @@ Supabase identity. Reopening recalculates the journey and checks current evidenc
    aggregate travel-time comparisons. Confirmation accepts current, unexpired
    server proposals rather than arbitrary browser coordinates.
 
+### Local configuration and verification
+
+Keep `VITE_SUPABASE_URL`, `SUPABASE_URL` and the project identity in `DATABASE_URL`
+consistent. Do not reuse a hosting environment's public key if it belongs to a
+different project. Put that project's publishable/anon key in both
+`VITE_SUPABASE_ANON_KEY` and `SUPABASE_ANON_KEY`; never put a secret/service-role key
+in the browser. Enable anonymous sign-in in the same project's Auth settings.
+
+For local integration put `DEV_API_TARGET=http://127.0.0.1:8000` in `.env.local`.
+Vite loads this server-side setting without shipping it to the browser. Start:
+
+```bash
+.venv/bin/uvicorn backend.app.main:app --env-file .env.local --port 8000
+npm run dev -- --host 127.0.0.1 --port 5173
+```
+
+Restart both processes after changing configuration. For a deployed build, configure
+the two `VITE_SUPABASE_*` values on Netlify and the server variables on Render, then
+rebuild/redeploy separately. Updating `.env.local` or applying SQL does not update an
+already-deployed service.
+
+An explicitly requested live database check is available below. It creates synthetic
+identities and room fixtures inside one transaction and rolls them back, including
+on failure. It does not apply the schema or modify real rooms. The optional routing
+check uses only public station coordinates, not another member's starting point.
+
+```bash
+.venv/bin/python scripts/check-meeting-database.py
+.venv/bin/python scripts/check-meeting-database.py --check-routing
+```
+
+See [MD8-6 acceptance record](md8-6-acceptance.md) for what was actually verified and
+the remaining authentication/multi-device release checks.
+
 The existing OTP reference date used for meeting ranking remains provisional and
 is disclosed in the planner. A personal pass uses the actual agreed arrival date
 and an `arriveBy=true` query. A routing failure is visible and produces no ready pass.

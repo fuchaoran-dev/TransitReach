@@ -106,6 +106,24 @@ assert.ok(invitationMarkup.includes('Meet at Pasar Seni')); checks++;
 assert.ok(invitationMarkup.includes('Join room')); checks++;
 assert.equal(invitationMarkup.includes('Jia Wei'), false); checks++;
 
+const { ShareLink } = await load('src/features/meeting-point/components/ShareLink.tsx', {
+  '../roomLink': 'export const shareLinkFor = code => `https://example.com/?meet=${code}`;',
+});
+const shareMarkup = renderToStaticMarkup(React.createElement(ShareLink, { code: 'ABCDEFGH' }));
+assert.ok(shareMarkup.includes('Starting points stay private')); checks++;
+assert.equal(shareMarkup.includes("everyone&#x27;s starting points"), false); checks++;
+assert.ok(shareMarkup.includes('after the agreed arrival')); checks++;
+
+const { MyStartingPoint } = await load('src/features/meeting-point/components/MyStartingPoint.tsx', {
+  '@/features/reachability': 'export const LocationSearch = () => null;',
+  '@/features/reachability/reachabilityService': 'export const formatCoord = () => ""; export const hitName = () => ""; export const originFromHit = () => null;',
+});
+const startingMarkup = renderToStaticMarkup(React.createElement(MyStartingPoint, {
+  me: null, notice: null, onSearchSelect() {}, onClear() {},
+}));
+assert.ok(startingMarkup.includes('Only you can view your starting point')); checks++;
+assert.equal(startingMarkup.includes('Everyone in the room sees'), false); checks++;
+
 const registrations = [];
 const oldWindow = globalThis.window;
 globalThis.window = { setInterval: () => 71, clearInterval: () => {} };

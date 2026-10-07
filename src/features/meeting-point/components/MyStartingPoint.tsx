@@ -15,8 +15,8 @@ interface MyStartingPointProps {
  * This device's own starting point. Nobody sets a point for anyone else: that is the
  * mentors' objection this epic's room design answers.
  *
- * No "Use my location" button. The point is shared with everyone in the room, so a GPS fix
- * would be broadcast to other people; search and map selection carry no such surprise.
+ * The chosen point is private to this member and the authenticated calculation server.
+ * Search and map selection keep the room workflow's existing manual-input scope.
  */
 export function MyStartingPoint({ me, notice, onSearchSelect, onClear }: MyStartingPointProps) {
   return (
@@ -56,7 +56,7 @@ export function MyStartingPoint({ me, notice, onSearchSelect, onClear }: MyStart
         </div>
       ) : (
         <p className="text-xs text-slate-500 leading-relaxed">
-          Search by name, or tap the map. Everyone in the room sees the point you choose.
+          Search by name, or tap the map. Only you can view your starting point.
         </p>
       )}
 

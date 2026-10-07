@@ -35,8 +35,8 @@ export function ShareLink({ code }: { code: string }) {
         </button>
       </div>
       <p className="text-xs text-slate-500">
-        Anyone with this link can join and see everyone's starting points. The room is deleted
-        24 hours after it was created.
+        Anyone with this link can join. Starting points stay private. A confirmed meeting
+        remains available through 24 hours after the agreed arrival.
       </p>
     </div>
   );

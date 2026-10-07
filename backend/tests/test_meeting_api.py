@@ -28,6 +28,15 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class MeetingDatabaseContractTests(unittest.TestCase):
+    def test_confirmation_variable_cannot_shadow_proposal_venue_column(self) -> None:
+        schema = (ROOT / "supabase" / "meeting-rooms.sql").read_text()
+        confirmation = schema.split("create or replace function public.confirm_meeting_plan", 1)[1]
+        confirmation = confirmation.split("$$;", 1)[0]
+        self.assertIn("resolved_venue jsonb;", confirmation)
+        self.assertIn("proposal.venue_id = resolved_venue ->> 'id'", confirmation)
+        self.assertIn("proposal.venue_type = resolved_venue ->> 'type'", confirmation)
+        self.assertNotIn("\n  venue jsonb;", confirmation)
+
     def test_schema_enforces_private_rows_and_versioned_shared_status(self) -> None:
         schema = (ROOT / "supabase" / "meeting-rooms.sql").read_text()
         self.assertIn('create policy "participants read themselves"', schema)
@@ -249,11 +258,11 @@ class MeetingRankingTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(minutes_at(surface, 3.5, 101.5))
         self.assertIsNone(minutes_at(surface, 3.5, 102.5))
 
-    def test_decodes_the_uncompressed_otp_geotiff_shape(self) -> None:
+    @staticmethod
+    def surface_fixture(no_data: bytes = b"-2147483648\0") -> bytes:
         entries = 10
         directory_size = 2 + entries * 12 + 4
         matrix_offset = 8 + directory_size
-        no_data = b"-2147483648\0"
         no_data_offset = matrix_offset + 16 * 8
         pixel_offset = no_data_offset + len(no_data)
         tags = [
@@ -273,9 +282,22 @@ class MeetingRankingTests(unittest.IsolatedAsyncioTestCase):
             0.5, 0, 0, 100, 0, -0.5, 0, 4,
             0, 0, 0, 0, 0, 0, 0, 1,
         )
-        surface = decode_travel_time_surface(header + directory + matrix + no_data + pack("<i", 90))
+        return header + directory + matrix + no_data + pack("<i", 90)
+
+    def test_decodes_the_uncompressed_otp_geotiff_shape(self) -> None:
+        surface = decode_travel_time_surface(self.surface_fixture())
         self.assertEqual(surface.seconds, (90,))
         self.assertEqual(minutes_at(surface, 3.75, 100.25), 1.5)
+
+    def test_real_otp_scientific_notation_no_data(self) -> None:
+        surface = decode_travel_time_surface(self.surface_fixture(b"-2.147483648E9\0"))
+        self.assertEqual(surface.no_data, -2147483648)
+        self.assertEqual(minutes_at(surface, 3.75, 100.25), 1.5)
+
+    def test_no_data_rejects_noninteger_or_out_of_range_values(self) -> None:
+        for value in (b"NaN\0", b"Inf\0", b"0.5\0", b"2147483648\0", b"invalid\0"):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                decode_travel_time_surface(self.surface_fixture(value))
 
 
 if __name__ == "__main__":

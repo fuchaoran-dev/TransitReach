@@ -400,7 +400,7 @@ language plpgsql security definer set search_path = ''
 as $$
 declare
   room public.meeting_rooms;
-  venue jsonb;
+  resolved_venue jsonb;
   next_version integer;
 begin
   if auth.uid() is null then raise exception 'not_signed_in'; end if;
@@ -415,10 +415,10 @@ begin
   for update;
   if not found or not public.is_room_member(room.code) then raise exception 'room_not_found'; end if;
 
-  venue := public.resolve_public_meeting_venue(p_venue ->> 'id', p_venue ->> 'type');
-  if venue is null then raise exception 'invalid_venue'; end if;
+  resolved_venue := public.resolve_public_meeting_venue(p_venue ->> 'id', p_venue ->> 'type');
+  if resolved_venue is null then raise exception 'invalid_venue'; end if;
 
-  if room.confirmed_venue is not distinct from venue
+  if room.confirmed_venue is not distinct from resolved_venue
      and room.confirmed_arrival_time is not distinct from p_arrival_time then
     return room.plan_version;
   end if;
@@ -427,8 +427,8 @@ begin
     select 1 from public.meeting_plan_proposals proposal
     where proposal.room_code = room.code
       and proposal.room_revision = room.planning_revision
-      and proposal.venue_id = venue ->> 'id'
-      and proposal.venue_type = venue ->> 'type'
+      and proposal.venue_id = resolved_venue ->> 'id'
+      and proposal.venue_type = resolved_venue ->> 'type'
       and proposal.expires_at > now()
   ) then
     raise exception 'stale_meeting_proposal';
@@ -436,7 +436,7 @@ begin
 
   next_version := room.plan_version + 1;
   update public.meeting_rooms set
-    confirmed_venue = venue,
+    confirmed_venue = resolved_venue,
     confirmed_arrival_time = p_arrival_time,
     plan_version = next_version,
     proposed_arrival_time = null,

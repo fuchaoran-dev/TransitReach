@@ -1,5 +1,6 @@
 import QRCode from 'qrcode';
 import type { CheckedPassLeg, PersonalPass } from './types';
+import { marginLabel } from './components/passPresentation';
 
 const ROOM_PATTERN = /^[ABCDEFGHJKMNPQRSTUVWXYZ2-9]{8}$/;
 
@@ -79,8 +80,8 @@ export async function renderPassImage(pass: PersonalPass, baseUrl?: string): Pro
     `Leave around ${formatTime(pass.leaveTime)}`,
     `Meet at ${pass.meeting.venue.name} · ${formatTime(pass.meeting.arrivalTime)}`,
     ...pass.legs.map((leg, index) => `${index + 1}. ${legLabel(leg)}`),
-    `Estimated arrival ${formatTime(pass.estimatedArrivalTime)} · ${Math.round(pass.arrivalMarginSeconds / 60)} min margin`,
-    `Walking total ${Math.round(pass.walking.totalSeconds / 60)} min`,
+    `Estimated arrival ${formatTime(pass.estimatedArrivalTime)} · ${marginLabel(pass.arrivalMarginSeconds)}`,
+    `Walking total ${Math.ceil(pass.walking.totalSeconds / 60)} min`,
     ...pass.walking.directions.map((step, index) =>
       `Walk ${index + 1}: ${step.relativeDirection.replace(/_/g, ' ').toLowerCase()}${step.streetName ? ` on ${step.streetName}` : ''} · ${Math.round(step.distanceMeters)} m`,
     ),
