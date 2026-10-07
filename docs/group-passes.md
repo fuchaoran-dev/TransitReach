@@ -26,6 +26,26 @@ The existing OTP reference date used for meeting ranking remains provisional and
 is disclosed in the planner. A personal pass uses the actual agreed arrival date
 and an `arriveBy=true` query. A routing failure is visible and produces no ready pass.
 
+### “Shared rooms are not set up on this deployment”
+
+This message means the frontend was started or built without
+`VITE_SUPABASE_URL` or `VITE_SUPABASE_ANON_KEY`. It is displayed before any
+database request, so it does not establish whether the room migration has run.
+`DATABASE_URL` alone does not configure browser authentication or room sharing.
+
+For local development, set the two frontend variables in `.env.local` using the
+intended Supabase project's URL and publishable/anon key, then restart Vite.
+For a hosted frontend, set them in the hosting provider's build environment and
+rebuild/redeploy; changing server-only runtime variables cannot update an
+already-built Vite bundle. Never use a service-role or secret key in `VITE_*`.
+
+After this configuration is loaded, anonymous sign-in and the room SQL schema
+must also be enabled in the same Supabase project. These are separate setup
+steps; missing tables/functions or disabled sign-in produce request errors
+rather than this unconfigured message. Backend tests and services must load
+their server environment explicitly; Vite's `.env.local` loading does not
+automatically configure a Python process.
+
 ## Privacy and evidence
 
 - Shared room reads return names and Ready / Check needed / Not checked. The
