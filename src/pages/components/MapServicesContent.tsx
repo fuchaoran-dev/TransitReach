@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { BusFront, Search } from 'lucide-react';
 import { ServiceDetail, ServiceFilters, ServiceList } from '@/features/essential-services';
 import { loadEssentialServicesMetadata } from '@/shared/data/adapters/essentialServicesAdapter';
@@ -13,15 +13,44 @@ import type { MapServicesModel } from './useMapServices';
  * own origin.
  */
 export function MapServicesContent({
+  planning,
+  selectionVersion,
+  ...props
+}: {
+  planning?: ReactNode;
+  recommendation?: ReactNode;
+  selectionVersion?: number;
+  model: MapServicesModel;
+  hasOrigin: boolean;
+  onServiceSelect?: (service: ServiceLocation) => void;
+  onJourney?: (service: ServiceLocation) => void;
+}) {
+  const [mode, setMode] = useState<'explore' | 'compare'>('explore');
+  useEffect(() => {
+    if (props.model.selected?.id && props.model.detailsOpen) setMode('explore');
+  }, [props.model.selected?.id, props.model.detailsOpen, selectionVersion]);
+  return <div className="space-y-3">
+    {planning && props.hasOrigin && <div className="planning-switch" role="group" aria-label="Services display mode">
+      <button aria-pressed={mode === 'explore'} onClick={() => setMode('explore')}>Explore</button>
+      <button aria-pressed={mode === 'compare'} onClick={() => setMode('compare')}>Compare</button>
+    </div>}
+    <div hidden={mode !== 'compare' || !props.hasOrigin}>{planning}</div>
+    <div hidden={mode !== 'explore'}><MapServicesExplore {...props} /></div>
+  </div>;
+}
+
+function MapServicesExplore({
   model,
   hasOrigin,
   onServiceSelect,
   onJourney,
+  recommendation,
 }: {
   model: MapServicesModel;
   hasOrigin: boolean;
   onServiceSelect?: (service: ServiceLocation) => void;
   onJourney?: (service: ServiceLocation) => void;
+  recommendation?: ReactNode;
 }) {
   const metadata = loadEssentialServicesMetadata();
   const selectedDetailRef = useRef<HTMLDivElement | null>(null);
@@ -51,7 +80,7 @@ export function MapServicesContent({
       <button className="btn-secondary text-xs" onClick={model.hideDetails}>← Service list</button>
       {model.status === 'loading' && <p role="status" className="text-xs text-slate-500">Updating arrival estimates…</p>}
       {model.status === 'error' && <p role="alert" className="text-xs text-rose-500">Current estimates unavailable.</p>}
-      <ServiceDetail service={model.selected} onJourney={onJourney} onClear={model.clearSelection} />
+      <ServiceDetail service={model.selected} onJourney={onJourney} onClear={model.clearSelection} departureRecommendation={recommendation} />
     </div>;
   }
 
@@ -110,6 +139,7 @@ export function MapServicesContent({
         counts={model.counts}
         compact
       />
+      {!model.selected && <p className="text-[11px] text-slate-500">Select a service to see a suggested departure.</p>}
 
       {/*
         Nothing is drawn until the reader asks for something, so the panel has to say so.

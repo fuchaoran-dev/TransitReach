@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Accessibility, ArrowRight, Clock, MapPin, Route, X } from 'lucide-react';
 import { CATEGORY_META } from '@/shared/data';
 import type { ServiceLocation } from '@/shared/types/service';
@@ -7,10 +8,12 @@ export function ServiceDetail({
   service,
   onJourney,
   onClear,
+  departureRecommendation,
 }: {
   service: ServiceLocation;
   onJourney?: (service: ServiceLocation) => void;
   onClear?: () => void;
+  departureRecommendation?: ReactNode;
 }) {
   const meta = CATEGORY_META[service.category];
   const Icon = meta.icon;
@@ -38,6 +41,7 @@ export function ServiceDetail({
       <div className="text-xs text-slate-500 flex items-center gap-1"><Accessibility size={13} />{service.accessible === undefined ? 'Wheelchair information unavailable' : service.accessible ? 'Wheelchair accessible' : 'Wheelchair access marked no'}</div>
       </details>
 
+      {departureRecommendation}
       {onJourney && (
         <button
           type="button"

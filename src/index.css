@@ -865,6 +865,54 @@
   }
 }
 
+/* Epic 7: compact counts with inspectable gains/losses, not another map overlay. */
+.planning-switch { display: flex; gap: 4px; padding: 4px; border: 1px solid #355568; border-radius: 10px; background: #132936; }
+.planning-switch button { flex: 1; padding: 7px 6px; border-radius: 7px; font-size: 11px; color: #bfd1de; }
+.planning-switch button[aria-pressed="true"] { background: #226b67; color: #effffb; font-weight: 700; }
+.departure-planner { font-size: 12px; color: #c3d6e3; }
+.departure-planner > section, .departure-recommendation { margin-top: 14px; padding-top: 12px; border-top: 1px solid #355568; }
+.departure-planner h3, .departure-recommendation > summary { font-size: 13px; font-weight: 700; color: #ebf7ff; margin-bottom: 10px; }
+.departure-recommendation > summary { cursor: pointer; }
+.departure-planner p { font-size: 11px; line-height: 1.5; margin: 8px 0; color: #abc3d2; }
+.departure-planner label, .forecast-district-label { display: flex; flex-direction: column; gap: 5px; margin: 8px 0; font-size: 11px; }
+.departure-planner input:not([type="checkbox"]), .departure-planner select, .forecast-district-label select { width: 100%; min-width: 0; border: 1px solid #3e6074; border-radius: 8px; padding: 8px 6px; color: #e3f1fb; background: #112b3b; color-scheme: dark; font-size: 11px; }
+.planning-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.planning-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.departure-planner .btn-secondary, .departure-planner .btn-primary { font-size: 11px; padding: 8px 10px; }
+.departure-planner button:disabled { opacity: .45; cursor: not-allowed; }
+.planning-link { font-size: 11px; color: #78dfd5; text-decoration: underline; text-underline-offset: 3px; }
+.comparison-caption span:first-child { color: #ffb454; }
+.comparison-caption span:last-child { color: #c6a8ff; }
+.service-delta-list { margin-top: 10px; }
+.service-delta-row { padding: 9px 0; border-bottom: 1px solid #304b5e; }
+.service-delta-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.service-delta-heading strong { margin-right: auto; font-size: 11px; }
+.delta-total { font-size: 15px; font-weight: 700; color: #eee7ff; min-width: 20px; text-align: right; }
+.delta-badge { font-size: 10px; font-weight: 700; padding: 4px 7px; border-radius: 6px; background: #233d50; color: #bdd0de; border: 1px solid transparent; }
+.delta-gained { background: #123e36; color: #90f0d3; border-color: #2a7865; }
+.delta-lost { background: #443323; color: #ffd095; border-color: #896344; }
+.delta-unknown { border-color: #61778a; }
+.delta-details, .departure-alternatives { max-height: 220px; overflow-y: auto; margin-top: 8px; }
+.delta-details li, .departure-alternatives li { padding: 8px; margin-bottom: 5px; border-radius: 8px; background: #122938; }
+.delta-details button { color: #e1f4ff; text-align: left; font-weight: 600; }
+.delta-details small, .departure-alternatives small { display: block; color: #adc5d5; font-size: 10px; line-height: 1.5; margin-top: 3px; }
+.departure-planner label.weather-scope-choice { flex-direction: row; align-items: flex-start; gap: 7px; }
+.weather-scope-choice input { accent-color: #4ed9c7; margin-top: 2px; }
+.recommended-departure { margin-top: 12px; padding: 12px; border-radius: 10px; border: 1px solid #469688; background: #153d3b; }
+.recommendation-metrics { display: flex; flex-wrap: wrap; gap: 5px; }
+.recommendation-metrics span { padding: 4px 6px; border-radius: 6px; background: #0d2e2c; font-size: 10px; }
+.departure-planner .weather-caution { color: #ffd095; }
+.planning-progress { margin-top: 10px; display: flex; align-items: center; justify-content: space-between; padding: 10px; border-radius: 8px; background: #1c3447; }
+.departure-planner .planning-error { color: #ffb8bb; }
+.service-departure-recommendation { border-top: 1px solid #355568; padding-top: 12px; }
+.service-departure-recommendation h3 { margin-bottom: 3px; }
+.service-departure-recommendation .departure-window-label { font-size: 10px; margin: 3px 0 8px; }
+.service-departure-recommendation .recommended-departure { margin-top: 8px; padding: 10px; }
+.service-departure-recommendation .recommended-departure > strong { display: block; font-size: 13px; margin-bottom: 8px; color: #effffb; }
+.service-departure-recommendation .btn-primary { width: 100%; }
+.service-departure-recommendation > details { margin-top: 10px; }
+.service-departure-recommendation > details > summary { cursor: pointer; font-size: 11px; color: #bcd7e5; }
+
 @media (prefers-reduced-motion: reduce) {
   /* The ring stays, at rest. It marks the exact point, so removing it outright would
      cost precision for exactly the users least able to track a moving one. */

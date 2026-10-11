@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "test:outing-pass": "node scripts/test-outing-pass.mjs",
+    "test:time-planning": "node scripts/test-time-planning.mjs",
     "data:essential-services": "node scripts/build-essential-services.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
