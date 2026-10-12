@@ -163,7 +163,7 @@ export function CityFocusView({ service, origin, regions, coverage, journey, hig
     const map = mapRef.current;
     if (!map || !journey || status !== 'ready' || !open) return;
     const points = journey.legs.flatMap(leg => leg.geometry);
-    if (points.length > 1) map.fitBounds([[Math.min(...points.map(p => p.lon)), Math.min(...points.map(p => p.lat))], [Math.max(...points.map(p => p.lon)), Math.max(...points.map(p => p.lat))]], { padding: { top: 220, bottom: 90, left: Math.min(440, map.getContainer().clientWidth / 3.2), right: Math.min(460, map.getContainer().clientWidth / 3.1) }, pitch: 50, maxZoom: 17, duration: 700 });
+    if (points.length > 1) map.fitBounds([[Math.min(...points.map(p => p.lon)), Math.min(...points.map(p => p.lat))], [Math.max(...points.map(p => p.lon)), Math.max(...points.map(p => p.lat))]], { padding: { top: 220, bottom: 90, left: Math.min(380, map.getContainer().clientWidth / 4), right: Math.min(400, map.getContainer().clientWidth / 4) }, pitch: 50, maxZoom: 17, duration: 700 });
   }, [journey, status, open]);
 
   useEffect(() => {

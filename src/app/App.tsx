@@ -8,6 +8,7 @@ import { LandingPage } from '@/pages/LandingPage';
 import { MapPage } from '@/pages/MapPage';
 import type { MapAnalysisTab } from '@/pages/components/MapAnalysisPanel';
 import { TimeComparisonPage } from '@/pages/future/TimeComparisonPage';
+import { ScenarioPage } from '@/pages/future/ScenarioPage';
 import { TripPlannerPage } from '@/pages/TripPlannerPage';
 import { TypologyPage } from '@/pages/future/TypologyPage';
 import { MethodologyPage } from '@/pages/MethodologyPage';
@@ -98,6 +99,7 @@ function App() {
           />
         )}
         {activePage === 'time' && <TimeComparisonPage journey={journey} />}
+        {activePage === 'scenario' && <ScenarioPage />}
         {activePage === 'planner' && <TripPlannerPage journey={journey} draft={outingDraft} />}
         {activePage === 'typology' && <TypologyPage />}
         {activePage === 'meeting' && <Suspense fallback={<p className="p-6 pt-24 text-center" role="status">Loading meeting planner…</p>}><MeetingPointPage key={roomOpenKey} /></Suspense>}

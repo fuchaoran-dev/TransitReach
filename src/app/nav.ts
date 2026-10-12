@@ -35,6 +35,7 @@ export const NAV_ITEMS: NavItem[] = [
   { id: 'planner', label: 'Plan', icon: Route },
   { id: 'meeting', label: 'Meet', icon: Users },
   { id: 'passes', label: 'My Passes', icon: Ticket },
+  { id: 'scenario', label: 'Scenarios', icon: Route, hidden: true },
   { id: 'typology', label: 'Typology', icon: TrendingUp, hidden: true },
   { id: 'methodology', label: 'Method', icon: BookOpen, hidden: true },
 ];
