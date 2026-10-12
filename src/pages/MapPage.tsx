@@ -48,8 +48,12 @@ import { useMapServices } from './components/useMapServices';
 import { JourneyLegend, JourneyMapLayer, JourneyPreviewLayer, useJourneyInspection } from '@/features/interchange';
 import type { ServiceLocation } from '@/shared/types/service';
 import { MAX_STOPS } from '@/features/trip-planner';
-import { MapDaylight, malaysiaToday, addDays, periodForecast, forecastCode, useWeatherForecast, weatherKind, WeatherPlanningBar } from './components/WeatherPlanning';
-import { compareCoverage, DepartureComparisonLayer, DepartureComparisonSummary } from './components/DepartureComparison';
+import { MapDaylight, malaysiaToday, addDays, periodForecast, forecastCode, useWeatherForecast, useWeatherDistricts, weatherKind, WeatherPlanningBar } from './components/WeatherPlanning';
+import { compareCoverage, DepartureComparisonLayer } from './components/DepartureComparison';
+import { DeparturePlanningPanel } from './components/DeparturePlanningPanel';
+import { ServiceDepartureRecommendation } from './components/ServiceDepartureRecommendation';
+import { useDepartureRecommendation } from '@/features/time-planning/useDepartureRecommendation';
+import type { ServiceSnapshot } from '@/features/time-planning/planningService';
 import { WeatherAtmosphere } from './components/WeatherAtmosphere';
 import type { IsochroneRegion } from '@/shared/data/adapters/routingAdapter';
 
@@ -82,7 +86,12 @@ export function MapPage({ journey, onToast, analysisTab, onAnalysisTabChange }: 
     return Array.from({ length: 7 }, (_, index) => addDays(today, index)).filter(date => feed && date >= iso(feed.serviceDateRange.start) && date <= iso(feed.serviceDateRange.end));
   }, [today]);
   const [comparison, setComparison] = useState<{ departure: string; area: number; budget: number; regions: IsochroneRegion[]; weather: string } | null>(null);
-  const forecast = useWeatherForecast();
+  const handlePlanningBaseline = useCallback((snapshot: ServiceSnapshot | null) => {
+    setComparison(snapshot ? { departure: snapshot.departure, area: snapshot.area, budget: journey.timeBudget, regions: snapshot.regions, weather: 'See the regional forecast for this departure' } : null);
+  }, [journey.timeBudget]);
+  const [weatherDistrict, setWeatherDistrict] = useState('Ds058');
+  const weatherDistricts = useWeatherDistricts();
+  const forecast = useWeatherForecast(weatherDistrict);
   const selectedWeather = forecast.days.find(day => day.date === departure.slice(0, 10));
   const weatherPeriod = selectedWeather ? periodForecast(selectedWeather, departure.slice(11)) : null;
   const condition = weatherPeriod ? weatherKind(forecastCode(weatherPeriod.summary)) : 'neutral';
@@ -250,6 +259,15 @@ useEffect(() => {
     departureTime,
   );
 
+  const departureRecommendation = useDepartureRecommendation({
+    origin: reach.origin?.at ?? null, service: services.selected,
+    budget: journey.timeBudget, departure, dates: supportedDates,
+    weatherDays: forecast.days, weatherDistrictId: weatherDistrict,
+    weatherDistrictName: weatherDistricts.districts.find(district => district.id === weatherDistrict)?.name ?? forecast.days[0]?.location ?? 'selected district',
+    weatherRetrievedAt: forecast.retrievedAt,
+    enabled: analysisTab === 'services' && services.detailsOpen,
+  });
+
   const journeyInspection = useJourneyInspection(
     reach.origin?.at ?? null,
     services.selected,
@@ -284,10 +302,12 @@ useEffect(() => {
     onOpenPlanner,
   } : undefined;
 
+  const [serviceSelectionVersion, setServiceSelectionVersion] = useState(0);
   const handleServiceSelect = (service: ServiceLocation) => {
     // Selecting a service keeps the user in the Services tab. The map focuses the
     // selected service and the detail card below provides the explicit Journey action.
     services.select(service);
+    setServiceSelectionVersion(value => value + 1);
     onAnalysisTabChange('services');
   };
 
@@ -301,7 +321,7 @@ useEffect(() => {
     // the padding box, so padding here would let the map slide under the navbar.
     <MapDaylight.Provider value={daylight}>
     <div className={`epic7-map weather-${condition} ${daylight ? 'map-daylight' : 'map-night'} fixed left-0 right-0 bottom-0 top-16 overflow-hidden`}>
-      <WeatherPlanningBar forecast={forecast} clock={departure.slice(11)} supportedDates={supportedDates} date={departure.slice(0, 10)} onDateChange={date => setDeparture(previous => `${date}T${previous.slice(11)}`)} />
+      <WeatherPlanningBar forecast={forecast} districts={weatherDistricts} districtId={weatherDistrict} onDistrictChange={setWeatherDistrict} clock={departure.slice(11)} supportedDates={supportedDates} date={departure.slice(0, 10)} onDateChange={date => setDeparture(previous => `${date}T${previous.slice(11)}`)} />
       <WeatherAtmosphere />
       <div className="absolute inset-0">
           <BaseMap
@@ -400,6 +420,9 @@ useEffect(() => {
       </div>
 
       <MapAnalysisPanel
+        serviceSelectionVersion={serviceSelectionVersion}
+        departurePlanning={<DeparturePlanningPanel origin={reach.origin?.at ?? null} budget={journey.timeBudget} departure={departure} dates={supportedDates} model={services} onApply={setDeparture} onBaseline={handlePlanningBaseline} onSelect={handleServiceSelect} />}
+        serviceDepartureRecommendation={<ServiceDepartureRecommendation model={departureRecommendation} onApply={setDeparture} />}
         departureTime={departureTime}
         reachState={reach.state}
 
@@ -544,13 +567,9 @@ useEffect(() => {
                 {!supportedDates.length && <p role="alert">The loaded transit timetable does not support the coming week.</p>}
                 <div className="departure-presets" aria-label="Departure time presets">{['09:00', '13:00', '18:00', '20:00'].map(clock => <button key={clock} disabled={!supportedDates.includes(departure.slice(0, 10))} aria-pressed={departure.slice(11) === clock} onClick={() => setDeparture(previous => `${previous.slice(0, 10)}T${clock}`)}>{clock}</button>)}</div>
                 <p className="weather-context-chip">{weatherPeriod ? `${weatherPeriod.period} · ${condition === 'sunny' ? 'No rain forecast' : condition === 'storm' ? 'Thunderstorms' : condition === 'rainy' ? 'Rain expected' : 'Cloudy'}` : 'Weather unknown'}</p>
-                <details className="planning-disclosure"><summary>Forecast & routing notes</summary><p>Scheduled GTFS / OSM estimates, not live arrivals. {weatherPeriod?.summary} · MET Malaysia, Kuala Lumpur district. Regional outlook only; check conditions before leaving.</p></details>
-                {reach.state.status === 'ready' && <details className="departure-comparison planning-disclosure"><summary>Compare departure times</summary>
-                  <button className="btn-secondary text-xs" onClick={() => { if (reach.state.status === 'ready') setComparison({ departure, area: reach.state.result.areaKm2, budget: reach.state.budgetMinutes, regions: reach.state.result.regions, weather: weatherPeriod ? `${weatherPeriod.period}: ${weatherPeriod.summary}` : 'Weather unknown' }); }}>Use this departure as baseline</button>
-                  {comparison && <p role="status" className="text-xs text-slate-500 mt-2">Baseline {comparison.departure.replace('T', ' ')} · {comparison.budget} min: {comparison.area.toFixed(1)} km².<br />Current area: {(reach.state.result.areaKm2 - comparison.area).toFixed(1)} km² change. Same origin and travel budget.</p>}
-                  {comparison && <><p className="text-xs text-slate-500 mt-2">Baseline weather: {comparison.weather}. More area does not necessarily mean less walking or more open destinations.</p><button className="btn-secondary text-xs mt-2" onClick={() => setComparison(null)}>Clear comparison</button></>}
-                  {coverageComparison && <DepartureComparisonSummary coverage={coverageComparison} />}
-                </details>}
+                <details className="planning-disclosure"><summary>Forecast & routing notes</summary><p>Scheduled GTFS / OSM estimates, not live arrivals. {weatherPeriod?.summary} · MET Malaysia, {selectedWeather?.location ?? weatherDistricts.districts.find(district => district.id === weatherDistrict)?.name ?? 'selected district'}. Regional outlook only; check conditions before leaving.</p></details>
+                <button className="planning-link" onClick={() => { onAnalysisTabChange('services'); setConfigOpen(false); }}>Explore services & suggested times →</button>
+                {comparison && <button className="planning-link" onClick={() => setComparison(null)}>Clear map comparison</button>}
               </div>
               <div className="pt-2 border-t border-slate-200/70">
                 <CoveredAreaNote />

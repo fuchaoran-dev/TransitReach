@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 import {
   CircleHelp,
@@ -33,6 +33,9 @@ export type MapAnalysisTab =
   | 'transfers';
 
 interface MapAnalysisPanelProps {
+  serviceSelectionVersion?: number;
+  departurePlanning?: ReactNode;
+  serviceDepartureRecommendation?: ReactNode;
   departureTime?: string;
   reachState: ReachabilityState;
   firstMileState: FirstMileState;
@@ -90,6 +93,9 @@ interface MapAnalysisPanelProps {
  * finding (AC 1.2.4), and the retry control for a failure or timeout (AC 1.3.2).
  */
 export function MapAnalysisPanel({
+  serviceSelectionVersion,
+  departurePlanning,
+  serviceDepartureRecommendation,
   departureTime,
   reachState,
   firstMileState,
@@ -374,6 +380,9 @@ export function MapAnalysisPanel({
 
           {activeTab === 'services' && (
             <MapServicesContent
+              selectionVersion={serviceSelectionVersion}
+              planning={departurePlanning}
+              recommendation={serviceDepartureRecommendation}
               model={services}
               hasOrigin={hasOrigin}
               onServiceSelect={onServiceSelect}
