@@ -47,17 +47,14 @@ export interface TripPlanRequest {
   stops: OutingStop[];
   /** AC 2.1.2 — where the outing ends, when that is not the last stop. */
   final: TripPoint | null;
-  /**
-   * AC 2.4.2 — a limit on the whole outing, visits included. The Plan page no longer asks
-   * for one and always passes null; it stays for the plan check (AC 8.1.2), which measures
-   * against a limit when one is set.
-   */
+  /** AC 2.4.2 — minutes from departure until the requested finish time, visits included. */
   limitMinutes: number | null;
 }
 
 export type InfeasibleReason =
   | { kind: 'no-route'; fromName: string; toName: string }
-  | { kind: 'closed'; stopId: string; stopName: string; arrivalTime: string };
+  | { kind: 'closed'; stopId: string; stopName: string; arrivalTime: string }
+  | { kind: 'deadline'; finishTime: string; deadlineTime: string };
 
 /**
  * One journey between two consecutive points of the outing.

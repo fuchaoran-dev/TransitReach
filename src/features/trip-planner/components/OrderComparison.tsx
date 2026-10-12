@@ -22,7 +22,9 @@ export function OrderComparison({ plan, selectedId, onSelect }: OrderComparisonP
   const shortest = plan.orders.find(order => order.feasible) ?? null;
 
   const title = (order: PlannedOrder) =>
-    order === shortest ? 'Shortest total time' : order.feasible ? 'Alternative order' : 'Cannot be completed';
+    order === shortest
+      ? plan.ordersCalculated === plan.ordersConsidered ? 'Shortest total time' : 'Shortest calculated time'
+      : order.feasible ? 'Alternative order' : 'Cannot be completed';
 
   return (
     <section aria-label="Visit orders compared">
@@ -78,6 +80,7 @@ export function OrderComparison({ plan, selectedId, onSelect }: OrderComparisonP
         })}
       </div>
       <p className="mt-2 text-[11px] text-slate-500 leading-snug">
+        Rule-based comparison: travel time, visit length, known opening hours and your finish-by time. No AI selects the order.{' '}
         {plan.ordersCalculated === plan.ordersConsidered
           ? `All ${plan.ordersConsidered} possible orders were calculated leg by leg.`
           : `${plan.ordersConsidered} possible orders were compared from estimated travel times; the ${plan.ordersCalculated} shown were then calculated leg by leg. An order not shown could still be quicker.`}

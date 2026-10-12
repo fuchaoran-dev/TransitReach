@@ -25,6 +25,7 @@ function requestKey(request: TripPlanRequest | null): string | null {
     request.departureTime,
     request.stops.map(stop => [stop.service.id, stop.visitMinutes]),
     request.final && [request.final.lat, request.final.lon],
+    request.limitMinutes,
   ]);
 }
 

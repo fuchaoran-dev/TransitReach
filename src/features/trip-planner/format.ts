@@ -38,10 +38,14 @@ export function noPlanReasons(plan: TripPlan): string[] {
   const hours = new Map(plan.request.stops.map(stop => [stop.service.id, stop.service.hours]));
   const closed = new Map<string, { name: string; arrivals: number[] }>();
   const unrouted = new Set<string>();
+  let earliestLateFinish: number | null = null;
   for (const order of plan.orders) {
     for (const reason of order.reasons) {
       if (reason.kind === 'no-route') {
         unrouted.add(`No journey was found from ${reason.fromName} to ${reason.toName} at the time it would be travelled.`);
+      } else if (reason.kind === 'deadline') {
+        const finish = Date.parse(reason.finishTime);
+        earliestLateFinish = Math.min(earliestLateFinish ?? finish, finish);
       } else {
         const entry = closed.get(reason.stopId) ?? { name: reason.stopName, arrivals: [] };
         entry.arrivals.push(Date.parse(reason.arrivalTime));
@@ -59,11 +63,14 @@ export function noPlanReasons(plan: TripPlan): string[] {
       return `${name} is closed at its estimated arrival, ${when}. Its listed hours are ${hours.get(id)}.`;
     }),
     ...unrouted,
+    ...(earliestLateFinish !== null && plan.request.limitMinutes !== null
+      ? [`The earliest calculated finish is ${aroundTime(earliestLateFinish)}, after your finish-by time. Leave earlier, shorten a visit or change the stops.`]
+      : []),
   ];
 }
 
 export function reasonLabel(reason: InfeasibleReason): string {
-  return reason.kind === 'no-route'
-    ? `No journey was found from ${reason.fromName} to ${reason.toName}.`
-    : `${reason.stopName} is closed at the estimated arrival, ${aroundTime(reason.arrivalTime)}.`;
+  if (reason.kind === 'no-route') return `No journey was found from ${reason.fromName} to ${reason.toName}.`;
+  if (reason.kind === 'deadline') return `Finishes ${aroundTime(reason.finishTime)}, after your ${aroundTime(reason.deadlineTime)} limit.`;
+  return `${reason.stopName} is closed at the estimated arrival, ${aroundTime(reason.arrivalTime)}.`;
 }

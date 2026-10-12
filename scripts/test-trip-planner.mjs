@@ -68,6 +68,7 @@ const { planTrip } = await load('src/features/trip-planner/tripPlanService.ts', 
       return { journeys: minutes === undefined ? [] : [journey(ready, 0, minutes)], rejectedJourneyCount: 0 };
     }`,
 });
+const { noPlanReasons } = await load('src/features/trip-planner/format.ts');
 
 const stop = (id, hours, visitMinutes = 30) => ({
   service: { id, name: `Place ${id}`, category: 'clinic', lat: 3.1, lon: 101.6, pos: { x: 0, y: 0 }, hours },
@@ -130,8 +131,17 @@ for (const timezone of ['UTC', 'Asia/Kuala_Lumpur', 'America/New_York']) {
   reset(TWO);
   plan = await planTrip({ ...base, stops: [stop('A'), stop('B')], limitMinutes: 60 });
   check(plan.orders.map(order => order.overLimitSeconds), [1800, 3000]);
+  check(plan.orders.map(order => order.feasible), [false, false]);
+  check(plan.orders[0].reasons, [{
+    kind: 'deadline', finishTime: '2026-10-10T02:30:00.000Z', deadlineTime: '2026-10-10T02:00:00.000Z',
+  }]);
+  check(noPlanReasons(plan), [
+    'The earliest calculated finish is around 10:30 am, after your finish-by time. Leave earlier, shorten a visit or change the stops.',
+  ]);
   plan = await planTrip({ ...base, stops: [stop('A'), stop('B')], limitMinutes: 90 });
   check(plan.orders[0].overLimitSeconds, 0);
+  check(plan.orders[0].feasible, true);
+  check(plan.orders[1].feasible, false);
 
   // AC 2.1.2 — a final destination adds a last leg, after the last visit.
   reset({ ...TWO, 'A>home': 15, 'B>home': 5 });
@@ -148,7 +158,6 @@ for (const timezone of ['UTC', 'Asia/Kuala_Lumpur', 'America/New_York']) {
 }
 
 // AC 2.4.3 — what the result says about an outing nothing fits.
-const { noPlanReasons } = await load('src/features/trip-planner/format.ts');
 reset({ 'origin>A': 10, 'origin>B': 30, 'A>B': 20 });
 const none = await planTrip({ ...base, stops: [stop('A'), stop('B', 'Mo-Su 06:00-08:00')] });
 check(none.orders.some(order => order.feasible), false);

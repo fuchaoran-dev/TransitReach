@@ -84,7 +84,7 @@ function visitFor(stop: OutingStop, readyMs: number, arriveMs: number): PlannedV
  * A leg with no route ends it: nothing after that point can be timed.
  */
 export async function evaluateChain<D>(
-  request: Pick<TripPlanRequest, 'origin' | 'departureTime' | 'final'>,
+  request: Pick<TripPlanRequest, 'origin' | 'departureTime' | 'final' | 'limitMinutes'>,
   stops: OutingStop[],
   legFor: LegProvider<D>,
 ): Promise<Chain<D>> {
@@ -120,6 +120,16 @@ export async function evaluateChain<D>(
   }
 
   chain.finishMs = readyMs;
+  if (request.limitMinutes !== null) {
+    const deadlineMs = Date.parse(request.departureTime) + request.limitMinutes * MINUTE_MS;
+    if (readyMs > deadlineMs) {
+      chain.reasons.push({
+        kind: 'deadline',
+        finishTime: new Date(readyMs).toISOString(),
+        deadlineTime: new Date(deadlineMs).toISOString(),
+      });
+    }
+  }
   return chain;
 }
 
