@@ -1,4 +1,41 @@
-# Meeting voting deployment readiness
+# Meeting voting deployment record
+
+## 14 October 2026: production release
+
+The user subsequently authorized pushing, migrating and releasing the matched
+workflow. The preparation notes below are historical, not the current status.
+
+- Runtime commit: `eec52b22df378b8bc038351a39f0e0222aa460ef`, pushed to the fork's
+  `deploy/md8-6-20261008`. Neither upstream/main nor fork/main was changed.
+- Render's actual repository and branch were checked before manual release:
+  `fuchaoran-dev/TransitReach`, `deploy/md8-6-20261008`. Deployment
+  `dep-db7k61ivcj2c73dv2v3g` shows **Deploy succeeded / Live** with that commit.
+- Applied `supabase/meeting-voting.sql` to `tritrrkakzechbvlvbcj`, SHA-256
+  `aa2324442f101ea9100ed1f527d6e4e20cb8ddcdf1ddde7dda8e4af57744aa41`.
+  PostgREST schema refresh was requested. The subsequent rollback-only rerun,
+  RLS/grants and unchanged-data checks passed.
+- First migration cancelled **6 legacy confirmed plans**. The 11 rooms,
+  18 memberships and existing private origins were preserved. Legacy origins
+  were not automatically shared. Core counts stayed at 4,215 transit stops and
+  19,406 essential services. Members must explicitly share again and vote.
+- Cancelled agreement metadata was backed up outside Git in a restricted 0600
+  temporary file. Recovery requires an explicit, reviewed operation; it is not an
+  app-level undo. No coordinates, credentials or session tokens appear in this record.
+- Netlify production deploy: `6acf43a0d912a1b7d2fd911c`; entry asset
+  `index-B9fPMro2.js`. Public URL:
+  https://transitreach-kl-fuchaorantransitreach.netlify.app.
+  A preview was checked before production publication. Existing domain,
+  environment variables and database credentials were not changed.
+- Live acceptance: **44/44 passed** against real production Auth, REST, PostgreSQL,
+  Netlify API proxy, Render and OTP. Real Supabase SDK realtime delivery and the
+  following safe-state refetch were observed, not mocked.
+- Local checks: typecheck, build, 45 meeting regressions and 67 backend tests
+  passed; lint has no errors and 18 pre-existing warnings. Build-size warnings remain.
+
+See [acceptance evidence](md8-6-acceptance.md) for scope and browser results.
+Unrelated report JSON, Word and artifact files were excluded from commits.
+
+## Historical preparation (superseded by release above)
 
 14 October 2026 (Malaysia time). User decision: rollback preflight and preparation
 only; no Git push, cloud migration commit or production deployment yet.

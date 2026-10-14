@@ -1,5 +1,70 @@
 # MD8-6 acceptance record
 
+## 14 October 2026: revised meeting workflow released
+
+This section supersedes the preparation/local-only status below. The earlier
+8 October traceability describes the old Pass/check flow; it is not acceptance
+of the new Ready/voting workflow. Personal checks do not determine Ready.
+
+Runtime `eec52b2` is live on Render (`dep-db7k61ivcj2c73dv2v3g`) and Netlify
+(`6acf43a0d912a1b7d2fd911c`). Code was pushed only to the fork's independent
+`deploy/md8-6-20261008` branch, without changing either main branch.
+The matching Supabase voting SQL was committed successfully. Existing secrets,
+environment variables and domain were not changed during release.
+
+### Production evidence
+
+Real-stack smoke ran 14 October, 17:00–17:01 MYT: **44/44 passed**. It used
+separate anonymous fixture sessions and public railway stations, with no mocked
+routing or extracted browser tokens. Checks covered:
+
+- Owner-only full participant rows, safe shared projection, outsider rejection
+  and no auth identifiers in the shared member response.
+- Unshared origins are Not ready; explicit saved origins become Ready. No common
+  geometry before the creator starts; non-host start and late joining are rejected.
+- Real static GTFS calendar covers the chosen departure. OTP returned actual
+  surfaces/polygons (28 regions, 10 holes, 1,354 vertices) and 20 canonical places.
+  These are test observations, not guarantees of current service availability.
+- Proposals are visible to peers but are separate from votes. Direct confirmation
+  cannot bypass ballots. A single vote cannot confirm a two-member room; stale
+  revisions and mismatched arrival targets are rejected.
+- Two different votes remain a tie. Changing a ballot to create a unique plurality
+  confirms the same place for both sessions. Real SDK room-update delivery and
+  subsequent safe-state refetch passed.
+- Changing an origin invalidates geometry, ballots and confirmation. Host leaving
+  transfers ownership; departed host and budget mismatch checks passed.
+- Smoke-created rooms and anonymous identities were removed by exact scoped
+  cleanup; pre-existing accounts were not deleted.
+
+Native Chrome on the production site independently showed room creation,
+Not ready → green Ready after selecting/saving a public station, two saved
+starting-point name labels, both members Ready, and a filled common reachable
+area with canonical candidate cards after starting planning. The host's Propose
+action displayed its name on the card. A host vote displayed 1/2 without
+confirmation. A different peer proposal/vote arrived through realtime and the
+browser displayed 2/2 tied with no confirmed venue. The host's native Change vote
+action then produced the green **Selected by group vote · v1** card, showing the
+winning venue and both voters; no single-user Confirm button was involved.
+GPS permission/physical two-device operation and QR scanning were not exercised;
+API and SDK results must not be described as those browser/device checks.
+
+After browser QA, the exact synthetic UI room, its newly created anonymous peer
+and the peer's restricted local session file were removed using room/name/date
+and identity metadata guards. The browser host's existing Auth identity was
+preserved. Disposable QA data has no recovery backup. Chrome was returned to the
+production map home, which loaded the starting-point panel and official weather
+strip normally. No actual device location was requested.
+
+First SQL migration cancelled 6 legacy confirmations (restricted metadata backup
+created), preserving rooms, memberships and private origins. Existing origins
+remain private until explicit re-sharing. Core stops/services counts did not
+change. For IDs, migration hash and recovery caveat see
+[release record](meeting-voting-deployment.md).
+
+Typecheck/build and 45 frontend meeting regressions passed; 67 backend tests
+passed with the actual local database environment loaded. Lint: 0 errors,
+18 existing warnings. Unrelated user report JSON/Word/artifacts were not committed.
+
 ## 14 October 2026: deployment preflight (no rollout)
 
 User chose preparation only: no push, then explicitly deferred cloud migration
