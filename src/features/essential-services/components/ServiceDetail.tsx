@@ -31,11 +31,11 @@ export function ServiceDetail({
   const Icon = meta.icon;
   const inOuting = outing?.stopIds.includes(service.id) ?? false;
   return (
-    <div className="glass p-4 space-y-3">
+    <div className="glass service-detail-panel p-4 space-y-3">
       <div className="flex items-start gap-3">
-        <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: meta.colorLight }}><Icon size={21} style={{ color: meta.color }} /></div>
+        <div className="service-category-icon w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: meta.colorLight, borderColor: meta.color }}><Icon size={25} color="#102a43" strokeWidth={2.5} aria-hidden="true" /></div>
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: meta.color }}>{meta.label}</div>
+          <div className="service-category-label text-xs font-semibold uppercase tracking-wide">{meta.label}</div>
           <div className="font-bold text-slate-900">{service.name}</div>
         </div>
         {onClear && <button type="button" onClick={onClear} aria-label="Clear selected service" title="Clear selected service" className="service-detail-clear"><X size={18} /></button>}

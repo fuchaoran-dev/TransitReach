@@ -1,17 +1,15 @@
 import {
-  createElement,
   useEffect,
   type ReactNode,
 } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { MapContainer, Marker, Polygon, useMap, useMapEvents } from 'react-leaflet';
-import { divIcon, latLngBounds, type DivIcon, type Marker as LeafletMarker } from 'leaflet';
+import { divIcon, latLngBounds, type Marker as LeafletMarker } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { IsochroneRegion } from '@/shared/data/adapters/routingAdapter';
 import type { LatLng, Origin } from '../types';
 import { NETWORK_CENTRE, STUDY_AREA } from '../reachabilityService';
-import type { ServiceCategory, ServiceLocation } from '@/shared/types/service';
-import { CATEGORY_META } from '@/shared/data';
+import type { ServiceLocation } from '@/shared/types/service';
+import { ServicePins } from './ServicePins';
 import { VectorBaseLayer } from './VectorBaseLayer';
 import { CityFocusView } from './CityFocusView';
 import type { ModelledJourney } from '@/features/interchange/types';
@@ -254,62 +252,6 @@ function ReachabilityLayer({ regions }: { regions: IsochroneRegion[] }) {
       ))}
     </>
   );
-}
-
-/**
- * A service pin: the category's own icon on a disc of the category colour, ringed in
- * white. Colour alone could not carry thirteen categories — Schools and Food read as the
- * same orange dot — so the icon, the same one on the category's filter chip, is what
- * tells them apart. The white ring still lets the colour read over the area fill.
- *
- * One icon per category and state, built once: the pins are re-rendered on every filter
- * change and there can be hundreds of them.
- */
-const serviceIconCache = new Map<string, DivIcon>();
-
-function serviceIcon(category: ServiceCategory, selected: boolean): DivIcon {
-  const key = `${category}:${selected}`;
-  const cached = serviceIconCache.get(key);
-  if (cached) return cached;
-
-  const meta = CATEGORY_META[category];
-  const size = selected ? 30 : 22;
-  const glyph = renderToStaticMarkup(
-    createElement(meta.icon, { size: selected ? 17 : 13, color: '#ffffff', strokeWidth: 2.5 }),
-  );
-  const icon = divIcon({
-    className: 'service-pin',
-    html:
-      `<div style="width:${size}px;height:${size}px;border-radius:9999px;background:${meta.color};` +
-      `border:${selected ? 3 : 2}px solid #ffffff;box-shadow:0 1px 3px rgba(15,23,42,.35);` +
-      `display:flex;align-items:center;justify-content:center;box-sizing:border-box">${glyph}</div>`,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-  });
-  serviceIconCache.set(key, icon);
-  return icon;
-}
-
-function ServicePins({ services, selectedServiceId, onServiceSelect }: Pick<BaseMapProps, 'services' | 'selectedServiceId' | 'onServiceSelect'>) {
-  return <>
-    {(services ?? []).map(service => {
-      if (service.lat === undefined || service.lon === undefined) return null;
-      const selected = service.id === selectedServiceId;
-      return (
-        <Marker
-          key={service.id}
-          position={[service.lat, service.lon]}
-          icon={serviceIcon(service.category, selected)}
-          title={service.name}
-          // Selected pin above its neighbours; the origin pin (1000) stays above both.
-          zIndexOffset={selected ? 500 : 0}
-          // A service click is an inspection action, not a new-origin map click. Marker
-          // clicks do not bubble to the map, so ClickHandler never sees it.
-          eventHandlers={{ click: () => onServiceSelect?.(service) }}
-        />
-      );
-    })}
-  </>;
 }
 
 export function BaseMap({ origin, showOriginPin = true, regions, coverage, onMapClick, services, selectedServiceId, selectedService, onServiceSelect, children, journey, highlightedLegId, focusedStep, waypoints }: BaseMapProps) {
