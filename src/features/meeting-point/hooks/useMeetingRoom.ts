@@ -16,15 +16,20 @@ import {
   setMyPoint as saveMyPoint,
   setRoomBudget,
   subscribeToRoom,
+  startMeetingPlanning,
+  reopenMeetingPlanning,
+  proposeMeetingVenue,
+  castMeetingVote,
+  type MeetingRoomSnapshot,
 } from '../roomService';
-import type { ArrivalStatus, MeetingInvitation, MeetingRoom, MeetingVenue, Participant, RoomError, SharedMemberStatus, StartingPoint } from '../types';
+import type { ArrivalStatus, MeetingInvitation, MeetingRoom, MeetingVenue, RoomError, StartingPoint } from '../types';
 
 export type MeetingRoomView =
   | { status: 'unconfigured' }
   /** Not in a room. `invitedCode` is set when the page was opened from a room link. */
   | { status: 'lobby'; invitedCode: string | null; invitation: MeetingInvitation | null }
   | { status: 'checking'; code: string }
-  | { status: 'ready'; room: MeetingRoom; me: Participant; members: SharedMemberStatus[] };
+  | ({ status: 'ready' } & MeetingRoomSnapshot);
 
 function initialCode(): string | null {
   return normaliseRoomCode(roomParam() ?? '');
@@ -39,6 +44,9 @@ function initialView(): MeetingRoomView {
 function toRoomError(error: unknown): RoomError {
   if (error instanceof RoomNotFoundError) return 'not_found';
   if (error instanceof RoomFullError) return 'full';
+  const message = error && typeof error === 'object' && 'message' in error ? String(error.message) : '';
+  if (message.includes('Meeting voting SQL migration is required')) return 'schema_required';
+  if (message.includes('meeting_planning_started')) return 'planning_started';
   return 'unavailable';
 }
 
@@ -96,8 +104,8 @@ export function useMeetingRoom() {
             .finally(() => { subscribing = false; });
         }
         return true;
-      } catch {
-        if (!cancelled && mine === ticket) setError('unavailable');
+      } catch (reason) {
+        if (!cancelled && mine === ticket) setError(toRoomError(reason));
         return false;
       }
     };
@@ -196,19 +204,34 @@ export function useMeetingRoom() {
     }
   };
 
-  /** Sets or clears (null) this device's starting point; applied locally at once, like the budget. */
+  /** Only a successfully persisted point can turn the shared Ready status green. */
   const setMyPoint = async (point: StartingPoint | null) => {
-    if (!supabase || view.status !== 'ready' || !myUserId) return;
+    if (!supabase || view.status !== 'ready' || !myUserId || busy) return;
     setError(null);
-    setView({
-      ...view,
-      me: { ...view.me, at: point?.at ?? null, source: point?.source ?? null, label: point?.label ?? null },
-    });
+    setBusy(true);
     try {
       await saveMyPoint(supabase, view.room.code, myUserId, point);
+      await reloadRef.current?.();
     } catch (reason) {
       setError(toRoomError(reason));
       void reloadRef.current?.();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const roomAction = async (action: (client: NonNullable<typeof supabase>, room: MeetingRoom) => Promise<void>) => {
+    if (!supabase || view.status !== 'ready') throw new Error('Room is unavailable.');
+    setBusy(true);
+    setError(null);
+    try {
+      await action(supabase, view.room);
+      await reloadRef.current?.();
+    } catch (reason) {
+      setError(toRoomError(reason));
+      throw reason;
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -264,5 +287,12 @@ export function useMeetingRoom() {
     confirmPlan,
     suggestTime,
     publishStatus,
+    startPlanning: (departure: string, arrival: string) => roomAction((client, room) => startMeetingPlanning(client, room.code, departure, arrival)),
+    reopenPlanning: () => roomAction((client, room) => reopenMeetingPlanning(client, room.code)),
+    proposeVenue: (venue: MeetingVenue) => roomAction((client, room) => proposeMeetingVenue(client, room.code, venue, room.planningRevision)),
+    vote: (venue: MeetingVenue) => roomAction((client, room) => {
+      if (!room.votingArrivalTime) throw new Error('Choose a shared arrival time first.');
+      return castMeetingVote(client, room.code, venue, room.votingArrivalTime, room.planningRevision);
+    }),
   };
 }

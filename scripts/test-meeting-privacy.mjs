@@ -46,6 +46,7 @@ let checks = 0;
 const roomService = await load('src/features/meeting-point/roomService.ts');
 const rpcCalls = [];
 const snapshot = await roomService.loadRoom({
+  auth: { getSession: async () => ({ data: { session: { user: { id: 'private-user' } } } }) },
   rpc: async (name, args) => {
     rpcCalls.push([name, args]);
     return {
@@ -54,6 +55,8 @@ const snapshot = await roomService.loadRoom({
           code: 'ABCDEFGH', time_budget: 30, expires_at: '2026-10-08T10:00:00Z',
           updated_at: '2026-10-07T10:00:00Z', confirmed_venue: null,
           planning_revision: 4,
+          planning_started: true, departure_time: '2026-10-20T08:00:00+08:00',
+          voting_arrival_time: '2026-10-20T09:00:00+08:00', is_host: true,
           confirmed_arrival_time: null, plan_version: 0, proposed_arrival_time: null,
         },
         self: {
@@ -62,7 +65,7 @@ const snapshot = await roomService.loadRoom({
         },
         members: [
           { id: 'self-row', display_name: 'Aina', arrival_status: 'Not checked', is_self: true },
-          { id: 'other-row', display_name: 'Jia Wei', arrival_status: 'Ready', is_self: false },
+          { id: 'other-row', display_name: 'Jia Wei', is_self: false, lat: 3.12, lon: 101.61, label: 'Station', colour_slot: 1, planning_status: 'Ready' },
         ],
       },
       error: null,
@@ -72,8 +75,9 @@ const snapshot = await roomService.loadRoom({
 }, 'ABCDEFGH');
 assert.deepEqual(rpcCalls, [['get_meeting_room_state', { p_code: 'ABCDEFGH' }]]); checks++;
 assert.deepEqual(snapshot.me.at, { lat: 3.1, lon: 101.6 }); checks++;
-assert.deepEqual(snapshot.members[1], { id: 'other-row', displayName: 'Jia Wei', arrivalStatus: 'Ready', isSelf: false }); checks++;
-assert.equal('userId' in snapshot.members[1] || 'at' in snapshot.members[1] || 'lat' in snapshot.members[1], false); checks++;
+assert.deepEqual(snapshot.members[1].at, { lat: 3.12, lon: 101.61 }); checks++;
+assert.equal(snapshot.members[1].planningStatus, 'Ready'); checks++;
+assert.equal('userId' in snapshot.members[1] || 'user_id' in snapshot.members[1], false); checks++;
 
 const invitationCalls = [];
 const invitation = await roomService.loadMeetingInvitation({
@@ -110,7 +114,7 @@ const { ShareLink } = await load('src/features/meeting-point/components/ShareLin
   '../roomLink': 'export const shareLinkFor = code => `https://example.com/?meet=${code}`;',
 });
 const shareMarkup = renderToStaticMarkup(React.createElement(ShareLink, { code: 'ABCDEFGH' }));
-assert.ok(shareMarkup.includes('Starting points stay private')); checks++;
+assert.ok(shareMarkup.includes('Saved starting points are visible to room members')); checks++;
 assert.equal(shareMarkup.includes("everyone&#x27;s starting points"), false); checks++;
 assert.ok(shareMarkup.includes('after the agreed arrival')); checks++;
 
@@ -119,9 +123,10 @@ const { MyStartingPoint } = await load('src/features/meeting-point/components/My
   '@/features/reachability/reachabilityService': 'export const formatCoord = () => ""; export const hitName = () => ""; export const originFromHit = () => null;',
 });
 const startingMarkup = renderToStaticMarkup(React.createElement(MyStartingPoint, {
-  me: null, notice: null, onSearchSelect() {}, onClear() {},
+  me: null, notice: null, sharingAllowed: false, onSharingChange() {}, onSearchSelect() {}, onClear() {},
 }));
-assert.ok(startingMarkup.includes('Only you can view your starting point')); checks++;
+assert.ok(startingMarkup.includes('Share my selected starting point')); checks++;
+assert.ok(startingMarkup.includes('Use my current location')); checks++;
 assert.equal(startingMarkup.includes('Everyone in the room sees'), false); checks++;
 
 const registrations = [];

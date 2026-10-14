@@ -47,10 +47,10 @@ const toMultiPolygon = (regions: IsochroneRegion[]): MultiPolygon =>
  * The ground every one of these areas covers, as disjoint polygons in GeoJSON [lon, lat] order.
  * Empty when there is none. May throw on degenerate geometry; the caller reports that.
  */
-export function intersectAreas(areas: IsochroneRegion[][]): OverlapPolygon[] {
+export function intersectAreas(areas: IsochroneRegion[][], minimumPieceKm2 = MIN_PIECE_KM2): OverlapPolygon[] {
   if (areas.length === 0 || areas.some(regions => regions.length === 0)) return [];
   const [first, ...rest] = areas.map(toMultiPolygon);
-  return intersection(first, ...rest).filter(polygon => polygonAreaKm2(polygon) >= MIN_PIECE_KM2);
+  return intersection(first, ...rest).filter(polygon => polygonAreaKm2(polygon) > 0 && polygonAreaKm2(polygon) >= minimumPieceKm2);
 }
 
 /** Ray-casting point-in-ring test, on a [lon, lat] ring. */

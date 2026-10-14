@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from datetime import datetime
 from pathlib import Path
 from struct import pack
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -13,7 +14,9 @@ from pydantic import ValidationError
 
 from backend.app.api.meetings import authenticated_user
 from backend.app.main import app
-from backend.app.schemas.meetings import CommonGroundRequest, CommonGroundResponse, PublicVenue, VenueProposal
+from backend.app.schemas.meetings import (
+    CommonGroundRequest, CommonGroundResponse, ParticipantArea, PublicVenue, VenueProposal,
+)
 from backend.app.services.meeting_auth_service import validate_supabase_token
 from backend.app.services.meeting_service import (
     MeetingCalculation, MeetingInputsChangedError, PrivateOrigin, _store_proposals, common_ground,
@@ -25,6 +28,11 @@ from backend.app.services.travel_time_surface import (
 
 CALLER_ID = UUID("33ddefe5-e814-4420-9fd0-42bf9a522d39")
 ROOT = Path(__file__).resolve().parents[2]
+DEPARTURE = datetime.fromisoformat("2026-10-14T08:00:00+08:00")
+AREA = ParticipantArea(regions=[{
+    "outer": [[101.0, 3.0], [101.5, 3.0], [101.5, 3.5], [101.0, 3.0]],
+    "holes": [],
+}])
 
 
 class MeetingDatabaseContractTests(unittest.TestCase):
@@ -117,6 +125,7 @@ class MeetingApiTests(unittest.TestCase):
         app.dependency_overrides[authenticated_user] = lambda: CALLER_ID
         result = CommonGroundResponse(
             status="ready", participantCount=2, missingStartingPoints=0, budgetMinutes=30,
+            roomRevision=4, departureTime=DEPARTURE, participantAreas=[AREA, AREA],
             proposals=[{
                 "rank": 1,
                 "venue": {
@@ -140,6 +149,9 @@ class MeetingApiTests(unittest.TestCase):
         self.assertNotIn("user_id", serialized)
         self.assertNotIn("minutes\": [", serialized)
         self.assertEqual(body["proposals"][0]["venue"]["name"], "KLCC")
+        self.assertEqual(body["roomRevision"], 4)
+        self.assertEqual(body["departureTime"], DEPARTURE.isoformat())
+        self.assertEqual(body["participantAreas"], [AREA.model_dump(mode="json")] * 2)
         self.assertEqual(calculate.await_args.args[1], CALLER_ID)
 
     def test_request_rejects_client_supplied_identity_and_duplicate_types(self) -> None:
@@ -199,12 +211,15 @@ class MeetingRankingTests(unittest.IsolatedAsyncioTestCase):
             origins=(PrivateOrigin(3.1, 101.1), PrivateOrigin(3.2, 101.2)),
             venues=venues,
             room_revision=4,
+            planning_started=True,
+            departure_time=DEPARTURE,
         )
         first = TravelTimeSurface(2, 1, 100, 4, 1, -1, (600, 900), -2147483648)
         second = TravelTimeSurface(2, 1, 100, 4, 1, -1, (1200, -2147483648), -2147483648)
         with (
             patch("backend.app.services.meeting_service._load_calculation", return_value=calculation),
             patch("backend.app.services.meeting_service._fetch_surface", new=AsyncMock(side_effect=[first, second])),
+            patch("backend.app.services.meeting_service._fetch_isochrone", new=AsyncMock(return_value=AREA)),
             patch("backend.app.services.meeting_service._store_proposals") as store,
         ):
             result = await common_ground("ABCDEFGH", CALLER_ID, ["station"], 30)
@@ -224,6 +239,8 @@ class MeetingRankingTests(unittest.IsolatedAsyncioTestCase):
             origins=(PrivateOrigin(3.1, 101.1),),
             venues=(),
             room_revision=4,
+            planning_started=True,
+            departure_time=DEPARTURE,
         )
         with (
             patch("backend.app.services.meeting_service._load_calculation", return_value=calculation),
@@ -242,6 +259,8 @@ class MeetingRankingTests(unittest.IsolatedAsyncioTestCase):
             origins=(PrivateOrigin(3.1, 101.1),),
             venues=(),
             room_revision=4,
+            planning_started=True,
+            departure_time=DEPARTURE,
         )
         with (
             patch("backend.app.services.meeting_service._load_calculation", return_value=calculation),

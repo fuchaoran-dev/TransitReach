@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { MeetingVenue } from './types';
 import type { VenueType } from './venueService';
+import type { IsochroneRegion } from '@/shared/data/adapters/routingAdapter';
 
 const API_BASE = (import.meta.env.VITE_RELIABILITY_API_URL ?? '').replace(/\/$/, '');
 
@@ -11,33 +12,21 @@ export interface CommonGroundProposal {
   gapMinutes: number;
 }
 
-export type CommonGroundResult =
-  | {
-      status: 'waiting_for_participants';
-      participantCount: 1;
-      missingStartingPoints: 0;
-      budgetMinutes: number;
-      proposals: [];
-    }
-  | {
-      status: 'waiting_for_origins';
-      participantCount: number;
-      missingStartingPoints: number;
-      budgetMinutes: number;
-      proposals: [];
-    }
-  | {
-      status: 'no_common_ground' | 'ready';
-      participantCount: number;
-      missingStartingPoints: 0;
-      budgetMinutes: number;
-      proposals: CommonGroundProposal[];
-    };
+export interface CommonGroundResult {
+  status: 'waiting_for_planning' | 'waiting_for_participants' | 'waiting_for_origins' | 'no_common_ground' | 'ready';
+  participantCount: number;
+  missingStartingPoints: number;
+  budgetMinutes: number;
+  roomRevision: number;
+  departureTime: string | null;
+  participantAreas: { regions: IsochroneRegion[] }[];
+  proposals: CommonGroundProposal[];
+}
 
 /**
  * Calculates the shared result behind the authenticated server boundary. The response contains
- * public venue proposals and aggregate counts only; participant origins, areas and travel-time
- * surfaces never enter the browser.
+ * public venue proposals, aggregate counts and consent-gated isochrone boundaries.
+ * Private travel-time rasters remain server-side; membership is validated on every request.
  */
 export async function fetchCommonGround(
   client: SupabaseClient,

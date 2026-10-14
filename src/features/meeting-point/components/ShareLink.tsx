@@ -18,7 +18,7 @@ export function ShareLink({ code }: { code: string }) {
 
   return (
     <div className="space-y-2">
-      <div className="text-sm font-bold text-slate-900">
+      <div className="text-sm font-bold text-slate-100">
         Room <span className="font-mono tracking-wider">{code}</span>
       </div>
       <div className="flex gap-2">
@@ -35,7 +35,7 @@ export function ShareLink({ code }: { code: string }) {
         </button>
       </div>
       <p className="text-xs text-slate-500">
-        Anyone with this link can join. Starting points stay private. A confirmed meeting
+        Share only with your group. Saved starting points are visible to room members. Joining closes when planning starts. A confirmed meeting
         remains available through 24 hours after the agreed arrival.
       </p>
     </div>

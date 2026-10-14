@@ -3,15 +3,21 @@ from __future__ import annotations
 import asyncio
 import os
 from dataclasses import dataclass
+from datetime import datetime
 from math import ceil
 from struct import error as StructError
+from typing import Annotated, Literal
 from uuid import UUID
 
 import httpx
 from psycopg.types.json import Jsonb
+from pydantic import AwareDatetime, BaseModel, Field, TypeAdapter, ValidationError
 
 from backend.app.database import connection
-from backend.app.schemas.meetings import CommonGroundResponse, PublicVenue, VenueProposal, VenueType
+from backend.app.schemas.meetings import (
+    CommonGroundResponse, IsochroneRegion, ParticipantArea, PublicVenue, Ring,
+    VenueProposal, VenueType,
+)
 from backend.app.services.travel_time_surface import (
     TravelTimeSurface, decode_travel_time_surface, minutes_at,
 )
@@ -19,7 +25,29 @@ from backend.app.services.travel_time_surface import (
 
 ROUTING_TIMEOUT_SECONDS = 25.0
 MAX_PROPOSALS = 20
-DEFAULT_ROUTING_TIME = "2026-09-01T08:00:00+08:00"
+MAX_ROUTING_CONCURRENCY = 6
+ROUTING_MODES = "WALK,SUBWAY,TRAM,BUS"
+DEPARTURE_TIME = TypeAdapter(AwareDatetime)
+
+
+class _Polygon(BaseModel):
+    type: Literal["Polygon"]
+    coordinates: list[Ring] = Field(min_length=1)
+
+
+class _MultiPolygon(BaseModel):
+    type: Literal["MultiPolygon"]
+    coordinates: list[Annotated[list[Ring], Field(min_length=1)]] = Field(min_length=1)
+
+
+class _IsochroneFeature(BaseModel):
+    type: Literal["Feature"]
+    geometry: Annotated[_Polygon | _MultiPolygon, Field(discriminator="type")]
+
+
+class _IsochroneCollection(BaseModel):
+    type: Literal["FeatureCollection"]
+    features: list[_IsochroneFeature] = Field(min_length=1)
 
 
 class RoomUnavailableError(Exception):
@@ -51,6 +79,8 @@ class MeetingCalculation:
     origins: tuple[PrivateOrigin, ...]
     venues: tuple[PublicVenue, ...]
     room_revision: int
+    planning_started: bool
+    departure_time: datetime | None
 
 
 def _load_calculation(
@@ -62,7 +92,8 @@ def _load_calculation(
     with connection() as database:
         room = database.execute(
             """
-            select r.code, r.time_budget, r.planning_revision
+            select r.code, r.time_budget, r.planning_revision,
+                   r.planning_started, r.departure_time
             from public.meeting_rooms r
             join public.meeting_participants caller
               on caller.room_code = r.code and caller.user_id = %s
@@ -77,7 +108,8 @@ def _load_calculation(
             """
             select latitude, longitude
             from (
-              select lat as latitude, lon as longitude, joined_at, id
+              select case when origin_shared then lat end as latitude,
+                     case when origin_shared then lon end as longitude, joined_at, id
               from public.meeting_participants where room_code = %s
             ) participants
             order by joined_at, id
@@ -131,6 +163,7 @@ def _load_calculation(
     return MeetingCalculation(
         int(room["time_budget"]), len(participants), origins, venues,
         int(room["planning_revision"]),
+        bool(room["planning_started"]), room["departure_time"],
     )
 
 
@@ -139,6 +172,7 @@ def _store_proposals(
     caller_id: UUID,
     room_revision: int,
     proposals: list[VenueProposal],
+    expected_budget: int | None = None,
 ) -> None:
     with connection() as database:
         current = database.execute(
@@ -148,9 +182,10 @@ def _store_proposals(
             join public.meeting_participants caller
               on caller.room_code = r.code and caller.user_id = %s
             where r.code = %s and r.expires_at > now() and r.planning_revision = %s
+              and (%s::integer is null or r.time_budget = %s)
             for share of r
             """,
-            (caller_id, code, room_revision),
+            (caller_id, code, room_revision, expected_budget, expected_budget),
         ).fetchone()
         if current is None:
             raise MeetingInputsChangedError
@@ -161,6 +196,8 @@ def _store_proposals(
             """,
             (code, room_revision),
         )
+        if not proposals:
+            return
         with database.cursor() as cursor:
             cursor.executemany(
                 """
@@ -178,22 +215,49 @@ def _store_proposals(
             )
 
 
-async def _fetch_surface(client: httpx.AsyncClient, origin: PrivateOrigin, budget: int) -> TravelTimeSurface:
+def _routing_params(origin: PrivateOrigin, budget: int, departure_time: datetime) -> dict[str, str]:
+    return {
+        "location": f"{origin.latitude},{origin.longitude}",
+        "time": departure_time.isoformat(),
+        "modes": ROUTING_MODES,
+        "arriveBy": "false",
+        "cutoff": f"{budget}M",
+    }
+
+
+async def _fetch_surface(
+    client: httpx.AsyncClient, origin: PrivateOrigin, budget: int, departure_time: datetime,
+) -> TravelTimeSurface:
     base_url = os.getenv("OTP_BASE_URL", "http://localhost:8080").rstrip("/")
     try:
         response = await client.get(
             f"{base_url}/otp/traveltime/surface",
-            params={
-                "location": f"{origin.latitude},{origin.longitude}",
-                "time": os.getenv("MEETING_ROUTING_TIME", DEFAULT_ROUTING_TIME),
-                "modes": "WALK,SUBWAY,TRAM,BUS",
-                "arriveBy": "false",
-                "cutoff": f"{budget}M",
-            },
+            params=_routing_params(origin, budget, departure_time),
         )
         response.raise_for_status()
         return decode_travel_time_surface(response.content)
     except (httpx.HTTPError, ValueError, IndexError, StructError) as error:
+        raise RoutingUnavailableError from error
+
+
+async def _fetch_isochrone(
+    client: httpx.AsyncClient, origin: PrivateOrigin, budget: int, departure_time: datetime,
+) -> ParticipantArea:
+    base_url = os.getenv("OTP_BASE_URL", "http://localhost:8080").rstrip("/")
+    try:
+        response = await client.get(
+            f"{base_url}/otp/traveltime/isochrone",
+            params={**_routing_params(origin, budget, departure_time), "batch": "true"},
+        )
+        response.raise_for_status()
+        collection = _IsochroneCollection.model_validate(response.json())
+        regions: list[IsochroneRegion] = []
+        for feature in collection.features:
+            geometry = feature.geometry
+            polygons = [geometry.coordinates] if isinstance(geometry, _Polygon) else geometry.coordinates
+            regions.extend(IsochroneRegion(outer=rings[0], holes=rings[1:]) for rings in polygons)
+        return ParticipantArea(regions=regions)
+    except (httpx.HTTPError, ValueError) as error:
         raise RoutingUnavailableError from error
 
 
@@ -204,26 +268,55 @@ async def common_ground(
     requested_budget: int | None,
 ) -> CommonGroundResponse:
     calculation = await asyncio.to_thread(_load_calculation, code, caller_id, venue_types)
-    if requested_budget is not None and requested_budget != calculation.budget_minutes:
-        raise BudgetChangedError
-
     missing = calculation.participant_count - len(calculation.origins)
     base = {
         "participantCount": calculation.participant_count,
         "missingStartingPoints": missing,
         "budgetMinutes": calculation.budget_minutes,
+        "roomRevision": calculation.room_revision,
+        "departureTime": calculation.departure_time,
     }
+    if not calculation.planning_started:
+        return CommonGroundResponse(status="waiting_for_planning", proposals=[], **base)
+    if requested_budget is not None and requested_budget != calculation.budget_minutes:
+        raise BudgetChangedError
     if calculation.participant_count < 2:
         return CommonGroundResponse(status="waiting_for_participants", proposals=[], **base)
     if missing:
         return CommonGroundResponse(status="waiting_for_origins", proposals=[], **base)
 
+    try:
+        departure_time = DEPARTURE_TIME.validate_python(calculation.departure_time)
+    except ValidationError as error:
+        raise RoutingUnavailableError from error
+
+    # Limit both endpoint requests together; private geometry exists only in this request.
+    semaphore = asyncio.Semaphore(MAX_ROUTING_CONCURRENCY)
+
+    async def fetch_participant(
+        client: httpx.AsyncClient, origin: PrivateOrigin,
+    ) -> tuple[TravelTimeSurface, ParticipantArea]:
+        async with semaphore:
+            surface = await _fetch_surface(client, origin, calculation.budget_minutes, departure_time)
+            area = await _fetch_isochrone(client, origin, calculation.budget_minutes, departure_time)
+            return surface, area
+
     timeout = httpx.Timeout(ROUTING_TIMEOUT_SECONDS)
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        surfaces = await asyncio.gather(*(
-            _fetch_surface(client, origin, calculation.budget_minutes)
+    async with httpx.AsyncClient(
+        timeout=timeout, limits=httpx.Limits(max_connections=MAX_ROUTING_CONCURRENCY),
+    ) as client:
+        tasks = [
+            asyncio.create_task(fetch_participant(client, origin))
             for origin in calculation.origins
-        ))
+        ]
+        try:
+            results = await asyncio.gather(*tasks)
+        except BaseException:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            raise
+    surfaces = [surface for surface, _area in results]
 
     ranked: list[tuple[int, int, str, PublicVenue]] = []
     for venue in calculation.venues:
@@ -241,12 +334,14 @@ async def common_ground(
         longestMinutes=longest,
         gapMinutes=gap,
     ) for index, (longest, gap, _name, venue) in enumerate(ranked[:MAX_PROPOSALS], 1)]
-    if proposals:
-        await asyncio.to_thread(
-            _store_proposals, code, caller_id, calculation.room_revision, proposals,
-        )
+    # Even an empty venue ranking carries geometry that must pass the same revision guard.
+    await asyncio.to_thread(
+        _store_proposals, code, caller_id, calculation.room_revision, proposals,
+        expected_budget=calculation.budget_minutes,
+    )
     return CommonGroundResponse(
         status="ready" if proposals else "no_common_ground",
         proposals=proposals,
+        participantAreas=[area for _surface, area in results],
         **base,
     )

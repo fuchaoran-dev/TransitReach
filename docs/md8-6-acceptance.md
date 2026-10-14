@@ -1,5 +1,30 @@
 # MD8-6 acceptance record
 
+## 14 October 2026: deployment preflight (no rollout)
+
+User chose preparation only: no push, then explicitly deferred cloud migration
+until the matched deployment. Real-project rollback preflight passed migration,
+RLS/grant checks, legacy conversion and rerun. Original counts and participant
+fingerprint were identical after rollback; the voting migration remains unapplied.
+Render health and Netlify HTTP recovered/returned normal; Render OpenAPI remains
+the old meeting contract. See [deployment readiness](meeting-voting-deployment.md).
+
+## 14 October 2026: meeting workflow revision (local only)
+
+The meeting page now uses shared-origin Ready, a common-area map, public venue
+proposals and one ballot per member. Personal checks/direct confirmation are no
+longer part of that page. See [current workflow](meeting-voting.md) and
+[SQL upgrade contract](meeting-voting-sql.md). The older live evidence below
+describes the previous private-origin/Pass flow, not this revision.
+
+Local verification passed typecheck/build, lint (18 existing warnings, no errors),
+24 room privacy/lifecycle checks, 21 voting/UI checks and 67 backend tests.
+Isolated PGlite executed the SQL migration/regressions; native concurrency,
+Supabase realtime, real map rendering and two-device live acceptance remain pending.
+Desktop panels were inspected using an explicitly synthetic SSR preview.
+No cloud SQL, deployment or push was performed. The upgrade cancels legacy
+agreements and requires explicit origin sharing and a fresh vote.
+
 Checked 8 October 2026. Scope: group invitation and each member's personal pass;
 no Epic 2 multi-stop optimiser or Add errands action.
 

@@ -1,5 +1,10 @@
 # MD8-6 group invitations and personal passes
 
+> Historical Pass implementation reference. The current meeting page replaces
+> personal checks and direct confirmation with shared-origin Ready and venue voting.
+> Follow [meeting-voting.md](meeting-voting.md) and apply its final SQL migration;
+> the older smoke-test workflows below are not current meeting acceptance tests.
+
 Meet now confirms a public ranked venue and a Malaysia-time arrival as a versioned
 room agreement. A member opens the invitation to calculate their own arrive-by pass.
 My Passes lists upcoming passes stored in this browser under the same anonymous

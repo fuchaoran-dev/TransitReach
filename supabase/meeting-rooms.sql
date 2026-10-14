@@ -1,6 +1,8 @@
 -- Epic 6 — shared meeting rooms.
 --
 -- Run in the Supabase SQL editor. Safe to re-run: every statement is idempotent.
+-- Voting workflow installations must run meeting-voting.sql AFTER this file.
+-- Reapplying this file alone would restore obsolete privacy/confirmation grants.
 --
 -- A room and its participants are readable only by the people in that room, and a
 -- participant row can only be created through join_meeting_room() or create_meeting_room().

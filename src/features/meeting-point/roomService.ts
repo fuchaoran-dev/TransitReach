@@ -7,6 +7,8 @@ import type {
   Participant,
   SharedMemberStatus,
   StartingPoint,
+  MeetingSelection,
+  MeetingVote,
 } from './types';
 
 export class RoomNotFoundError extends Error {
@@ -33,11 +35,16 @@ interface RoomRow {
   confirmed_arrival_time: string | null;
   plan_version: number;
   proposed_arrival_time: string | null;
+  planning_started?: boolean;
+  departure_time?: string | null;
+  voting_arrival_time?: string | null;
+  is_host?: boolean;
+  vote_status?: MeetingRoom['voteStatus'];
 }
 
 interface ParticipantRow {
   id: string;
-  user_id: string;
+  user_id?: string;
   nickname: string | null;
   lat: number | null;
   lon: number | null;
@@ -53,12 +60,19 @@ interface MemberRow {
   display_name: string;
   arrival_status: string;
   is_self: boolean;
+  lat?: number | null;
+  lon?: number | null;
+  label?: string | null;
+  colour_slot?: number;
+  planning_status?: 'Ready' | 'Not ready';
 }
 
 interface RoomStateRow {
   room: RoomRow;
   self: ParticipantRow | null;
   members: MemberRow[];
+  selections?: { member_id: string; display_name: string; venue: MeetingVenue }[];
+  votes?: { member_id: string; display_name: string; venue: MeetingVenue; arrival_time: string }[];
 }
 
 interface InvitationRow {
@@ -72,6 +86,8 @@ export interface MeetingRoomSnapshot {
   room: MeetingRoom;
   me: Participant;
   members: SharedMemberStatus[];
+  selections: MeetingSelection[];
+  votes: MeetingVote[];
 }
 
 function toArrivalStatus(value: string): ArrivalStatus {
@@ -90,11 +106,16 @@ const toRoom = (row: RoomRow): MeetingRoom => ({
     ? { venue: row.confirmed_venue, arrivalTime: row.confirmed_arrival_time, version: row.plan_version }
     : null,
   proposedArrivalTime: row.proposed_arrival_time,
+  planningStarted: row.planning_started ?? false,
+  departureTime: row.departure_time ?? null,
+  votingArrivalTime: row.voting_arrival_time ?? null,
+  isHost: row.is_host ?? false,
+  voteStatus: row.vote_status ?? 'waiting',
 });
 
-const toParticipant = (row: ParticipantRow): Participant => ({
+const toParticipant = (row: ParticipantRow, userId: string): Participant => ({
   id: row.id,
-  userId: row.user_id,
+  userId,
   nickname: row.nickname,
   at: row.lat === null || row.lon === null ? null : { lat: row.lat, lon: row.lon },
   source: row.source,
@@ -109,6 +130,10 @@ const toMember = (row: MemberRow): SharedMemberStatus => ({
   displayName: row.display_name,
   arrivalStatus: toArrivalStatus(row.arrival_status),
   isSelf: row.is_self,
+  at: row.lat == null || row.lon == null ? null : { lat: row.lat, lon: row.lon },
+  label: row.label ?? null,
+  colourSlot: row.colour_slot ?? 0,
+  planningStatus: row.planning_status ?? 'Not ready',
 });
 
 async function signIn(client: SupabaseClient): Promise<string> {
@@ -157,7 +182,7 @@ export async function joinRoom(client: SupabaseClient, code: string, nickname: s
 }
 
 /**
- * The room, this caller's private participant row, and the safe shared member projection.
+ * Own full point plus the consent-gated member projection and public venue ballots.
  *
  * Null covers a room that does not exist, one that has expired, and one this device is not
  * in. Row-level security makes those indistinguishable on purpose: telling them apart would
@@ -174,7 +199,36 @@ export async function loadRoom(
   const state = data as unknown as RoomStateRow;
   // The RPC deliberately returns no state for a non-member, expired room or unknown code.
   if (!state.room || !state.self) return null;
-  return { room: toRoom(state.room), me: toParticipant(state.self), members: state.members.map(toMember) };
+  if (typeof state.room.planning_started !== 'boolean') {
+    throw new Error('Meeting voting SQL migration is required.');
+  }
+  const { data: session } = await client.auth.getSession();
+  if (!session.session) throw new Error('A room session is required.');
+  return {
+    room: toRoom(state.room), me: toParticipant(state.self, session.session.user.id), members: state.members.map(toMember),
+    selections: (state.selections ?? []).map(row => ({ memberId: row.member_id, displayName: row.display_name, venue: row.venue })),
+    votes: (state.votes ?? []).map(row => ({ memberId: row.member_id, displayName: row.display_name, venue: row.venue, arrivalTime: row.arrival_time })),
+  };
+}
+
+export async function startMeetingPlanning(client: SupabaseClient, code: string, departure: string, arrival: string): Promise<void> {
+  const { error } = await client.rpc('start_meeting_planning', { p_code: code, p_departure_time: departure, p_arrival_time: arrival });
+  if (error) throw error;
+}
+
+export async function reopenMeetingPlanning(client: SupabaseClient, code: string): Promise<void> {
+  const { error } = await client.rpc('reopen_meeting_planning', { p_code: code });
+  if (error) throw error;
+}
+
+export async function proposeMeetingVenue(client: SupabaseClient, code: string, venue: MeetingVenue, revision: number): Promise<void> {
+  const { error } = await client.rpc('propose_meeting_venue', { p_code: code, p_venue: venue, p_revision: revision });
+  if (error) throw error;
+}
+
+export async function castMeetingVote(client: SupabaseClient, code: string, venue: MeetingVenue, arrival: string, revision: number): Promise<void> {
+  const { error } = await client.rpc('cast_meeting_vote', { p_code: code, p_venue: venue, p_arrival_time: arrival, p_revision: revision });
+  if (error) throw error;
 }
 
 /** Reads only the shared agreement carried by an opaque invitation code. */
@@ -195,7 +249,7 @@ export async function loadMeetingInvitation(
 }
 
 export async function setRoomBudget(client: SupabaseClient, code: string, budget: number): Promise<void> {
-  const { error } = await client.from('meeting_rooms').update({ time_budget: budget }).eq('code', code);
+  const { error } = await client.rpc('set_meeting_budget', { p_code: code, p_budget: budget });
   if (error) throw error;
 }
 
@@ -242,37 +296,24 @@ export async function setMyArrivalStatus(
   if (error) throw error;
 }
 
-/** Sets this device's starting point, or clears it with null. RLS confines the write to the caller's own row. */
+/** Explicitly shares this caller's selected point, or withdraws sharing and clears it with null. */
 export async function setMyPoint(
   client: SupabaseClient,
   code: string,
   userId: string,
   point: StartingPoint | null,
 ): Promise<void> {
-  const { data, error } = await client
-    .from('meeting_participants')
-    .update({
-      lat: point?.at.lat ?? null,
-      lon: point?.at.lon ?? null,
-      source: point?.source ?? null,
-      label: point?.label ?? null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('room_code', code)
-    .eq('user_id', userId)
-    .select('id');
+  if (!userId) throw new Error('A member identity is required.');
+  const { error } = await client.rpc('share_meeting_origin', {
+    p_code: code, p_lat: point?.at.lat ?? null, p_lon: point?.at.lon ?? null,
+    p_source: point?.source ?? null, p_label: point?.label ?? null,
+  });
   if (error) throw error;
-  // Row-level security turns a write to a row that is not the caller's into a no-op that still
-  // reports success. Treat "nothing updated" as the failure it is, rather than a saved point.
-  if (!data || data.length === 0) throw new Error('No participant row was updated.');
 }
 
 export async function leaveRoom(client: SupabaseClient, code: string, userId: string): Promise<void> {
-  const { error } = await client
-    .from('meeting_participants')
-    .delete()
-    .eq('room_code', code)
-    .eq('user_id', userId);
+  if (!userId) throw new Error('A member identity is required.');
+  const { error } = await client.rpc('leave_meeting_room', { p_code: code });
   if (error) throw error;
 }
 

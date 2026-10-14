@@ -1,392 +1,188 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Check, Clock3, LockKeyhole, MapPin, RefreshCw, Users } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { MapPin, RefreshCw, Users, Vote } from 'lucide-react';
 import { BaseMap, TimeBudgetSelector } from '@/features/reachability';
 import { isInStudyArea } from '@/features/reachability/reachabilityService';
 import type { Origin } from '@/features/reachability/types';
-import { GroupOutingView } from '@/features/outing-pass/components/GroupOutingView';
 import { malaysiaInputTime } from '@/features/outing-pass/components/passPresentation';
 import { FocusOnPlace, RankedPlaceMarkers } from './components/RankedPlaceMarkers';
 import { MyStartingPoint } from './components/MyStartingPoint';
 import { RoomLobby } from './components/RoomLobby';
 import { ShareLink } from './components/ShareLink';
+import { SharedMeetingMap } from './components/SharedMeetingMap';
+import { OverlapLayer } from './components/OverlapLayer';
+import { intersectAreas } from './overlapService';
 import type { RankedPlace } from './fairnessRanking';
 import { useMeetingRoom } from './hooks/useMeetingRoom';
 import { useServerCommonGround } from './hooks/useServerCommonGround';
-import {
-  ROOM_ERROR_MESSAGES,
-  type MeetingRoom,
-  type Participant,
-  type SharedMemberStatus,
-  type StartingPoint,
-} from './types';
+import { ROOM_ERROR_MESSAGES, type StartingPoint } from './types';
 import { VENUE_TYPES, type VenueType } from './venueService';
 
-const OUTSIDE_AREA = 'Selected point is outside the covered area';
-const PLACE_OUTSIDE_AREA = 'That place is outside the covered area';
 const ALL_VENUE_TYPES = new Set<VenueType>(VENUE_TYPES.map(option => option.id));
-
-function defaultArrivalTime(): string {
-  const date = new Date(Date.now() + (2 + 8) * 60 * 60 * 1000);
+function futureInput(minutes: number): string {
+  const date = new Date(Date.now() + minutes * 60_000);
   date.setUTCMinutes(Math.ceil(date.getUTCMinutes() / 15) * 15, 0, 0);
-  return date.toISOString().slice(0, 16);
+  return malaysiaInputTime(date.toISOString());
+}
+function inputIso(input: string): string {
+  const date = new Date(`${input}:00+08:00`);
+  if (Number.isNaN(date.getTime())) throw new Error('Invalid time');
+  return date.toISOString();
+}
+function formatTime(iso: string): string {
+  return new Intl.DateTimeFormat('en-MY', { timeZone: 'Asia/Kuala_Lumpur', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
 }
 
-function asLocalInput(iso: string): string {
-  return malaysiaInputTime(iso);
-}
-
-function formatArrival(iso: string): string {
-  return new Intl.DateTimeFormat('en-MY', {
-    timeZone: 'Asia/Kuala_Lumpur',
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date(iso));
-}
-
-function initials(name: string): string {
-  return name.split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
-}
-
-function statusClasses(status: SharedMemberStatus['arrivalStatus']): string {
-  if (status === 'Ready') return 'bg-teal-400/10 text-teal-200';
-  if (status === 'Check needed') return 'bg-amber-400/10 text-amber-200';
-  return 'bg-slate-500/15 text-slate-300';
-}
-
-/** Shared room planning and the confirmed group invitation for MD8-6. */
+/** Ready means a starting point is saved, not that a personal journey has been checked. */
 export function MeetingPointPage() {
   const meeting = useMeetingRoom();
-  const [planningMode, setPlanningMode] = useState(false);
-
-  if (meeting.view.status === 'ready' && meeting.view.room.confirmedPlan && !planningMode) {
-    return (
-      <GroupOutingView
-        room={meeting.view.room}
-        me={meeting.view.me}
-        members={meeting.view.members}
-        onBack={() => setPlanningMode(true)}
-        onSuggestTime={async (arrivalTime: string) => {
-          await meeting.suggestTime(arrivalTime);
-          setPlanningMode(true);
-        }}
-        onPublishStatus={meeting.publishStatus}
-      />
-    );
-  }
-
-  if (meeting.view.status === 'ready') {
-    return (
-      <MeetingPlanner
-        meeting={meeting}
-        room={meeting.view.room}
-        me={meeting.view.me}
-        members={meeting.view.members}
-        onConfirmed={() => setPlanningMode(false)}
-        onOpenConfirmed={() => setPlanningMode(false)}
-      />
-    );
-  }
-
-  return (
-    <main className="min-h-screen bg-[#080f18] px-4 pb-24 pt-24 text-slate-100 md:px-6 md:pb-8">
-      <header className="mx-auto mb-8 max-w-5xl">
-        <div className="flex items-center gap-2 text-sm font-semibold text-teal-300">
-          <Users size={18} aria-hidden="true" />
-          Meet up
-        </div>
-        <h1 className="mt-2 text-3xl font-extrabold text-white sm:text-4xl">Find somewhere everyone can reach.</h1>
-        <p className="mt-3 max-w-3xl text-slate-300">
-          Share a room link. Each person adds their own starting point, while private coordinates stay hidden from the group.
-        </p>
-      </header>
-
-      <div className="mx-auto max-w-5xl">
-        {meeting.view.status === 'unconfigured' && (
-          <section className="glass max-w-xl p-6 text-sm text-slate-300">Shared rooms are not set up on this deployment.</section>
-        )}
-        {meeting.view.status === 'checking' && (
-          <section role="status" className="glass max-w-xl p-6 text-sm text-slate-300">
-            Opening room <span className="font-mono tracking-wider">{meeting.view.code}</span>…
-          </section>
-        )}
-        {meeting.view.status === 'lobby' && (
-          <RoomLobby
-            invitedCode={meeting.view.invitedCode}
-            invitation={meeting.view.invitation}
-            busy={meeting.busy}
-            error={meeting.error}
-            onCreate={nickname => void meeting.create(nickname)}
-            onJoin={(code, nickname) => void meeting.join(code, nickname)}
-          />
-        )}
-      </div>
-    </main>
-  );
+  if (meeting.view.status === 'ready') return <MeetingPlanner key={meeting.view.room.code} meeting={meeting} />;
+  return <main className="min-h-screen bg-[#080f18] px-6 pb-8 pt-24 text-slate-100">
+    <header className="mx-auto mb-8 max-w-5xl">
+      <p className="flex items-center gap-2 text-sm font-semibold text-teal-300"><Users size={18} aria-hidden="true" />Meet up</p>
+      <h1 className="mt-2 text-3xl font-extrabold text-white">Find somewhere everyone can reach.</h1>
+      <p className="mt-3 text-slate-300">Share starting points, explore common ground, then vote together.</p>
+    </header>
+    <div className="mx-auto max-w-5xl">
+      {meeting.view.status === 'unconfigured' && <p className="glass max-w-xl p-6">Shared rooms are not set up on this deployment.</p>}
+      {meeting.view.status === 'checking' && <p role="status" className="glass max-w-xl p-6">Opening room {meeting.view.code}…</p>}
+      {meeting.view.status === 'lobby' && <RoomLobby invitedCode={meeting.view.invitedCode} invitation={meeting.view.invitation} busy={meeting.busy} error={meeting.error} onCreate={nickname => void meeting.create(nickname)} onJoin={(code, nickname) => void meeting.join(code, nickname)} />}
+    </div>
+  </main>;
 }
 
-type MeetingHook = ReturnType<typeof useMeetingRoom>;
-
-function MeetingPlanner({
-  meeting,
-  room,
-  me,
-  members,
-  onConfirmed,
-  onOpenConfirmed,
-}: {
-  meeting: MeetingHook;
-  room: MeetingRoom;
-  me: Participant;
-  members: SharedMemberStatus[];
-  onConfirmed: () => void;
-  onOpenConfirmed: () => void;
-}) {
+function MeetingPlanner({ meeting }: { meeting: ReturnType<typeof useMeetingRoom> }) {
   const [notice, setNotice] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const initiallyShared = meeting.view.status === 'ready' && meeting.view.members.some(member => member.isSelf && member.planningStatus === 'Ready');
+  const [sharingAllowed, setSharingAllowed] = useState(initiallyShared);
+  const sharingRef = useRef(initiallyShared);
   const [venueTypes, setVenueTypes] = useState<ReadonlySet<VenueType>>(ALL_VENUE_TYPES);
-  const [selectedId, setSelectedId] = useState<string | null>(room.confirmedPlan?.venue.id ?? null);
-  const [arrivalInput, setArrivalInput] = useState(() => {
-    const value = room.proposedArrivalTime ?? room.confirmedPlan?.arrivalTime;
-    return value ? asLocalInput(value) : defaultArrivalTime();
-  });
-  const [confirmError, setConfirmError] = useState<string | null>(null);
-  const common = useServerCommonGround(room.code, room.timeBudget, venueTypes, String(room.planningRevision));
-
-  const proposals = useMemo(
-    () => common.state.status === 'ready' ? common.state.result.proposals : [],
-    [common.state],
-  );
-  const rankedPlaces = useMemo<RankedPlace[]>(
-    () => proposals.map(proposal => ({
-      venue: proposal.venue,
-      minutes: [],
-      longest: proposal.longestMinutes,
-      gap: proposal.gapMinutes,
-    })),
-    [proposals],
-  );
-  const selected = proposals.find(proposal => proposal.venue.id === selectedId) ?? null;
-
-  useEffect(() => {
-    if (selectedId && proposals.some(proposal => proposal.venue.id === selectedId)) return;
-    setSelectedId(proposals[0]?.venue.id ?? null);
-  }, [proposals, selectedId]);
-
-  useEffect(() => {
-    if (room.proposedArrivalTime) setArrivalInput(asLocalInput(room.proposedArrivalTime));
-  }, [room.proposedArrivalTime]);
-
-  const myOrigin = useMemo<Origin | null>(() => {
-    if (!me.at || !me.source) return null;
-    return { at: me.at, source: me.source };
-  }, [me.at, me.source]);
-
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [departureInput, setDepartureInput] = useState(() => meeting.view.status === 'ready' && meeting.view.room.departureTime ? malaysiaInputTime(meeting.view.room.departureTime) : futureInput(30));
+  const [arrivalInput, setArrivalInput] = useState(() => meeting.view.status === 'ready' && meeting.view.room.votingArrivalTime ? malaysiaInputTime(meeting.view.room.votingArrivalTime) : futureInput(90));
+  const [frameRequest, setFrameRequest] = useState(0);
+  const snapshot = meeting.view.status === 'ready' ? meeting.view : null;
+  const room = snapshot?.room;
+  const common = useServerCommonGround(room?.planningStarted ? room.code : null, room?.timeBudget ?? 30, ALL_VENUE_TYPES, String(room?.planningRevision ?? 0));
+  const result = common.state.status === 'ready' && common.state.result.roomRevision === room?.planningRevision ? common.state.result : null;
+  const overlap = useMemo(() => {
+    try { return { polygons: intersectAreas(result?.participantAreas.map(area => area.regions) ?? [], 0), failed: false }; }
+    catch { return { polygons: [], failed: true }; }
+  }, [result]);
+  const displayed = useMemo(() => (result?.proposals ?? []).filter(proposal => venueTypes.has(proposal.venue.type)), [result, venueTypes]);
+  const places = useMemo<RankedPlace[]>(() => displayed.map(proposal => ({ venue: proposal.venue, minutes: [], longest: proposal.longestMinutes, gap: proposal.gapMinutes })), [displayed]);
+  const myLat = snapshot?.me.at?.lat;
+  const myLon = snapshot?.me.at?.lon;
+  const mySource = snapshot?.me.source;
+  const myOrigin = useMemo<Origin | null>(() => myLat !== undefined && myLon !== undefined && mySource ? { at: { lat: myLat, lon: myLon }, source: mySource } : null, [myLat, myLon, mySource]);
+  if (!snapshot || !room) return null;
+  const { me, members, votes, selections } = snapshot;
+  const located = members.filter(member => member.planningStatus === 'Ready').length;
+  const allReady = members.length >= 2 && located === members.length;
+  const myVote = votes.find(vote => vote.memberId === me.id);
+  const selected = displayed.find(proposal => proposal.venue.id === selectedId) ?? null;
   const choose = (point: StartingPoint) => {
-    if (!isInStudyArea(point.at)) {
-      setNotice(point.source === 'map' ? OUTSIDE_AREA : PLACE_OUTSIDE_AREA);
-      return;
-    }
+    if (meeting.busy) return;
+    if (!sharingRef.current) { setNotice('Allow room members to see your selected starting point before saving it.'); return; }
+    if (!isInStudyArea(point.at)) { setNotice('Selected point is outside the covered area.'); return; }
     setNotice(null);
     void meeting.setMyPoint(point);
   };
-
-  const toggleVenueType = (type: VenueType) => {
-    setVenueTypes(current => {
-      if (current.has(type) && current.size === 1) return current;
-      const next = new Set(current);
-      if (next.has(type)) next.delete(type);
-      else next.add(type);
-      return next;
-    });
+  const run = async (action: () => Promise<void>, fallback: string) => {
+    setActionError(null);
+    try { await action(); } catch { setActionError(fallback); }
   };
+  const start = () => run(async () => {
+    const departure = inputIso(departureInput);
+    const arrival = inputIso(arrivalInput);
+    if (Date.parse(departure) <= Date.now() || Date.parse(arrival) <= Date.parse(departure)) { setActionError('Departure must be in the future and arrival must be later.'); return; }
+    await meeting.startPlanning(departure, arrival);
+    setFrameRequest(value => value + 1);
+  }, 'Could not start planning. Check the times and that everyone has saved a starting point.');
+  const toggleType = (type: VenueType) => setVenueTypes(current => {
+    if (current.has(type) && current.size === 1) return current;
+    const next = new Set(current);
+    if (next.has(type)) next.delete(type); else next.add(type);
+    return next;
+  });
 
-  const confirm = async () => {
-    if (!selected || !arrivalInput) return;
-    const arrival = new Date(`${arrivalInput}:00+08:00`);
-    if (Number.isNaN(arrival.getTime()) || arrival.getTime() <= Date.now()) {
-      setConfirmError('Choose an arrival time in the future.');
-      return;
-    }
-    setConfirmError(null);
-    try {
-      await meeting.confirmPlan(selected.venue, arrival.toISOString());
-      onConfirmed();
-    } catch {
-      setConfirmError('The plan could not be confirmed. Refresh the room and try again.');
-    }
-  };
-
-  const readyResult = common.state.status === 'ready' ? common.state.result : null;
-  const locatedCount = readyResult ? readyResult.participantCount - readyResult.missingStartingPoints : null;
-
-  return (
-    <div className="fixed left-0 right-0 top-16 bottom-[calc(4rem+env(safe-area-inset-bottom))] overflow-hidden bg-[#080f18] md:bottom-0">
-      <div className="absolute inset-0">
-        <BaseMap origin={myOrigin} regions={null} onMapClick={at => choose({ at, source: 'map', label: null })}>
-          <RankedPlaceMarkers places={rankedPlaces} selectedId={selectedId} onSelect={setSelectedId} />
-          <FocusOnPlace place={selected?.venue ?? null} />
-        </BaseMap>
-      </div>
-
-      {selected && (
-        <div className="pointer-events-none absolute left-1/2 top-4 z-[480] hidden -translate-x-1/2 rounded-xl border border-teal-300/20 bg-[#0e1c29]/95 px-4 py-3 shadow-2xl backdrop-blur lg:block">
-          <p className="font-semibold text-white">{selected.venue.name}</p>
-          <p className="mt-1 flex items-center gap-1 text-xs text-teal-200">
-            <Clock3 size={13} aria-hidden="true" /> {arrivalInput ? formatArrival(`${arrivalInput}:00+08:00`) : 'Choose an arrival time'}
-          </p>
-        </div>
-      )}
-
-      <aside className="absolute left-2 right-2 top-2 z-[500] max-h-[38%] overflow-y-auto rounded-2xl border border-[#294456] bg-[#0e1c29]/95 p-4 shadow-2xl backdrop-blur-xl sm:left-4 sm:right-auto sm:w-[340px] lg:bottom-4 lg:max-h-none">
-        <div className="flex items-center justify-between gap-3">
-          <span className="rounded bg-teal-300 px-2 py-1 font-mono text-[10px] font-bold tracking-wider text-[#062c2b]">ROOM {room.code}</span>
-          {room.confirmedPlan && (
-            <button type="button" onClick={onOpenConfirmed} className="text-xs font-semibold text-teal-200 hover:text-white">
-              Open plan v{room.confirmedPlan.version}
-            </button>
-          )}
-        </div>
-        <h1 className="mt-3 text-xl font-bold text-white">Plan a group meeting</h1>
-        <ShareLink code={room.code} />
-
-        <div className="mt-4">
-          <MyStartingPoint
-            me={me}
-            notice={notice}
-            onSearchSelect={choose}
-            onClear={() => {
-              setNotice(null);
-              void meeting.setMyPoint(null);
-            }}
-          />
-        </div>
-
-        <div className="mt-4">
-          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">{members.length} group members</p>
-          <div className="space-y-2">
-            {members.map(member => (
-              <div key={member.id} className="flex items-center justify-between gap-2 rounded-xl bg-[#192a38] p-2.5">
-                <span className="flex min-w-0 items-center gap-2.5">
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-teal-300/10 text-xs font-bold text-teal-200">
-                    {initials(member.displayName)}
-                  </span>
-                  <span className="truncate text-sm font-semibold text-slate-100">{member.displayName}{member.isSelf ? ' (you)' : ''}</span>
-                </span>
-                <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${statusClasses(member.arrivalStatus)}`}>
-                  {member.arrivalStatus}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-xl bg-[#192a38] p-3 text-xs leading-relaxed text-slate-300">
-          {locatedCount === null ? 'Checking shared readiness…' : `${locatedCount} of ${readyResult?.participantCount} starting points are ready.`}
-        </div>
-        <div className="mt-3 flex gap-2 rounded-xl border border-teal-300/15 bg-[#132637] p-3 text-xs leading-relaxed text-slate-300">
-          <LockKeyhole size={17} className="mt-0.5 shrink-0 text-teal-200" aria-hidden="true" />
-          <span>Only you can retrieve your starting point. The room receives names and coarse arrival status; group ranking runs behind the authenticated server boundary.</span>
-        </div>
-
-        {meeting.error && <p role="alert" className="mt-3 text-sm text-rose-300">{ROOM_ERROR_MESSAGES[meeting.error]}</p>}
-        <button type="button" className="btn-secondary mt-4 w-full" disabled={meeting.busy} onClick={() => void meeting.leave()}>Leave room</button>
-      </aside>
-
-      <aside className="absolute bottom-2 left-2 right-2 z-[510] max-h-[55%] overflow-y-auto rounded-2xl border border-[#294456] bg-[#0e1c29]/95 p-4 shadow-2xl backdrop-blur-xl sm:left-4 sm:right-4 lg:bottom-4 lg:left-auto lg:top-4 lg:max-h-none lg:w-[400px] lg:p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-bold text-white">Fairest places to meet</h2>
-            <p className="mt-1 text-xs leading-relaxed text-slate-400">Ranked on the server by the longest trip, then the smallest travel-time gap.</p>
-          </div>
-          {common.state.status === 'failed' && (
-            <button type="button" onClick={common.retry} className="btn-icon" aria-label="Retry meeting-place ranking"><RefreshCw size={17} /></button>
-          )}
-        </div>
-
-        <div className="mt-3 flex flex-wrap gap-2" aria-label="Venue types">
-          {VENUE_TYPES.map(option => (
-            <button
-              key={option.id}
-              type="button"
-              aria-pressed={venueTypes.has(option.id)}
-              onClick={() => toggleVenueType(option.id)}
-              className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold ${venueTypes.has(option.id) ? 'border-teal-300 bg-teal-300/15 text-teal-100' : 'border-[#315163] bg-[#132637] text-slate-300'}`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-4 space-y-3">
-          {common.state.status === 'loading' && <p role="status" className="text-sm text-slate-300">Calculating common ground securely…</p>}
-          {common.state.status === 'failed' && <p role="alert" className="text-sm text-rose-300">Shared ranking is unavailable. No result has been guessed.</p>}
-          {readyResult?.status === 'waiting_for_origins' && (
-            <p className="rounded-xl bg-[#192a38] p-3 text-sm text-slate-300">Waiting for {readyResult.missingStartingPoints} member{readyResult.missingStartingPoints === 1 ? '' : 's'} to add a starting point.</p>
-          )}
-          {readyResult?.status === 'waiting_for_participants' && (
-            <p className="rounded-xl bg-[#192a38] p-3 text-sm text-slate-300">Invite at least one more person before calculating fair meeting places.</p>
-          )}
-          {readyResult?.status === 'no_common_ground' && (
-            <p className="rounded-xl bg-[#192a38] p-3 text-sm text-slate-300">No shared place fits the current {room.timeBudget}-minute budget.</p>
-          )}
-          {proposals.map(proposal => {
-            const active = proposal.venue.id === selectedId;
-            return (
-              <button
-                key={proposal.venue.id}
-                type="button"
-                aria-pressed={active}
-                onClick={() => setSelectedId(proposal.venue.id)}
-                className={`w-full rounded-xl border p-3 text-left transition ${active ? 'border-teal-300 bg-[#213844] shadow-lg shadow-teal-500/5' : 'border-transparent bg-[#192a38] hover:border-[#3c5b6c]'}`}
-              >
-                <span className="flex items-start gap-3">
-                  <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold ${active ? 'bg-teal-300 text-[#062c2b]' : 'bg-[#2e3d49] text-slate-200'}`}>{proposal.rank}</span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center justify-between gap-2">
-                      <strong className="truncate text-sm text-white">{proposal.venue.name}</strong>
-                      {active && <Check size={16} className="shrink-0 text-teal-200" aria-hidden="true" />}
-                    </span>
-                    <span className="mt-0.5 block text-xs text-slate-400">{proposal.venue.kindLabel}</span>
-                    <span className="mt-2 grid grid-cols-2 gap-2">
-                      <span className="rounded-lg bg-[#101f2b] p-2"><span className="block text-[10px] text-slate-400">Longest trip</span><strong className="text-sm text-teal-200">{proposal.longestMinutes} min</strong></span>
-                      <span className="rounded-lg bg-[#101f2b] p-2"><span className="block text-[10px] text-slate-400">Time difference</span><strong className="text-sm text-slate-200">{proposal.gapMinutes} min</strong></span>
-                    </span>
-                    <span className="mt-2 flex items-center gap-1 text-[11px] text-slate-400"><MapPin size={12} />{proposal.venue.hours ? proposal.venue.hours : 'Hours unknown'}</span>
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="mt-4 border-t border-[#294456] pt-4">
-          <label htmlFor="meeting-arrival" className="text-xs font-bold uppercase tracking-wider text-slate-400">Agreed arrival target</label>
-          {room.proposedArrivalTime && (
-            <p className="mt-2 rounded-lg bg-amber-400/10 px-3 py-2 text-xs text-amber-100">Suggested: {formatArrival(room.proposedArrivalTime)}. It changes the plan only after someone confirms it.</p>
-          )}
-          <input
-            id="meeting-arrival"
-            type="datetime-local"
-            value={arrivalInput}
-            onChange={event => setArrivalInput(event.target.value)}
-            className="glass-input mt-2 w-full px-3 py-2.5 text-sm text-slate-100 [color-scheme:dark]"
-          />
-          <div className="mt-3">
-            <p className="mb-2 text-xs font-bold text-slate-300">Travel time budget</p>
-            <TimeBudgetSelector value={room.timeBudget} onChange={budget => void meeting.changeBudget(budget)} />
-          </div>
-          {(confirmError || meeting.error) && <p role="alert" className="mt-3 text-sm text-rose-300">{confirmError ?? ROOM_ERROR_MESSAGES[meeting.error!]}</p>}
-          <button type="button" className="btn-primary mt-4 flex w-full items-center justify-center gap-2" disabled={!selected || !arrivalInput || meeting.busy} onClick={() => void confirm()}>
-            <Check size={18} aria-hidden="true" />
-            {meeting.busy ? 'Confirming…' : 'Confirm for everyone'}
-          </button>
-          <p className="mt-2 text-center text-[11px] leading-relaxed text-slate-400">
-            This creates plan v{(room.confirmedPlan?.version ?? 0) + 1}. Earlier personal passes become outdated.
-          </p>
-        </div>
-      </aside>
+  return <div className="fixed inset-x-0 bottom-0 top-16 overflow-hidden bg-[#080f18]">
+    <div className="absolute inset-0"><BaseMap origin={myOrigin} regions={null} onMapClick={at => choose({ at, source: 'map', label: null })}>
+      <SharedMeetingMap members={members} areas={result?.participantAreas ?? []} frameRequest={frameRequest} />
+      {!overlap.failed && <OverlapLayer polygons={overlap.polygons} />}
+      <RankedPlaceMarkers places={places} selectedId={selectedId} onSelect={setSelectedId} />
+      <FocusOnPlace place={selected?.venue ?? null} />
+    </BaseMap></div>
+    <div className="absolute left-1/2 top-4 z-[480] -translate-x-1/2 rounded-xl border border-teal-300/20 bg-[#0e1c29]/95 p-3 text-center text-xs text-slate-200">
+      <p>{room.confirmedPlan ? 'Meeting selected by vote' : room.planningStarted ? '2 · Explore and vote' : '1 · Gather your group'}</p>
+      <button type="button" onClick={() => setFrameRequest(value => value + 1)} className="mt-2 text-teal-200 underline">Show everyone</button>
+      {result && <p className="mt-2">{overlap.failed ? 'Area could not be drawn' : overlap.polygons.length ? 'Filled area: reachable by everyone' : 'No shared reachable area'}</p>}
     </div>
-  );
+    <aside className="absolute bottom-4 left-4 top-4 z-[510] w-[340px] overflow-y-auto rounded-2xl border border-[#294456] bg-[#0e1c29]/95 p-5 text-slate-100 shadow-2xl backdrop-blur-xl">
+      <h1 className="mb-3 text-xl font-bold text-white">Plan a group meeting</h1><ShareLink code={room.code} />
+      <div className="mt-4"><MyStartingPoint me={me} notice={notice} busy={meeting.busy} sharingAllowed={sharingAllowed}
+        onSharingChange={value => {
+          sharingRef.current = value;
+          setSharingAllowed(value);
+          if (!value && me.at) void meeting.setMyPoint(null);
+        }} onSearchSelect={choose}
+        onClear={() => { setNotice(null); void meeting.setMyPoint(null); }} /></div>
+      <p className="mb-2 mt-5 text-xs font-bold uppercase tracking-wider text-slate-400">Members · {located}/{members.length} ready</p>
+      <ul className="space-y-2">{members.map(member => <li key={member.id} className="flex items-center justify-between gap-2 rounded-xl bg-[#192a38] p-3">
+        <div className="min-w-0"><p className="truncate text-sm font-semibold">{member.displayName}{member.isSelf ? ' (you)' : ''}</p><p className="mt-1 truncate text-[11px] text-slate-400">{member.at ? member.label ?? 'Selected map point' : 'Choose a starting point'}</p></div>
+        <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-bold ${member.planningStatus === 'Ready' ? 'bg-emerald-400/15 text-emerald-300' : 'bg-slate-500/15 text-slate-300'}`}>{member.planningStatus === 'Ready' ? '✓ Ready' : 'Not ready'}</span>
+      </li>)}</ul>
+      <p className="mt-3 text-[11px] leading-relaxed text-slate-400">Ready means the starting point is saved, not that the journey has been checked. Current location is captured once, not tracked.</p>
+      {room.isHost && <section className="mt-4 border-t border-[#294456] pt-4">
+        <fieldset disabled={meeting.busy || room.planningStarted} className="space-y-3">
+          <label className="block text-xs text-slate-300">Shared departure · MYT<input type="datetime-local" value={departureInput} onChange={event => setDepartureInput(event.target.value)} className="glass-input mt-1 w-full p-2 text-sm [color-scheme:dark]" /></label>
+          <label className="block text-xs text-slate-300">Meeting arrival target · MYT<input type="datetime-local" value={arrivalInput} onChange={event => setArrivalInput(event.target.value)} className="glass-input mt-1 w-full p-2 text-sm [color-scheme:dark]" /></label>
+          <div><p className="mb-2 text-xs text-slate-300">Travel time budget</p><TimeBudgetSelector value={room.timeBudget} onChange={budget => void meeting.changeBudget(budget)} /></div>
+        </fieldset>
+        {!room.planningStarted && <button type="button" onClick={() => void start()} disabled={!allReady || meeting.busy} className="btn-primary mt-4 w-full">Start group planning</button>}
+        {room.planningStarted && <button type="button" onClick={() => void run(meeting.reopenPlanning, 'Could not reopen the room. Try again.')} disabled={meeting.busy} className="btn-secondary mt-4 w-full">Reopen room and reset votes</button>}
+      </section>}
+      {!room.planningStarted && <p className="mt-3 text-xs text-slate-300">{allReady ? 'The creator can start when everyone has joined.' : 'Invite at least two members and save every starting point.'}</p>}
+      {room.departureTime && room.planningStarted && <p className="mt-3 text-xs text-slate-300">Departure: {formatTime(room.departureTime)} MYT · {room.timeBudget} min</p>}
+      {meeting.error && <p role="alert" className="mt-3 text-sm text-rose-300">{ROOM_ERROR_MESSAGES[meeting.error]}</p>}
+      <button type="button" onClick={() => void meeting.leave()} disabled={meeting.busy} className="btn-secondary mt-4 w-full">Leave room</button>
+    </aside>
+    <aside className="absolute bottom-4 right-4 top-4 z-[510] w-[370px] overflow-y-auto rounded-2xl border border-[#294456] bg-[#0e1c29]/95 p-5 text-slate-100 shadow-2xl backdrop-blur-xl">
+      {room.confirmedPlan && <section className="mb-4 rounded-xl border border-emerald-300/40 bg-emerald-400/10 p-4" role="status">
+        <p className="text-xs font-semibold text-emerald-300">✓ Selected by group vote · v{room.confirmedPlan.version}</p><h2 className="mt-2 text-lg font-bold text-white">{room.confirmedPlan.venue.name}</h2><p className="mt-1 text-sm">{formatTime(room.confirmedPlan.arrivalTime)} MYT</p>
+        <p className="mt-2 text-xs text-slate-300">Everyone voted. The unique most-voted venue won; this does not mean everyone chose it. No personal Pass checks are run here.</p>
+      </section>}
+      <h2 className="text-lg font-bold text-white">Common places & votes</h2><p className="mt-1 text-xs text-slate-400">Ranked by longest trip, then travel-time gap. Times are modelled estimates.</p>
+      <div className="mt-3 flex flex-wrap gap-2" aria-label="Venue types">{VENUE_TYPES.map(option => <button key={option.id} type="button" aria-pressed={venueTypes.has(option.id)} onClick={() => toggleType(option.id)} className={`rounded-lg border px-2 py-1.5 text-xs ${venueTypes.has(option.id) ? 'border-teal-300 text-teal-100' : 'border-[#315163] text-slate-300'}`}>{option.label}</button>)}</div>
+      {!room.planningStarted && <p className="mt-4 text-sm text-slate-300">Waiting for the creator to start this round.</p>}
+      {room.planningStarted && common.state.status === 'loading' && <p role="status" className="mt-4 text-sm">Calculating everyone’s reachable area…</p>}
+      {common.state.status === 'failed' && <div role="alert" className="mt-4 text-sm text-rose-300">Common-ground calculation is unavailable.<button type="button" onClick={common.retry} className="btn-secondary mt-2 flex items-center gap-2"><RefreshCw size={14} />Retry</button></div>}
+      {overlap.failed && <p role="alert" className="mt-4 text-sm text-rose-300">The shared boundary could not be calculated. Retry before voting.</p>}
+      {result?.status === 'no_common_ground' && <p className="mt-4 text-sm">No shared venue fits this budget. Reopen planning to adjust the time or budget.</p>}
+      {result?.status === 'waiting_for_origins' && <p role="status" className="mt-4 text-sm">Waiting for {result.missingStartingPoints} saved starting point(s). No partial group result is shown.</p>}
+      {result?.status === 'waiting_for_participants' && <p role="status" className="mt-4 text-sm">At least two participants are needed.</p>}
+      {result?.status === 'waiting_for_planning' && <p role="status" className="mt-4 text-sm">The round changed. Wait for the creator to restart planning.</p>}
+      {room.voteStatus === 'tie' && <p role="status" className="mt-4 rounded-xl bg-amber-400/10 p-3 text-sm text-amber-200">The vote is tied. Discuss and change a vote; no venue is confirmed.</p>}
+      {room.planningStarted && <p role="status" className="mt-3 text-xs text-teal-200">{votes.length}/{members.length} voted{room.votingArrivalTime ? ` · Arrival ${formatTime(room.votingArrivalTime)} MYT` : ''}</p>}
+      <div className="mt-4 space-y-3">{displayed.map(proposal => {
+        const voters = votes.filter(vote => vote.venue.id === proposal.venue.id && vote.venue.type === proposal.venue.type);
+        const proposers = selections.filter(selection => selection.venue.id === proposal.venue.id && selection.venue.type === proposal.venue.type);
+        return <section key={`${proposal.venue.type}:${proposal.venue.id}`} className={`rounded-xl border p-3 ${selectedId === proposal.venue.id ? 'border-teal-300 bg-[#213844]' : 'border-[#294456] bg-[#192a38]'}`}>
+          <button type="button" className="w-full text-left" onClick={() => setSelectedId(proposal.venue.id)} aria-pressed={selectedId === proposal.venue.id}>
+            <span className="flex items-center justify-between gap-2"><strong className="text-sm">{proposal.rank}. {proposal.venue.name}</strong><span className="rounded-full bg-teal-300/10 px-2 py-1 text-xs text-teal-200">{voters.length} {voters.length === 1 ? 'vote' : 'votes'}</span></span>
+            <span className="mt-1 block text-xs text-slate-400">{proposal.venue.kindLabel} · longest {proposal.longestMinutes} min · gap {proposal.gapMinutes} min</span><span className="mt-2 flex items-center gap-1 text-xs text-slate-400"><MapPin size={12} />{proposal.venue.hours ?? 'Hours unknown'}</span>
+          </button>
+          {proposers.length > 0 && <p className="mt-2 text-xs text-slate-300">Proposed by {proposers.map(person => person.displayName).join(', ')}</p>}
+          {voters.length > 0 && <p className="mt-1 text-xs text-teal-200">Voted: {voters.map(person => person.displayName).join(', ')}</p>}
+          {!room.confirmedPlan && <div className="mt-3 flex gap-2">
+            <button type="button" disabled={meeting.busy || overlap.failed} className="btn-secondary flex-1 text-xs" onClick={() => void run(() => meeting.proposeVenue(proposal.venue), 'The proposal was not shared. Reload and try again.')}>Propose</button>
+            <button type="button" disabled={meeting.busy || overlap.failed} aria-pressed={myVote?.venue.id === proposal.venue.id} className="btn-primary flex flex-1 items-center justify-center gap-1 text-xs" onClick={() => void run(() => meeting.vote(proposal.venue), 'Your vote was not saved. The round may have changed; reload and try again.')}><Vote size={14} />{myVote?.venue.id === proposal.venue.id ? '✓ Your vote' : myVote ? 'Change vote' : 'Vote'}</button>
+          </div>}
+        </section>;
+      })}</div>
+      {votes.length > 0 && <section className="mt-4 border-t border-[#294456] pt-3"><h3 className="text-xs font-bold text-white">All room votes</h3><ul className="mt-2 space-y-1">{votes.map(vote => <li key={vote.memberId} className="text-xs text-slate-300">{vote.displayName} → {vote.venue.name}</li>)}</ul></section>}
+      {actionError && <p role="alert" className="mt-3 text-sm text-rose-300">{actionError}</p>}
+      <p className="mt-4 text-[11px] leading-relaxed text-slate-400">Viewing a place is not a vote. Each member has one changeable vote. Everyone must vote and the highest count must be unique. Changes to members, origins or budget reset the round.</p>
+    </aside>
+  </div>;
 }

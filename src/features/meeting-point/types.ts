@@ -22,6 +22,21 @@ export interface MeetingRoom {
   confirmedPlan: ConfirmedMeetingPlan | null;
   /** A member's suggestion is visible, but never changes the agreement by itself. */
   proposedArrivalTime: string | null;
+  planningStarted?: boolean;
+  departureTime?: string | null;
+  votingArrivalTime?: string | null;
+  isHost?: boolean;
+  voteStatus?: 'waiting' | 'tie' | 'confirmed';
+}
+
+export interface MeetingSelection {
+  memberId: string;
+  displayName: string;
+  venue: MeetingVenue;
+}
+
+export interface MeetingVote extends MeetingSelection {
+  arrivalTime: string;
 }
 
 export interface MeetingVenue {
@@ -51,18 +66,23 @@ export interface MeetingInvitation {
 
 export type ArrivalStatus = 'Ready' | 'Check needed' | 'Not checked';
 
-/** The only per-person information shared with other room members. */
+/** Consent-gated room member projection, with no auth IDs or private journey details. */
 export interface SharedMemberStatus {
   /** Opaque participant row id, used only as a stable list key. */
   id: string;
   displayName: string;
   arrivalStatus: ArrivalStatus;
   isSelf: boolean;
+  /** Shared only with authenticated members, after the point owner explicitly saves it. */
+  at?: LatLng | null;
+  label?: string | null;
+  colourSlot?: number;
+  planningStatus?: 'Ready' | 'Not ready';
 }
 
 export interface Participant {
   id: string;
-  /** The anonymous sign-in that owns this row. This type is returned only for the caller. */
+  /** Own session identity, obtained locally rather than exposed by the shared RPC. */
   userId: string;
   nickname: string | null;
   /** Null until this participant has chosen a starting point. */
@@ -70,7 +90,7 @@ export interface Participant {
   /**
    * How the point was chosen. The private room-state RPC returns it only to its owner.
    */
-  source: Exclude<Origin['source'], 'device'> | null;
+  source: Origin['source'] | null;
   /** The station or place name, when the point came from search. */
   label: string | null;
   /** 0–5, held for as long as this participant stays; see participantColours.ts. */
@@ -96,11 +116,13 @@ export function joinNames(names: string[]): string {
   return names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
 
-export type RoomError = 'invalid_code' | 'not_found' | 'full' | 'unavailable';
+export type RoomError = 'invalid_code' | 'not_found' | 'full' | 'unavailable' | 'schema_required' | 'planning_started';
 
 export const ROOM_ERROR_MESSAGES: Record<RoomError, string> = {
   invalid_code: 'Room codes are 8 letters and numbers. Check the code and try again.',
   not_found: 'That room does not exist or is no longer available.',
   full: `That room is full. A room holds up to ${MAX_PARTICIPANTS} people.`,
   unavailable: 'Could not reach the room service. Try again.',
+  schema_required: 'This deployment needs the meeting-voting SQL migration before rooms can open.',
+  planning_started: 'This round has started. Ask the creator to reopen the room before joining.',
 };
