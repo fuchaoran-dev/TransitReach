@@ -1,5 +1,17 @@
 # MD8-6 acceptance record
 
+## 14 October 2026: mentor UI/timing feedback (local, not deployed)
+
+See [feedback revision](meeting-feedback.md) for the new preview→Share interaction,
+single member marker, meeting-time candidate validation and private route-only Pass.
+This change deliberately does not restore shared personal Check statuses or imply
+that route generation completes the earlier full Plan Check acceptance criteria.
+The release evidence below predates these changes.
+
+Current website: https://transitreach-kl-team8.netlify.app/.
+It was renamed after the release checks below without changing the deployment.
+See [domain-change notes](domain-change.md); historical evidence keeps its original URL.
+
 ## 14 October 2026: revised meeting workflow released
 
 This section supersedes the preparation/local-only status below. The earlier

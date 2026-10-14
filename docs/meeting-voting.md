@@ -1,5 +1,10 @@
 # Meeting room: shared starts and venue voting
 
+The newer local feedback revision is documented in [meeting-feedback.md](meeting-feedback.md):
+explicit Share after preview, no duplicated Start pin, meeting-time/individual
+departure semantics and a route-only Pass handoff. It has not been released.
+The workflow below records the earlier voting release, not these local changes.
+
 Updated 14 October 2026. This replaces the meeting page's personal-check/one-person
 confirmation workflow, not the separate offline Pass modules. Ready means an
 origin was explicitly shared and saved; it is not an arrival, weather or hours check.

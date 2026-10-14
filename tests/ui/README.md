@@ -1,5 +1,17 @@
 # Epic 7 UI checks
 
+## Meeting feedback desktop preview
+
+After starting local Vite/FastAPI with PostgreSQL configured, open
+`/tests/ui/meeting-feedback-preview.html`. The banner explicitly marks synthetic
+room/vote state; it writes no cloud rooms. Check the single labelled member marker,
+Stop sharing → Not ready, search → unshared preview → Share → Ready, meeting-time
+input and confirmed-card Generate my travel pass. Pass generation queries real
+OTP for public stations and saves only a synthetic-identity local record.
+See [meeting feedback](../../docs/meeting-feedback.md) for timing/coverage limits,
+route-only semantics and actual verification. Do not use this fixture to claim
+live two-member voting or real GPS consent was verified.
+
 ## Epic 8 group pass checks
 
 Open `/tests/ui/outing-preview.html` for explicitly labelled synthetic invitation,

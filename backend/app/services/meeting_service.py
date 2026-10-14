@@ -3,11 +3,12 @@ from __future__ import annotations
 import asyncio
 import os
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from math import ceil
 from struct import error as StructError
 from typing import Annotated, Literal
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import httpx
 from psycopg.types.json import Jsonb
@@ -25,6 +26,7 @@ from backend.app.services.travel_time_surface import (
 
 ROUTING_TIMEOUT_SECONDS = 25.0
 MAX_PROPOSALS = 20
+MAX_CANDIDATE_CHECKS = 30
 MAX_ROUTING_CONCURRENCY = 6
 ROUTING_MODES = "WALK,SUBWAY,TRAM,BUS"
 DEPARTURE_TIME = TypeAdapter(AwareDatetime)
@@ -81,6 +83,7 @@ class MeetingCalculation:
     room_revision: int
     planning_started: bool
     departure_time: datetime | None
+    arrival_time: datetime | None = None
 
 
 def _load_calculation(
@@ -93,7 +96,7 @@ def _load_calculation(
         room = database.execute(
             """
             select r.code, r.time_budget, r.planning_revision,
-                   r.planning_started, r.departure_time
+                   r.planning_started, r.departure_time, r.voting_arrival_time
             from public.meeting_rooms r
             join public.meeting_participants caller
               on caller.room_code = r.code and caller.user_id = %s
@@ -164,6 +167,7 @@ def _load_calculation(
         int(room["time_budget"]), len(participants), origins, venues,
         int(room["planning_revision"]),
         bool(room["planning_started"]), room["departure_time"],
+        room["voting_arrival_time"],
     )
 
 
@@ -261,6 +265,64 @@ async def _fetch_isochrone(
         raise RoutingUnavailableError from error
 
 
+class _RouteLeg(BaseModel):
+    startTime: int = Field(ge=0)
+    endTime: int = Field(ge=0)
+
+
+class _RouteItinerary(BaseModel):
+    startTime: int = Field(ge=0)
+    endTime: int = Field(ge=0)
+    legs: list[_RouteLeg] = Field(min_length=1)
+
+
+class _RoutePlan(BaseModel):
+    itineraries: list[_RouteItinerary]
+
+
+async def _fetch_arrive_by_minutes(
+    client: httpx.AsyncClient, origin: PrivateOrigin, venue: PublicVenue,
+    budget: int, arrival: datetime,
+) -> float | None:
+    """Validate each screened candidate toward the venue, never reverse toward the origin."""
+    if origin.latitude == venue.lat and origin.longitude == venue.lon:
+        return 0.0
+    wall_time = arrival.astimezone(ZoneInfo("Asia/Kuala_Lumpur"))
+    try:
+        response = await client.get(
+            f"{os.getenv('OTP_BASE_URL', 'http://localhost:8080').rstrip('/')}/otp/routers/default/plan",
+            params={
+                "fromPlace": f"{origin.latitude},{origin.longitude}",
+                "toPlace": f"{venue.lat},{venue.lon}", "mode": "TRANSIT,WALK",
+                "date": wall_time.strftime("%Y-%m-%d"), "time": wall_time.strftime("%H:%M:%S"),
+                "arriveBy": "true", "numItineraries": "6", "walkReluctance": "4", "locale": "en",
+            },
+        )
+        response.raise_for_status()
+        body = response.json()
+        if not isinstance(body, dict):
+            raise ValueError("Malformed plan")
+        if body.get("error"):
+            if isinstance(body["error"], dict) and body["error"].get("id") in (404, 409):
+                return None
+            raise ValueError("Routing error")
+        plan = _RoutePlan.model_validate(body.get("plan"))
+        deadline = arrival.timestamp() * 1000
+        eligible = [
+            trip for trip in plan.itineraries
+            if 0 <= trip.endTime - trip.startTime <= budget * 60_000
+            and trip.endTime <= deadline
+            and all(trip.startTime <= leg.startTime <= leg.endTime <= trip.endTime for leg in trip.legs)
+            and all(a.endTime <= b.startTime for a, b in zip(trip.legs, trip.legs[1:]))
+        ]
+        if not eligible:
+            return None
+        trip = min(eligible, key=lambda value: (-value.startTime, value.endTime - value.startTime))
+        return (trip.endTime - trip.startTime) / 60_000
+    except (httpx.HTTPError, ValueError) as error:
+        raise RoutingUnavailableError from error
+
+
 async def common_ground(
     code: str,
     caller_id: UUID,
@@ -274,7 +336,9 @@ async def common_ground(
         "missingStartingPoints": missing,
         "budgetMinutes": calculation.budget_minutes,
         "roomRevision": calculation.room_revision,
-        "departureTime": calculation.departure_time,
+        "departureTime": None,
+        "arrivalTime": calculation.arrival_time,
+        "areaMethod": "budget-window-preview",
     }
     if not calculation.planning_started:
         return CommonGroundResponse(status="waiting_for_planning", proposals=[], **base)
@@ -286,10 +350,14 @@ async def common_ground(
         return CommonGroundResponse(status="waiting_for_origins", proposals=[], **base)
 
     try:
-        departure_time = DEPARTURE_TIME.validate_python(calculation.departure_time)
+        arrival_time = DEPARTURE_TIME.validate_python(calculation.arrival_time)
     except ValidationError as error:
         raise RoutingUnavailableError from error
 
+    # A forward preview from the budget-window opening, not every possible departure.
+    # arriveBy=true at the participant would find origins reaching them, the wrong direction.
+    departure_time = arrival_time - timedelta(minutes=calculation.budget_minutes)
+    base["departureTime"] = departure_time
     # Limit both endpoint requests together; private geometry exists only in this request.
     semaphore = asyncio.Semaphore(MAX_ROUTING_CONCURRENCY)
 
@@ -328,6 +396,40 @@ async def common_ground(
         ranked.append((longest, longest - min(rounded), venue.name, venue))
 
     ranked.sort(key=lambda item: (item[0], item[1], item[2].casefold(), item[3].id))
+    # Bound OTP work. Ranking covers a screened shortlist, not all POIs globally.
+    async def verify_candidate(item: tuple[int, int, str, PublicVenue]) -> tuple[int, int, str, PublicVenue] | None:
+        venue = item[3]
+        async def verify_member(origin: PrivateOrigin) -> float | None:
+            async with semaphore:
+                return await _fetch_arrive_by_minutes(client, origin, venue, calculation.budget_minutes, arrival_time)
+        member_tasks = [asyncio.create_task(verify_member(origin)) for origin in calculation.origins]
+        try:
+            durations = await asyncio.gather(*member_tasks)
+        except BaseException:
+            for task in member_tasks:
+                task.cancel()
+            await asyncio.gather(*member_tasks, return_exceptions=True)
+            raise
+        if any(value is None for value in durations):
+            return None
+        rounded = [ceil(value) for value in durations if value is not None]
+        return max(rounded), max(rounded) - min(rounded), venue.name, venue
+
+    async with httpx.AsyncClient(timeout=timeout, limits=httpx.Limits(max_connections=MAX_ROUTING_CONCURRENCY)) as client:
+        tasks = [asyncio.create_task(verify_candidate(item)) for item in ranked[:MAX_CANDIDATE_CHECKS]]
+        try:
+            verified = await asyncio.wait_for(asyncio.gather(*tasks), timeout=ROUTING_TIMEOUT_SECONDS)
+        except TimeoutError as error:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            raise RoutingUnavailableError from error
+        except BaseException:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            raise
+    ranked = sorted((item for item in verified if item is not None), key=lambda item: (item[0], item[1], item[2].casefold(), item[3].id))
     proposals = [VenueProposal(
         rank=index,
         venue=venue,

@@ -91,5 +91,7 @@ class CommonGroundResponse(BaseModel):
     budget_minutes: int = Field(alias="budgetMinutes")
     room_revision: int = Field(alias="roomRevision", ge=0)
     departure_time: AwareDatetime | None = Field(alias="departureTime")
+    arrival_time: AwareDatetime | None = Field(default=None, alias="arrivalTime")
+    area_method: Literal["budget-window-preview"] = Field(default="budget-window-preview", alias="areaMethod")
     participant_areas: list[ParticipantArea] = Field(default_factory=list, alias="participantAreas", max_length=6)
     proposals: list[VenueProposal]

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from struct import pack
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -213,6 +213,7 @@ class MeetingRankingTests(unittest.IsolatedAsyncioTestCase):
             room_revision=4,
             planning_started=True,
             departure_time=DEPARTURE,
+            arrival_time=DEPARTURE + timedelta(minutes=30),
         )
         first = TravelTimeSurface(2, 1, 100, 4, 1, -1, (600, 900), -2147483648)
         second = TravelTimeSurface(2, 1, 100, 4, 1, -1, (1200, -2147483648), -2147483648)
@@ -220,6 +221,7 @@ class MeetingRankingTests(unittest.IsolatedAsyncioTestCase):
             patch("backend.app.services.meeting_service._load_calculation", return_value=calculation),
             patch("backend.app.services.meeting_service._fetch_surface", new=AsyncMock(side_effect=[first, second])),
             patch("backend.app.services.meeting_service._fetch_isochrone", new=AsyncMock(return_value=AREA)),
+            patch("backend.app.services.meeting_service._fetch_arrive_by_minutes", new=AsyncMock(side_effect=[10, 20])),
             patch("backend.app.services.meeting_service._store_proposals") as store,
         ):
             result = await common_ground("ABCDEFGH", CALLER_ID, ["station"], 30)

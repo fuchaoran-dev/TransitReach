@@ -1,5 +1,10 @@
 # Meeting voting deployment record
 
+Current public address (renamed after this release):
+https://transitreach-kl-team8.netlify.app/.
+See [domain change](domain-change.md). URLs in historical evidence below describe
+the address used during those checks, not the current entry point.
+
 ## 14 October 2026: production release
 
 The user subsequently authorized pushing, migrating and releasing the matched

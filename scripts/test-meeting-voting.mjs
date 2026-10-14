@@ -48,11 +48,10 @@ let geoCalls = 0;
 Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { geolocation: { getCurrentPosition(success) { geoCalls++; positionCallback = success; } } } });
 const saved = [];
 let widget;
-const props = { me: null, notice: null, sharingAllowed: false, onSharingChange() {}, onSearchSelect: point => saved.push(point), onClear() {} };
+const props = { me: null, draft: null, notice: null, onSelect: point => saved.push(point), onShare() {}, onCancel() {}, onWithdraw() {} };
 await act(async () => { widget = create(React.createElement(location.MyStartingPoint, props)); });
 assert.equal(geoCalls, 0); checks++;
-assert.equal(widget.root.findAllByType('button')[0].props.disabled, true); checks++;
-await act(async () => { widget.update(React.createElement(location.MyStartingPoint, { ...props, sharingAllowed: true })); });
+assert.equal(widget.root.findAllByType('button')[0].props.disabled, false); checks++;
 await act(async () => { widget.root.findAllByType('button')[0].props.onClick(); });
 assert.equal(geoCalls, 1); checks++;
 await act(async () => { positionCallback({ coords: { latitude: 3.1, longitude: 101.6 } }); });
@@ -68,15 +67,16 @@ globalThis.__meetingFixture = {
     votes: [], selections: [{ memberId: 'b', displayName: 'Jia Wei', venue }] },
   busy: false, error: null, setMyPoint: async () => {}, changeBudget: async () => {}, leave: async () => {}, startPlanning: async () => {}, reopenPlanning: async () => {}, proposeVenue: async () => {}, vote: async () => {},
 };
-globalThis.__meetingGround = { state: { status: 'ready', result: { roomRevision: 4, status: 'ready', participantAreas: [{ regions: [{ outer: ring, holes: [] }] }, { regions: [{ outer: ring, holes: [] }] }], proposals: [{ rank: 1, venue, longestMinutes: 20, gapMinutes: 5 }] } }, retry() {} };
+globalThis.__meetingGround = { state: { status: 'ready', result: { roomRevision: 4, status: 'ready', arrivalTime: '2026-10-20T09:00:00+08:00', areaMethod: 'budget-window-preview', participantAreas: [{ regions: [{ outer: ring, holes: [] }] }, { regions: [{ outer: ring, holes: [] }] }], proposals: [{ rank: 1, venue, longestMinutes: 20, gapMinutes: 5 }] } }, retry() {} };
 const page = await load('src/features/meeting-point/MeetingPointPage.tsx', {
   './hooks/useMeetingRoom': 'export const useMeetingRoom = () => globalThis.__meetingFixture;',
   './hooks/useServerCommonGround': 'export const useServerCommonGround = () => globalThis.__meetingGround;',
-  '@/features/reachability': 'import React from "react"; export const BaseMap = props => <div className="meeting-fixture-map">{props.children}</div>; export const TimeBudgetSelector = () => <div>15 · 30 · 45 · 60 min</div>; export const LocationSearch = () => <input aria-label="Search starting point" placeholder="Search station, stop or place"/>;',
+  '@/features/reachability': 'import React from "react"; export const BaseMap = props => <div className="meeting-fixture-map" data-origin-pin={String(props.showOriginPin)}>{props.children}</div>; export const TimeBudgetSelector = () => <div>15 · 30 · 45 · 60 min</div>; export const LocationSearch = () => <input aria-label="Search starting point" placeholder="Search station, stop or place"/>;',
   '@/features/reachability/reachabilityService': 'export const isInStudyArea = () => true; export const formatCoord = () => "Saved starting point"; export const hitName = () => ""; export const originFromHit = () => null;',
   './components/RankedPlaceMarkers': 'export const FocusOnPlace = () => null; export const RankedPlaceMarkers = () => null;',
   './components/SharedMeetingMap': 'export const SharedMeetingMap = () => null;',
   './components/OverlapLayer': 'export const OverlapLayer = () => null;',
+  '@/features/outing-pass/components/MeetingTravelPass': 'export const MeetingTravelPass = () => null;',
   './components/ShareLink': 'import React from "react"; export const ShareLink = () => <p>Room ABCDEFGH · Invite your group</p>;',
   '@/features/outing-pass/components/passPresentation': 'export const malaysiaInputTime = iso => new Date(Date.parse(iso) + 8 * 3600000).toISOString().slice(0,16);',
   './venueService': 'export const VENUE_TYPES = [{id:"station",label:"Stations"},{id:"cafe",label:"Cafés"},{id:"restaurant",label:"Restaurants"},{id:"mall",label:"Malls"}];',
@@ -87,6 +87,13 @@ assert.ok(markup().includes('Not ready')); checks++;
 assert.ok(markup().includes('Proposed by Jia Wei')); checks++;
 assert.equal(markup().includes('Confirm for everyone'), false); checks++;
 assert.equal(markup().includes('Check needed'), false); checks++;
+assert.ok(markup().includes('data-origin-pin="false"')); checks++;
+assert.equal(markup().includes('Shared departure'), false); checks++;
+assert.ok(markup().includes('Meeting time')); checks++;
+globalThis.__meetingFixture.view.room.confirmedPlan = { version: 1, venue, arrivalTime: '2026-10-20T09:00:00+08:00' };
+assert.ok(markup().includes('Generate my travel pass')); checks++;
+assert.equal(markup().includes('No personal Pass checks are run here'), false); checks++;
+globalThis.__meetingFixture.view.room.confirmedPlan = null;
 globalThis.__meetingFixture.view.room.voteStatus = 'tie';
 assert.ok(markup().includes('The vote is tied')); checks++;
 globalThis.__meetingFixture.view.votes = [{ memberId: 'b', displayName: 'Jia Wei', venue, arrivalTime: '2026-10-20T09:00:00+08:00' }];
@@ -95,6 +102,37 @@ assert.ok(markup().includes('Voted: Jia Wei')); checks++;
 globalThis.__meetingGround.state.result.roomRevision = 3;
 assert.equal(markup().includes('longest 20 min'), false); checks++;
 globalThis.__meetingGround.state.result.roomRevision = 4;
+// Failed persistence retains the local draft; successful persistence alone clears it.
+const originalView = globalThis.__meetingFixture.view;
+const originalSave = globalThis.__meetingFixture.setMyPoint;
+globalThis.__meetingFixture.view = { ...originalView, me: { ...originalView.me, at: null },
+  members: originalView.members.map(member => member.isSelf ? { ...member, at: null, planningStatus: 'Not ready' } : member) };
+let pointSaves = 0;
+globalThis.__meetingFixture.setMyPoint = async () => { pointSaves++; return false; };
+let planner;
+await act(async () => { planner = create(React.createElement(page.MeetingPointPage)); });
+const startingControl = () => planner.root.find(node => typeof node.props.onShare === 'function' && Object.hasOwn(node.props, 'draft'));
+await act(async () => { startingControl().props.onSelect({ at: { lat: 3.13, lon: 101.68 }, source: 'map', label: 'Selected station' }); });
+assert.equal(pointSaves, 0); checks++;
+assert.ok(startingControl().props.draft); checks++;
+await act(async () => { startingControl().props.onShare(); });
+assert.equal(pointSaves, 1); checks++;
+assert.ok(startingControl().props.draft); checks++;
+assert.equal(globalThis.__meetingFixture.view.members[0].planningStatus, 'Not ready'); checks++;
+globalThis.__meetingFixture.setMyPoint = async point => {
+  pointSaves++;
+  globalThis.__meetingFixture.view.me.at = point.at;
+  globalThis.__meetingFixture.view.members[0].at = point.at;
+  globalThis.__meetingFixture.view.members[0].planningStatus = 'Ready';
+  return true;
+};
+await act(async () => { startingControl().props.onShare(); });
+assert.equal(pointSaves, 2); checks++;
+assert.equal(startingControl().props.draft, null); checks++;
+assert.equal(globalThis.__meetingFixture.view.members[0].planningStatus, 'Ready'); checks++;
+await act(async () => { planner.unmount(); });
+globalThis.__meetingFixture.view = originalView;
+globalThis.__meetingFixture.setMyPoint = originalSave;
 if (process.argv.includes('--markup')) {
   // Layout QA uses an internally consistent tied round, not the defensive state assertions above.
   const secondVenue = { ...venue, id: 'cafe-2', type: 'cafe', name: 'Example café', kindLabel: 'Café' };

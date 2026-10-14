@@ -219,6 +219,7 @@ globalThis.__outingPassHook = {
   saves: 0,
 };
 const { usePersonalPass } = await load('src/features/outing-pass/hooks/usePersonalPass.ts', {
+  '../travelPassService': 'export const generateTravelPass = () => { throw new Error("Legacy tests must not invoke the route-only branch"); };',
   '../passCheckService': `export const checkPersonalPlan = (...args) => globalThis.__outingPassHook.check(...args);
     export const earlierRouteTarget = value => value;`,
   '../passStorage': `export const loadStoredPass = () => null;

@@ -19,6 +19,8 @@ export interface CommonGroundResult {
   budgetMinutes: number;
   roomRevision: number;
   departureTime: string | null;
+  arrivalTime: string | null;
+  areaMethod: 'budget-window-preview';
   participantAreas: { regions: IsochroneRegion[] }[];
   proposals: CommonGroundProposal[];
 }
@@ -49,5 +51,10 @@ export async function fetchCommonGround(
     signal,
   });
   if (!response.ok) throw new Error(`Common-ground request failed (${response.status}).`);
-  return response.json() as Promise<CommonGroundResult>;
+  const result = await response.json() as CommonGroundResult;
+  if (result.areaMethod !== 'budget-window-preview' ||
+    (result.status === 'ready' && (!result.arrivalTime || !Number.isFinite(Date.parse(result.arrivalTime))))) {
+    throw new Error('The backend requires the meeting-time update.');
+  }
+  return result;
 }

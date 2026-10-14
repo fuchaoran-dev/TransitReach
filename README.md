@@ -1,5 +1,9 @@
 TransitReach
 
+Production website: [transitreach-kl-team8.netlify.app](https://transitreach-kl-team8.netlify.app/).
+The Netlify project was renamed on 14 October 2026; see
+[domain-change notes](docs/domain-change.md) for invitation and anonymous-session impact.
+
 ## Group invitations and personal passes
 
 MD8-6 adds confirmed group meetings, private arrive-by passes, device storage,

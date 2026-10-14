@@ -91,6 +91,8 @@ function isClosingMargin(value: unknown): boolean {
 
 function isPass(value: unknown, memberId: string): value is PersonalPass {
   if (!isObject(value) || value.schemaVersion !== PASS_SCHEMA_VERSION || value.kind !== 'group-outing') return false;
+  if (value.evidenceMode !== undefined && value.evidenceMode !== 'route-only') return false;
+  if (value.zeroTravel !== undefined && typeof value.zeroTravel !== 'boolean') return false;
   if (
     typeof value.id !== 'string' ||
     typeof value.roomCode !== 'string' ||
@@ -177,6 +179,8 @@ export function listStoredPasses(
   return readEnvelope(memberId).passes
     .filter(pass => Date.parse(pass.meeting.arrivalTime) >= now)
     .map(pass => ({
+      evidenceMode: pass.evidenceMode,
+      zeroTravel: pass.zeroTravel,
       id: pass.id,
       roomCode: pass.roomCode,
       planVersion: pass.planVersion,

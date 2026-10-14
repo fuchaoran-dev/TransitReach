@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ConfirmedMeetingPlan, StartingPoint } from '@/features/meeting-point/types';
 import { checkPersonalPlan, earlierRouteTarget } from '../passCheckService';
+import { generateTravelPass } from '../travelPassService';
 import { loadStoredPass, savePersonalPass } from '../passStorage';
 import type { JourneyOptionSummary, PersonalPass, PersonalPassState } from '../types';
 
@@ -9,6 +10,8 @@ export interface UsePersonalPassInput {
   memberId: string;
   plan: ConfirmedMeetingPlan | null;
   origin: StartingPoint | null;
+  routeOnly?: boolean;
+  budgetMinutes?: number;
 }
 
 export interface PersonalPassController {
@@ -30,7 +33,7 @@ function messageFor(error: unknown): string {
 }
 
 export function usePersonalPass(input: UsePersonalPassInput): PersonalPassController {
-  const { roomCode, memberId, plan, origin } = input;
+  const { roomCode, memberId, plan, origin, routeOnly = false, budgetMinutes } = input;
   const planVersion = plan?.version;
   const arrivalTime = plan?.arrivalTime;
   const venueId = plan?.venue.id;
@@ -130,12 +133,14 @@ export function usePersonalPass(input: UsePersonalPassInput): PersonalPassContro
       return;
     }
     setState({ status: 'checking', previous: saved });
-    void checkPersonalPlan({
+    const calculate = routeOnly ? generateTravelPass : checkPersonalPlan;
+    void calculate({
       roomCode,
       memberId,
       plan: stablePlan,
       origin: stableOrigin,
       routeTargetTime: routeTargetTime ?? undefined,
+      budgetMinutes,
     }, controller.signal).then(result => {
       if (controller.signal.aborted || currentId !== requestId.current) return;
       const selected = result.passes[Math.min(preferredJourneyIndex, result.passes.length - 1)];
@@ -165,6 +170,8 @@ export function usePersonalPass(input: UsePersonalPassInput): PersonalPassContro
     routeTargetTime,
     preferredJourneyIndex,
     retry,
+    routeOnly,
+    budgetMinutes,
   ]);
 
   const selectJourney = useCallback((journeyId: string) => {

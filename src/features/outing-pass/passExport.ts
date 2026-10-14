@@ -77,7 +77,7 @@ export async function renderPassImage(pass: PersonalPass, baseUrl?: string): Pro
   measure.font = '30px Manrope, sans-serif';
 
   const rows = [
-    `Leave around ${formatTime(pass.leaveTime)}`,
+    pass.zeroTravel ? 'Your starting point matches the meeting point · No travel needed.' : `Leave around ${formatTime(pass.leaveTime)}`,
     `Meet at ${pass.meeting.venue.name} · ${formatTime(pass.meeting.arrivalTime)}`,
     ...pass.legs.map((leg, index) => `${index + 1}. ${legLabel(leg)}`),
     `Estimated arrival ${formatTime(pass.estimatedArrivalTime)} · ${marginLabel(pass.arrivalMarginSeconds)}`,
@@ -85,8 +85,8 @@ export async function renderPassImage(pass: PersonalPass, baseUrl?: string): Pro
     ...pass.walking.directions.map((step, index) =>
       `Walk ${index + 1}: ${step.relativeDirection.replace(/_/g, ' ').toLowerCase()}${step.streetName ? ` on ${step.streetName}` : ''} · ${Math.round(step.distanceMeters)} m`,
     ),
-    `Weak point: ${pass.weakPoint.label}`,
-    `Checked ${formatTime(pass.checkedAt)} · Times are estimates`,
+    ...(pass.evidenceMode === 'route-only' ? ['OSM/GTFS estimate · No delay, weather or hours checks.'] : [`Weak point: ${pass.weakPoint.label}`]),
+    `${pass.evidenceMode === 'route-only' ? 'Generated' : 'Checked'} ${formatTime(pass.checkedAt)} · Times are estimates`,
   ];
   const wrapped = rows.map(row => wrapText(measure, row, width - margin * 2));
   const contentHeight = wrapped.reduce((sum, lines) => sum + lines.length * 44 + 22, 0);
@@ -104,9 +104,9 @@ export async function renderPassImage(pass: PersonalPass, baseUrl?: string): Pro
   context.fillStyle = '#f8fafc';
   context.font = '800 58px "Plus Jakarta Sans", sans-serif';
   context.fillText(pass.meeting.venue.name, margin, 170, width - margin * 2);
-  context.fillStyle = pass.status === 'Ready' ? '#5eead4' : pass.status === 'Check needed' ? '#fda4af' : '#fcd34d';
+  context.fillStyle = pass.evidenceMode === 'route-only' || pass.status === 'Ready' ? '#5eead4' : pass.status === 'Check needed' ? '#fda4af' : '#fcd34d';
   context.font = '700 34px Manrope, sans-serif';
-  context.fillText(pass.status, margin, 228);
+  context.fillText(pass.evidenceMode === 'route-only' ? 'Personal travel pass · Estimated route' : pass.status, margin, 228);
 
   let y = 310;
   context.fillStyle = '#e2e8f0';

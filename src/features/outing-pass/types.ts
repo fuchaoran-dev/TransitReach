@@ -7,6 +7,7 @@ export type PersonalPassStatus = 'Ready' | 'Check needed' | 'Not checked';
 
 export type UnsupportedEvidenceReason =
   | 'not-applicable'
+  | 'not-requested'
   | 'missing-route-or-stop'
   | 'unknown-service'
   | 'model-not-available'
@@ -103,6 +104,9 @@ export interface PassWeakPoint {
 
 /** Canonical Epic 8 pass. MD8-2 can add another wrapper around the same structure later. */
 export interface PersonalPass {
+  /** Route-only passes never publish group check statuses or imply evidence was checked. */
+  evidenceMode?: 'route-only';
+  zeroTravel?: boolean;
   schemaVersion: typeof PASS_SCHEMA_VERSION;
   kind: 'group-outing';
   id: string;
@@ -138,6 +142,8 @@ export interface JourneyOptionSummary {
 }
 
 export interface StoredPassSummary {
+  evidenceMode?: 'route-only';
+  zeroTravel?: boolean;
   id: string;
   roomCode: string;
   planVersion: number;

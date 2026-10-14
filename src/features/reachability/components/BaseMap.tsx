@@ -64,6 +64,8 @@ interface BaseMapProps {
   highlightedLegId?: string | null;
   focusedStep?: WalkStep | null;
   origin: Origin | null;
+  /** Meeting rooms draw their own consent-gated member markers. */
+  showOriginPin?: boolean;
   /** Disjoint reachable regions, or null when there is nothing to draw. */
   regions: IsochroneRegion[] | null;
   coverage?: DepartureCoverage | null;
@@ -310,7 +312,7 @@ function ServicePins({ services, selectedServiceId, onServiceSelect }: Pick<Base
   </>;
 }
 
-export function BaseMap({ origin, regions, coverage, onMapClick, services, selectedServiceId, selectedService, onServiceSelect, children, journey, highlightedLegId, focusedStep, waypoints }: BaseMapProps) {
+export function BaseMap({ origin, showOriginPin = true, regions, coverage, onMapClick, services, selectedServiceId, selectedService, onServiceSelect, children, journey, highlightedLegId, focusedStep, waypoints }: BaseMapProps) {
   return (
     <div className="city-map-frame" style={{ width: '100%', height: '100%', position: 'relative' }}>
     <MapContainer
@@ -336,7 +338,7 @@ export function BaseMap({ origin, regions, coverage, onMapClick, services, selec
       {regions && <ReachabilityLayer regions={regions} />}
       <ServicePins services={services} selectedServiceId={selectedServiceId} onServiceSelect={onServiceSelect} />
       {children}
-      {origin && <OriginPin at={origin.at} onMove={onMapClick} />}
+      {origin && showOriginPin && <OriginPin at={origin.at} onMove={onMapClick} />}
     </MapContainer>
     <CityFocusView service={selectedService} origin={origin} regions={regions} coverage={coverage} journey={journey} highlightedLegId={highlightedLegId} focusedStep={focusedStep} waypoints={waypoints} />
     </div>

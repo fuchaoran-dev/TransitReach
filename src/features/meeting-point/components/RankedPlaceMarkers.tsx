@@ -13,7 +13,7 @@ const FOCUS_ZOOM = 15;
  * over the graphite shared area and over the street map; the selected place swaps to white on
  * graphite and grows, so it stands out from its neighbours by shape and contrast, not a new hue.
  */
-function rankIcon(rank: number, selected: boolean) {
+function rankIcon(rank: number, selected: boolean, besideStart: boolean) {
   const size = selected ? 30 : 24;
   const html =
     `<div style="width:${size}px;height:${size}px;border-radius:9999px;display:flex;align-items:center;` +
@@ -21,7 +21,9 @@ function rankIcon(rank: number, selected: boolean) {
     `background:${selected ? '#ffffff' : '#1e293b'};color:${selected ? '#1e293b' : '#ffffff'};` +
     `border:${selected ? 3 : 2}px solid ${selected ? '#1e293b' : '#ffffff'};` +
     `box-shadow:0 1px 4px rgba(15,23,42,.45)">${rank}</div>`;
-  return divIcon({ className: 'ranked-place-marker', html, iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
+  // Move only the badge's screen anchor when it shares a point with a member.
+  // The venue/member coordinates remain exact; the member's coloured circle stays visible.
+  return divIcon({ className: 'ranked-place-marker', html, iconSize: [size, size], iconAnchor: [besideStart ? -12 : size / 2, size / 2] });
 }
 
 interface RankedPlaceMarkersProps {
@@ -29,19 +31,21 @@ interface RankedPlaceMarkersProps {
   places: RankedPlace[];
   selectedId: string | null;
   onSelect: (venueId: string) => void;
+  memberPoints?: Array<{ lat: number; lon: number }>;
 }
 
 /** Numbers on the map for the places the list is showing, so the two can be read against each other. */
-export function RankedPlaceMarkers({ places, selectedId, onSelect }: RankedPlaceMarkersProps) {
+export function RankedPlaceMarkers({ places, selectedId, onSelect, memberPoints = [] }: RankedPlaceMarkersProps) {
   return (
     <>
       {places.map((place, index) => {
         const selected = place.venue.id === selectedId;
+        const besideStart = memberPoints.some(point => Math.abs(point.lat - place.venue.lat) < 0.00001 && Math.abs(point.lon - place.venue.lon) < 0.00001);
         return (
           <Marker
             key={place.venue.id}
             position={[place.venue.lat, place.venue.lon]}
-            icon={rankIcon(index + 1, selected)}
+            icon={rankIcon(index + 1, selected, besideStart)}
             // Above the place dots and other ranks. The selected place also rises above the viewer's
             // own pin (1000): a café inside the station someone starts from was otherwise hidden
             // under their pin at the moment they asked to see it.

@@ -206,15 +206,16 @@ export function useMeetingRoom() {
 
   /** Only a successfully persisted point can turn the shared Ready status green. */
   const setMyPoint = async (point: StartingPoint | null) => {
-    if (!supabase || view.status !== 'ready' || !myUserId || busy) return;
+    if (!supabase || view.status !== 'ready' || !myUserId || busy) return false;
     setError(null);
     setBusy(true);
     try {
       await saveMyPoint(supabase, view.room.code, myUserId, point);
-      await reloadRef.current?.();
+      return await reloadRef.current?.() ?? false;
     } catch (reason) {
       setError(toRoomError(reason));
       void reloadRef.current?.();
+      return false;
     } finally {
       setBusy(false);
     }

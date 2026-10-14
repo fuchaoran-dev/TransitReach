@@ -7,7 +7,7 @@ export type ServerCommonGroundState =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'ready'; result: CommonGroundResult }
-  | { status: 'failed' };
+  | { status: 'failed'; message?: string };
 
 export function useServerCommonGround(
   code: string | null,
@@ -44,7 +44,7 @@ export function useServerCommonGround(
       .catch(error => {
         if (!current || controller.signal.aborted) return;
         console.error('Could not calculate shared meeting places:', error);
-        setSettled({ key: requestKey, value: { status: 'failed' } });
+        setSettled({ key: requestKey, value: { status: 'failed', message: error instanceof Error ? error.message : 'Common-ground calculation is unavailable.' } });
       });
 
     return () => {

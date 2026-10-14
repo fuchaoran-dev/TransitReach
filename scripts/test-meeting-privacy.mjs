@@ -123,9 +123,9 @@ const { MyStartingPoint } = await load('src/features/meeting-point/components/My
   '@/features/reachability/reachabilityService': 'export const formatCoord = () => ""; export const hitName = () => ""; export const originFromHit = () => null;',
 });
 const startingMarkup = renderToStaticMarkup(React.createElement(MyStartingPoint, {
-  me: null, notice: null, sharingAllowed: false, onSharingChange() {}, onSearchSelect() {}, onClear() {},
+  me: null, draft: null, notice: null, onSelect() {}, onShare() {}, onCancel() {}, onWithdraw() {},
 }));
-assert.ok(startingMarkup.includes('Share my selected starting point')); checks++;
+assert.ok(startingMarkup.includes('then share to become Ready')); checks++;
 assert.ok(startingMarkup.includes('Use my current location')); checks++;
 assert.equal(startingMarkup.includes('Everyone in the room sees'), false); checks++;
 
@@ -155,7 +155,7 @@ const savedFetch = globalThis.fetch;
 let request;
 globalThis.fetch = async (url, options) => {
   request = { url, options };
-  return { ok: true, json: async () => ({ status: 'ready', participantCount: 2, missingStartingPoints: 0, budgetMinutes: 30, proposals: [] }) };
+  return { ok: true, json: async () => ({ status: 'ready', areaMethod: 'budget-window-preview', arrivalTime: '2026-10-20T09:00:00+08:00', participantCount: 2, missingStartingPoints: 0, budgetMinutes: 30, proposals: [] }) };
 };
 try {
   await commonGround.fetchCommonGround(

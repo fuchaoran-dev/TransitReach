@@ -4,7 +4,7 @@ import asyncio
 import unittest
 from copy import deepcopy
 from dataclasses import replace
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
 
@@ -20,12 +20,14 @@ from backend.app.services.meeting_service import (
     BudgetChangedError, MeetingCalculation, PrivateOrigin,
     RoomUnavailableError, RoutingUnavailableError, _fetch_isochrone, _fetch_surface,
     _load_calculation, _store_proposals, common_ground,
+    _fetch_arrive_by_minutes,
 )
 from backend.app.services.travel_time_surface import TravelTimeSurface
 
 
 CALLER = UUID("33ddefe5-e814-4420-9fd0-42bf9a522d39")
 DEPARTURE = datetime.fromisoformat("2026-10-14T08:12:34+08:00")
+ARRIVAL = DEPARTURE + timedelta(minutes=30)
 OUTER = [[101.0, 3.0], [101.5, 3.0], [101.5, 3.5], [101.0, 3.5], [101.0, 3.0]]
 HOLE = [[101.1, 3.1], [101.2, 3.1], [101.2, 3.2], [101.1, 3.1]]
 AREA = ParticipantArea(regions=[{"outer": OUTER, "holes": [HOLE]}])
@@ -37,6 +39,7 @@ CALCULATION = MeetingCalculation(
     budget_minutes=30, participant_count=2,
     origins=(PrivateOrigin(3.1, 101.1), PrivateOrigin(3.2, 101.2)), venues=(VENUE,),
     room_revision=7, planning_started=True, departure_time=DEPARTURE,
+    arrival_time=ARRIVAL,
 )
 
 
@@ -53,7 +56,7 @@ class MeetingCalculationLoadingTests(unittest.TestCase):
             with self.subTest(started=started):
                 database.execute.return_value.fetchone.return_value = {
                     "code": "ABCDEFGH", "time_budget": 30, "planning_revision": 7,
-                    "planning_started": started, "departure_time": departure,
+                    "planning_started": started, "departure_time": departure, "voting_arrival_time": ARRIVAL if started else None,
                 }
                 database.execute.return_value.fetchall.side_effect = [
                     [{"latitude": 3.1, "longitude": 101.1}, {"latitude": None, "longitude": None}],
@@ -173,6 +176,49 @@ class MeetingOtpGeometryTests(unittest.IsolatedAsyncioTestCase):
 
 
 class MeetingCommonGroundTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self) -> None:
+        self.arrive_by_patch = patch("backend.app.services.meeting_service._fetch_arrive_by_minutes", new=AsyncMock(return_value=10))
+        self.arrive_by = self.arrive_by_patch.start()
+        self.addCleanup(self.arrive_by_patch.stop)
+
+    async def test_preview_uses_meeting_minus_budget_not_legacy_shared_departure(self) -> None:
+        with (
+            patch("backend.app.services.meeting_service._load_calculation", return_value=replace(CALCULATION, departure_time=DEPARTURE - timedelta(hours=2))),
+            patch("backend.app.services.meeting_service._fetch_surface", new=AsyncMock(return_value=SURFACE)) as surface,
+            patch("backend.app.services.meeting_service._fetch_isochrone", new=AsyncMock(return_value=AREA)),
+            patch("backend.app.services.meeting_service._store_proposals"),
+        ):
+            result = await common_ground("ABCDEFGH", CALLER, ["station"], 30)
+        self.assertEqual(result.arrival_time, ARRIVAL)
+        self.assertEqual(result.departure_time, DEPARTURE)
+        self.assertEqual(result.area_method, "budget-window-preview")
+        self.assertTrue(all(call.args[3] == DEPARTURE for call in surface.await_args_list))
+        self.assertTrue(all(call.args[-1] == ARRIVAL for call in self.arrive_by.await_args_list))
+
+    async def test_candidate_fails_if_one_member_has_no_arrive_by_route(self) -> None:
+        self.arrive_by.side_effect = [10, None]
+        with (
+            patch("backend.app.services.meeting_service._load_calculation", return_value=CALCULATION),
+            patch("backend.app.services.meeting_service._fetch_surface", new=AsyncMock(return_value=SURFACE)),
+            patch("backend.app.services.meeting_service._fetch_isochrone", new=AsyncMock(return_value=AREA)),
+            patch("backend.app.services.meeting_service._store_proposals"),
+        ):
+            result = await common_ground("ABCDEFGH", CALLER, ["station"], 30)
+        self.assertEqual(result.proposals, [])
+        self.assertEqual(result.status, "no_common_ground")
+
+    async def test_arrive_by_outage_does_not_store_partially_checked_candidates(self) -> None:
+        self.arrive_by.side_effect = RoutingUnavailableError
+        with (
+            patch("backend.app.services.meeting_service._load_calculation", return_value=CALCULATION),
+            patch("backend.app.services.meeting_service._fetch_surface", new=AsyncMock(return_value=SURFACE)),
+            patch("backend.app.services.meeting_service._fetch_isochrone", new=AsyncMock(return_value=AREA)),
+            patch("backend.app.services.meeting_service._store_proposals") as store,
+        ):
+            with self.assertRaises(RoutingUnavailableError):
+                await common_ground("ABCDEFGH", CALLER, ["station"], 30)
+        store.assert_not_called()
+
     async def test_all_waiting_states_stop_both_otp_requests(self) -> None:
         cases = [
             (replace(CALCULATION, planning_started=False, departure_time=None), "waiting_for_planning"),
@@ -207,12 +253,12 @@ class MeetingCommonGroundTests(unittest.IsolatedAsyncioTestCase):
             surface.assert_not_awaited()
             area.assert_not_awaited()
 
-    async def test_missing_or_naive_departure_cannot_use_a_default(self) -> None:
+    async def test_missing_or_naive_meeting_time_cannot_use_a_default(self) -> None:
         for departure in (None, DEPARTURE.replace(tzinfo=None)):
             with (
                 self.subTest(departure=departure),
                 patch("backend.app.services.meeting_service._load_calculation", return_value=replace(
-                    CALCULATION, departure_time=departure,
+                    CALCULATION, arrival_time=departure,
                 )),
                 patch("backend.app.services.meeting_service._fetch_surface", new=AsyncMock()) as surface,
             ):
@@ -297,10 +343,73 @@ class MeetingCommonGroundTests(unittest.IsolatedAsyncioTestCase):
         store.assert_not_called()
 
 
+class MeetingArriveByTests(unittest.IsolatedAsyncioTestCase):
+    async def test_identical_origin_venue_is_zero_not_an_otp_outage(self):
+        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda _request: self.fail("No routing needed for identical coordinates"))) as client:
+            value = await _fetch_arrive_by_minutes(client, PrivateOrigin(VENUE.lat, VENUE.lon), VENUE, 30, ARRIVAL)
+        self.assertEqual(value, 0)
+
+    async def request(self, body, status=200):
+        requests = []
+        def handler(request):
+            requests.append(request)
+            return httpx.Response(status, json=body)
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            value = await _fetch_arrive_by_minutes(client, CALCULATION.origins[0], VENUE, 30, ARRIVAL)
+        return value, requests[0]
+
+    def plan(self, minutes=20, late_seconds=0):
+        end = int(ARRIVAL.timestamp() * 1000) + late_seconds * 1000
+        start = end - minutes * 60_000
+        return {"plan": {"itineraries": [{"startTime": start, "endTime": end, "legs": [{"startTime": start, "endTime": end}]}]}}
+
+    async def test_arrive_by_targets_venue_in_malaysia_time(self):
+        value, request = await self.request(self.plan())
+        self.assertEqual(value, 20)
+        self.assertEqual(request.url.params["arriveBy"], "true")
+        self.assertEqual(request.url.params["fromPlace"], "3.1,101.1")
+        self.assertEqual(request.url.params["toPlace"], "3.8,101.2")
+        self.assertEqual(request.url.params["date"], "2026-10-14")
+        self.assertEqual(request.url.params["time"], "08:42:34")
+
+    async def test_late_or_over_budget_routes_are_not_eligible(self):
+        for body in (self.plan(late_seconds=1), self.plan(minutes=31), {"plan": {"itineraries": []}}):
+            with self.subTest(body=body):
+                value, _request = await self.request(body)
+                self.assertIsNone(value)
+
+    async def test_ranking_uses_the_same_latest_departure_preference_as_the_pass(self):
+        earlier = self.plan(minutes=10, late_seconds=-1200)["plan"]["itineraries"][0]
+        later = self.plan(minutes=20)["plan"]["itineraries"][0]
+        value, _request = await self.request({"plan": {"itineraries": [earlier, later]}})
+        self.assertEqual(value, 20)
+
+    async def test_no_path_and_outage_are_distinct(self):
+        value, _request = await self.request({"error": {"id": 404, "message": "Path not found"}})
+        self.assertIsNone(value)
+        value, _request = await self.request({"error": {"id": 409, "message": "Trivial distance"}})
+        self.assertIsNone(value)
+        for body, status in (({}, 200), ({"error": {"id": 500}}, 200), ({}, 503)):
+            with self.subTest(status=status, body=body):
+                with self.assertRaises(RoutingUnavailableError):
+                    await self.request(body, status)
+
+    async def test_malformed_or_reversed_legs_are_not_success(self):
+        body = self.plan()
+        body["plan"]["itineraries"][0]["legs"][0]["endTime"] += 1
+        value, _request = await self.request(body)
+        self.assertIsNone(value)
+        with self.assertRaises(RoutingUnavailableError):
+            await self.request({"plan": {"itineraries": [{"startTime": "bad"}]}})
+
+
 class MeetingCommonGroundApiFailureTests(unittest.TestCase):
     def setUp(self) -> None:
         self.client = TestClient(app)
         app.dependency_overrides[authenticated_user] = lambda: CALLER
+        self.arrive_by_patch = patch("backend.app.services.meeting_service._fetch_arrive_by_minutes", new=AsyncMock(return_value=10))
+        self.arrive_by_patch.start()
+        self.addCleanup(self.arrive_by_patch.stop)
 
     def tearDown(self) -> None:
         app.dependency_overrides.clear()
