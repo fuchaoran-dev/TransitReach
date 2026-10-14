@@ -62,7 +62,7 @@ export function ServiceList({ services, hoveredService, selectedService, onHover
                   tabIndex={0}
                   aria-label={`View ${service.name}`}
                   aria-pressed={isSelected}
-                  className={`card p-3.5 cursor-pointer transition-all duration-200 ${isSelected ? 'ring-2 ring-teal-400' : isHovered ? 'shadow-md' : ''}`}
+                  className={`card service-result p-3.5 cursor-pointer transition-all duration-200 ${isSelected ? 'ring-2 ring-teal-400' : isHovered ? 'service-result-hovered shadow-md' : ''}`}
                   style={{ animationDelay: `${index * 30}ms` }}
                   onMouseEnter={() => onHover(service)}
                   onMouseLeave={() => onHover(null)}
@@ -70,8 +70,8 @@ export function ServiceList({ services, hoveredService, selectedService, onHover
                   onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(service); } }}
                 >
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: meta.colorLight }}>
-                      <Icon size={18} style={{ color: meta.color }} />
+                    <div className="service-category-icon w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: meta.colorLight, borderColor: meta.color }}>
+                      <Icon size={22} color="#102a43" strokeWidth={2.5} aria-hidden="true" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-bold text-slate-900 truncate">{service.name}</div>

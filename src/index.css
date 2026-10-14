@@ -815,12 +815,44 @@
 }
 .epic7-map .city-focus-toolbar .city-focus-close, .city-focus-toolbar .city-origin-return { position: static; transform: none; white-space: nowrap; font-size: 11px; padding: 8px 10px; }
 .transit-shell .bg-teal-50, .transit-shell .bg-teal-100 { background-color: #153c3b; }
+/* Pair legacy light interaction surfaces with the city palette. Opacity variants
+   and hover utilities otherwise keep their light backgrounds beneath pale text. */
+.transit-shell [class~="bg-teal-50/40"],
+.transit-shell [class~="bg-teal-50/70"],
+.transit-shell [class~="bg-teal-50/80"] { background-color: #153c3b; }
+.transit-shell [class~="hover:bg-white"]:hover,
+.transit-shell [class~="hover:bg-white/60"]:hover,
+.transit-shell [class~="hover:bg-slate-50"]:hover,
+.transit-shell [class~="hover:bg-teal-50"]:hover { background-color: #214154; }
+.transit-shell [class~="hover:text-slate-800"]:hover { color: #f0f7fc; }
+.transit-shell ::selection { background: #7af4dd; color: #062c2b; }
+.service-category-icon { border: 2px solid; }
+.service-category-label { color: #0f766e; }
+.transit-shell .service-category-label { color: #7af4dd; }
+.transit-shell .service-result:hover,
+.transit-shell .service-result:focus-visible,
+.transit-shell .service-result-hovered { background: #214154; border-color: #6be8d4; }
+.transit-shell .service-result[aria-pressed="true"] { background: #153c3b; border-color: #6be8d4; }
+.transit-shell .service-detail-panel { border-color: #6be8d4; box-shadow: 0 12px 32px #0005, inset 0 3px #6be8d4; }
+.service-pin-disc { box-shadow: 0 0 0 2px #ffffff, 0 2px 7px #102a4380; }
+.service-pin:hover .service-pin-disc,
+.service-pin:focus-visible .service-pin-disc { box-shadow: 0 0 0 3px #ffffff, 0 0 0 5px #0f766e, 0 3px 10px #102a4380; }
+.service-pin-selected .service-pin-disc { box-shadow: 0 0 0 3px #ffffff, 0 0 0 6px #0f766e, 0 3px 12px #102a4380; }
+.service-pin-tooltip { max-width: 240px; white-space: normal; }
 .transit-shell .border-slate-100, .transit-shell .border-slate-200 { border-color: #2a4254; }
 .transit-shell .bg-slate-200 { background-color: #2a4254; }
 .transit-shell :focus-visible { outline: 2px solid #6be8d4; outline-offset: 3px; }
 .transit-shell .leaflet-container { background: #0b1521; }
 .transit-shell .leaflet-tooltip, .transit-shell .leaflet-popup-content-wrapper,
-.transit-shell .leaflet-popup-tip { background: #142b3e; color: #edf8ff; border-color: #42677a; }
+.transit-shell .leaflet-popup-tip { background: #142b3e; color: #edf8ff; border-color: #6be8d4; }
+.transit-shell .leaflet-tooltip { opacity: 1 !important; padding: 9px 12px; box-shadow: 0 4px 18px #0006; }
+.transit-shell .leaflet-popup-content-wrapper { border: 1px solid #6be8d4; box-shadow: 0 8px 28px #0008; }
+.transit-shell .leaflet-popup-close-button { color: #c9e1ed; }
+.transit-shell .leaflet-popup-close-button:hover { color: #7af4dd; }
+.transit-shell .leaflet-tooltip-top::before { border-top-color: #6be8d4; }
+.transit-shell .leaflet-tooltip-bottom::before { border-bottom-color: #6be8d4; }
+.transit-shell .leaflet-tooltip-left::before { border-left-color: #6be8d4; }
+.transit-shell .leaflet-tooltip-right::before { border-right-color: #6be8d4; }
 .transit-shell .leaflet-control-attribution { background: #0b1724dc; color: #aec7d9; }
 .transit-shell .leaflet-control-attribution a { color: #78dfd5; }
 .transit-shell .leaflet-interactive.reach-area { filter: drop-shadow(0 0 3px #43d6c766); }

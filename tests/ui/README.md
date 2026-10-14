@@ -1,5 +1,20 @@
 # Epic 7 UI checks
 
+## Service contrast checks
+
+Open `/tests/ui/contrast-preview.html` with Vite. This labelled synthetic fixture
+uses the production service pins, list and detail panel without database setup.
+Toggle day/night maps, hover the journey button, select each marker and use Tab
+to check focus visibility. Check that selected cards remain dark with readable
+text, all category glyphs remain legible, and marker tooltips identify the place.
+The fixture does not request journeys or modify room data.
+
+Checked in desktop Chrome on 14 October 2026: day and night vector maps,
+selected service/list/detail, marker tooltip and journey hover. The hovered
+journey computed colours were `#214154` background and `#e5eff7` text.
+Typecheck, production build, 29 map UI checks and 44 lifecycle checks passed;
+lint completed with zero errors and 18 existing warnings.
+
 ## Epic 8 group pass checks
 
 Open `/tests/ui/outing-preview.html` for explicitly labelled synthetic invitation,
