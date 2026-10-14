@@ -1,15 +1,20 @@
 # MD8-6 acceptance record
 
-## 14 October 2026: mentor UI/timing feedback (local, not deployed)
+## 14 October 2026: mentor UI/timing feedback released
 
 See [feedback revision](meeting-feedback.md) for the new preview→Share interaction,
 single member marker, meeting-time candidate validation and private route-only Pass.
 This change deliberately does not restore shared personal Check statuses or imply
 that route generation completes the earlier full Plan Check acceptance criteria.
-The release evidence below predates these changes.
+Runtime `2fb2059` is now on upstream/main and live on Render/Netlify.
+Final production acceptance passed **45/45**, including real arrive-by candidates,
+group voting, realtime peer refetch and frontend route-only Pass generation via
+the production proxy. See [current release evidence](meeting-feedback.md#production-release-verification).
+The historical release evidence below predates these changes.
 
 Current website: https://transitreach-kl-team8.netlify.app/.
-It was renamed after the release checks below without changing the deployment.
+It was renamed after the historical release checks below; the current matched
+deployment is recorded above.
 See [domain-change notes](domain-change.md); historical evidence keeps its original URL.
 
 ## 14 October 2026: revised meeting workflow released

@@ -1,8 +1,10 @@
-# Meeting feedback revision — 14 October 2026 (local implementation)
+# Meeting feedback revision — 14 October 2026 (released)
 
-No push, cloud SQL application or deployment was performed in this revision.
-Production remains the previously released voting workflow at
-https://transitreach-kl-team8.netlify.app/ until matching frontend/backend release.
+Runtime `2fb2059` merges upstream's `477c8c3` contrast/service-marker fixes with
+the meeting feedback implementation. It was pushed to upstream/main and to the
+fork's existing Render deployment branch. The matched frontend/backend are live
+at https://transitreach-kl-team8.netlify.app/.
+See [release evidence](meeting-voting-deployment.md#14-october-2026-mentor-feedback-and-upstream-merge).
 
 ## Behaviour
 
@@ -104,6 +106,42 @@ GPS permission or cloud release acceptance.
 - The first isolated calculation failed on OTP's 409 trivial-distance response;
   an exact-zero-travel rule fixed it, with regression coverage. No nearby-distance
   shortcut or unavailable-data success fallback was added.
-- No cloud migration, account/room creation, deployment or Git push occurred.
+- The local implementation checks above performed no cloud migration, account/room
+  creation, deployment or Git push. The separately authorized release below did.
   A local fixture pass/image remains under a synthetic browser identity, distinct
   from the real member's My Passes. Private user coordinates were not used for QA.
+
+### Production release verification
+
+- Supabase rollback preflight confirmed this project's voting migration is already
+  applied. RLS/grants/idempotency passed; the baseline was unchanged after rollback.
+  No new SQL or configuration was needed and no existing round was cancelled.
+- Render `dep-db7p722d0e5s73elvfv0` reports Live at runtime `2fb2059`.
+  Netlify production `6acf93fd6d3655f4c5499335` serves `index-Cd1Vjq3Z.js`.
+- Final real-stack acceptance: **45/45 passed**. Separate disposable Auth sessions
+  exercised sharing/Ready, safe peer projection, real OTP preview and arrive-by
+  candidate verification, proposals, ties, final voting, invalidation and host transfer.
+  The actual frontend Travel Pass service generated a route-only pass to the voted
+  public venue through the production OTP proxy. This Node integration check is not
+  a native browser Pass-modal/PNG acceptance claim.
+- First realtime check timed out; a fresh run and the final extended run received
+  SDK room updates and refetched peer state successfully. Streaming replication was
+  observed. No cause for the initial transient timeout was established or hidden.
+  Two intermediate extra Pass checks failed because the standalone QA bundler lacked
+  Vite's `@` alias; fixing the test setup, not application code, resolved them.
+- All disposable QA rooms and anonymous identities were removed after each run,
+  guarded by creation time, unique metadata and fixture ownership. Real rooms were
+  not deleted. Test-record cleanup is not recoverable through the app.
+- Native desktop Chrome loaded the production map/weather bar, searched the actual
+  KL Sentral dataset, displayed 24.4 km² for the selected 30-minute scheduled window,
+  listed service categories/30 pharmacies, and opened the meeting lobby. Native
+  two-browser voting, GPS permission and production PNG scanning were not retested.
+- Post-merge typecheck/build passed; lint has zero errors and 18 existing warnings.
+  All 76 backend tests and the listed frontend regression suites passed. Existing
+  large-chunk/Browserslist warnings remain. Build output was checked for absence of
+  database/service-role configuration. The protected preview URL returned 401;
+  access protection was left unchanged and production HTTP/contract checks passed.
+
+Before continuing an older active round, the creator should reopen it and recalculate
+under the new meeting-time semantics. Deployment intentionally did not silently
+reset existing groups or claim old cached proposals had been revalidated.

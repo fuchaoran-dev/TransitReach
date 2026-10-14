@@ -5,7 +5,33 @@ https://transitreach-kl-team8.netlify.app/.
 See [domain change](domain-change.md). URLs in historical evidence below describe
 the address used during those checks, not the current entry point.
 
-## 14 October 2026: production release
+## 14 October 2026: mentor feedback and upstream merge
+
+- Merged upstream/main `477c8c3` with local meeting feedback, resolving BaseMap and
+  UI README conflicts by retaining both upstream service pins/contrast fixes and
+  the consent-gated single-member-marker behaviour. Runtime merge: `2fb2059`.
+- Successfully pushed to `jxia0077-boop/TransitReach` main and mirrored the same
+  commit to `fuchaoran-dev/TransitReach` deploy/md8-6-20261008, which Render still
+  reads. The fork's main was not changed. Report JSON, Word and artifacts excluded.
+- Render `dep-db7p722d0e5s73elvfv0`: Deploy succeeded / Live at `2fb2059`.
+  Netlify production `6acf93fd6d3655f4c5499335`: current published deploy;
+  entry `index-Cd1Vjq3Z.js`, https://transitreach-kl-team8.netlify.app/.
+- Supabase preflight: migration already applied, same SHA-256 as the earlier release;
+  RLS/grants/rerun passed with full rollback and unchanged baseline. No schema write,
+  existing-room reset, environment/secret change or OTP upgrade was necessary.
+- Final live acceptance **45/45 passed**; backend health, compressed PostgreSQL
+  bootstrap and new arrivalTime/areaMethod contracts also passed. See
+  [detailed evidence and limits](meeting-feedback.md#production-release-verification).
+- First realtime attempt timed out; subsequent fresh checks passed. Standalone
+  Pass test setup required the Vite alias before it passed. These failures were
+  recorded, not reported as application successes. Disposable test data was scoped
+  and removed; real rooms were retained. Native main-map/service/lobby checks passed.
+- Post-merge: typecheck/build and 76 backend tests passed; frontend regressions
+  passed, lint has 0 errors/18 existing warnings. Large-chunk warnings remain.
+- Existing active rounds should be reopened/recomputed by their creators before
+  new votes. They were not automatically invalidated during deployment.
+
+## 14 October 2026: earlier production release
 
 The user subsequently authorized pushing, migrating and releasing the matched
 workflow. The preparation notes below are historical, not the current status.
