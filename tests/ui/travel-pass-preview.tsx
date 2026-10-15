@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client';
 import { ArrowLeft } from 'lucide-react';
 import '@/index.css';
 import { TravelPassContent } from '@/features/outing-pass/components/TravelPassContent';
+import { SavedTravelPass } from '@/features/outing-pass/components/SavedTravelPass';
 import { renderPassImage } from '@/features/outing-pass/passExport';
 import type { CheckedPassLeg, PersonalPass } from '@/features/outing-pass/types';
 
@@ -39,11 +40,23 @@ function Preview() {
   const [selected, setSelected] = useState('bus');
   const [notice, setNotice] = useState('');
   const [image, setImage] = useState('');
+  const [savedPass, setSavedPass] = useState<PersonalPass | null>(null);
   return <div className="transit-shell travel-pass-modal fixed inset-0 bg-[#080f18] p-3 md:p-6">
     <div className="travel-pass-scroll mx-auto h-full max-w-7xl overflow-y-auto rounded-2xl border border-[#294456] bg-[#0e1c29]">
-      <header className="travel-pass-header sticky top-0 z-10 flex items-center gap-3 border-b border-[#294456] bg-[#0e1c29] px-5 py-4">
+      <header className="travel-pass-header sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-[#294456] bg-[#0e1c29] px-5 py-4">
         <ArrowLeft size={18} aria-hidden="true" /><div><h1 className="font-bold">Your travel pass</h1><p className="text-xs text-amber-200">Synthetic UI fixture · No live room or journey</p></div>
         <button className="btn-secondary ml-auto text-xs" onClick={() => void renderPassImage(pass).then(blob => setImage(URL.createObjectURL(blob)))}>Preview PNG</button>
+        <button className="btn-secondary text-xs" onClick={() => setSavedPass(pass)}>View historical pass</button>
+        <button className="btn-secondary text-xs" onClick={() => {
+          const offset = Date.now() + 86_400_000 - Date.parse(pass.meeting.arrivalTime);
+          const shift = (value: string) => new Date(Date.parse(value) + offset).toISOString();
+          setSavedPass({ ...pass, meeting: { ...pass.meeting, arrivalTime: shift(pass.meeting.arrivalTime) },
+            leaveTime: shift(pass.leaveTime), estimatedArrivalTime: shift(pass.estimatedArrivalTime), routeTargetTime: shift(pass.routeTargetTime),
+            legs: pass.legs.map(leg => ({ ...leg, startTimeMs: leg.startTimeMs === null ? null : leg.startTimeMs + offset,
+              endTimeMs: leg.endTimeMs === null ? null : leg.endTimeMs + offset,
+              estimatedStartTime: leg.estimatedStartTime ? shift(leg.estimatedStartTime) : null,
+              estimatedEndTime: leg.estimatedEndTime ? shift(leg.estimatedEndTime) : null })) });
+        }}>View upcoming pass</button>
       </header>
       <div className="travel-pass-body p-5 md:p-6"><TravelPassContent pass={{ ...pass, selectedJourneyId: selected }} options={[
         { id: 'bus', leaveTime, estimatedArrivalTime: time(8), durationSeconds: 480, walkingSeconds: 360, walkingDistanceMeters: 530, transferCount: 0, status: 'Not checked', selected: selected === 'bus' },
@@ -52,6 +65,7 @@ function Preview() {
       {notice && <p role="status" className="p-4">{notice}</p>}
     </div>
     {image && <div style={{ position: 'fixed', inset: 0, zIndex: 1600, overflowY: 'auto', background: '#08121d', padding: 16 }}><button className="btn-secondary mb-4" onClick={() => setImage('')}>Back to pass</button><a href={image} download="transitreach-pass-design-preview.png" className="btn-secondary ml-3">Save preview image</a><img src={image} alt="Redesigned synthetic travel pass PNG" className="mx-auto w-full max-w-2xl" /></div>}
+    {savedPass && <SavedTravelPass pass={savedPass} onClose={() => setSavedPass(null)} />}
   </div>;
 }
 createRoot(document.getElementById('root')!).render(<Preview />);

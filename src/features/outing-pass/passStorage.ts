@@ -177,7 +177,6 @@ export function listStoredPasses(
   now = Date.now(),
 ): StoredPassSummary[] {
   return readEnvelope(memberId).passes
-    .filter(pass => Date.parse(pass.meeting.arrivalTime) >= now)
     .map(pass => ({
       evidenceMode: pass.evidenceMode,
       zeroTravel: pass.zeroTravel,
@@ -192,7 +191,13 @@ export function listStoredPasses(
       outdated: currentPlanVersions[pass.roomCode] !== undefined &&
         currentPlanVersions[pass.roomCode] !== pass.planVersion,
     }))
-    .sort((a, b) => Date.parse(a.meetingTime) - Date.parse(b.meetingTime));
+    .sort((a, b) => {
+      const aTime = Date.parse(a.meetingTime); const bTime = Date.parse(b.meetingTime);
+      const aPast = aTime <= now; const bPast = bTime <= now;
+      // Retain history after a room ends; upcoming journeys stay first.
+      if (aPast !== bPast) return aPast ? 1 : -1;
+      return aPast ? bTime - aTime : aTime - bTime;
+    });
 }
 
 export function removeStoredPass(memberId: string, passId: string): void {

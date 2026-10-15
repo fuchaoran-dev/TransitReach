@@ -94,7 +94,12 @@ const { TravelPassContent } = await load('src/features/outing-pass/components/Tr
 });
 const pass = { selectedJourneyId: 'bus', legs: [bus], leaveTime: bus.estimatedStartTime, estimatedArrivalTime: bus.estimatedEndTime,
   meeting: { arrivalTime: '2026-10-15T14:28:00+08:00', venue: { name: 'Bayu Cafe' } } };
-await act(async () => { view = create(React.createElement(TravelPassContent, { pass, options, originLabel: 'Start', onSelectJourney() {}, onRecheck() {} })); });
+let refreshed = 0;
+await act(async () => { view = create(React.createElement(TravelPassContent, { pass, options, originLabel: 'Start', onSelectJourney() {}, onRecheck() { refreshed++; } })); });
+const refresh = view.root.findAllByType('button').find(button => button.children.includes('Refresh route'));
+check(Boolean(refresh), true);
+await act(async () => refresh.props.onClick());
+check(refreshed, 1);
 check(view.root.findByProps({ 'data-coverage': 0.64 }).type, 'div');
 const toggle = view.root.findByProps({ 'aria-controls': 'travel-pass-details' });
 check(toggle.props['aria-expanded'], true);
