@@ -1,5 +1,13 @@
 # Epic 7 UI checks
 
+## Startup recovery
+
+Open `/tests/ui/bootstrap-preview.html` for labelled loading, slow/retrying and
+exhausted-504 states. Check readable contrast, keyboard focus on Retry connection,
+and that Retry returns to Loading in the same page. No API or room is written by
+this fixture. `node scripts/test-bootstrap.mjs` exercises automatic/manual recovery
+with the actual gate/loader under virtual clocks. See [startup recovery](../../docs/bootstrap-recovery.md).
+
 ## Radar discovery animation
 
 Open `/tests/ui/radar-preview.html` for the isolated six-category demo over the existing

@@ -112,9 +112,9 @@ let bootstrapCalls = 0; const boot = deferred();
 globalThis.fetch = () => { bootstrapCalls++; return boot.promise; };
 try {
   const left = bootstrap.initializeDatabaseData(), right = bootstrap.initializeDatabaseData();
-  check(bootstrapCalls, 1); boot.resolve({ ok: false, status: 503 });
+  await tick(); check(bootstrapCalls, 1); boot.resolve(new Response(null, { status: 401 }));
   await assert.rejects(left); await assert.rejects(right);
-  globalThis.fetch = async () => { bootstrapCalls++; return { ok: true, json: async () => ({ railStops: [] }) }; };
+  globalThis.fetch = async () => { bootstrapCalls++; return new Response(JSON.stringify({ railStops: [], busStops: [], places: [], essentialServices: [], railPatterns: [], railShapes: {}, railMetadata: {}, placesMetadata: {}, servicesMetadata: {} })); };
   await bootstrap.initializeDatabaseData(); await bootstrap.initializeDatabaseData();
   check(bootstrapCalls, 2); check(bootstrap.databaseData().railStops, []);
 } finally { globalThis.fetch = savedFetch; }
