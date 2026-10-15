@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { RefreshCw, Users, Vote } from 'lucide-react';
+import { CheckCircle2, Crosshair, RefreshCw, Users, Vote } from 'lucide-react';
 import { BaseMap, TimeBudgetSelector } from '@/features/reachability';
 import { isInStudyArea } from '@/features/reachability/reachabilityService';
 import type { Origin } from '@/features/reachability/types';
 import { malaysiaInputTime } from '@/features/outing-pass/components/passPresentation';
 import { MeetingTravelPass } from '@/features/outing-pass/components/MeetingTravelPass';
 import { meetingPreviewStart } from './meetingTime';
-import { meetingMapWaypoints } from './meetingMapWaypoints';
+import { meetingMapWaypoints, SHARED_MEMBER_COLOURS } from './meetingMapWaypoints';
 import { FocusOnPlace, RankedPlaceMarkers } from './components/RankedPlaceMarkers';
 import { MyStartingPoint } from './components/MyStartingPoint';
 import { RoomLobby } from './components/RoomLobby';
@@ -26,6 +26,16 @@ function inputIso(input: string): string {
   const date = new Date(`${input}:00+08:00`);
   if (Number.isNaN(date.getTime())) throw new Error('Invalid time');
   return date.toISOString();
+}
+function memberColour(slot: number | undefined): string {
+  return SHARED_MEMBER_COLOURS[(slot ?? 0) % SHARED_MEMBER_COLOURS.length];
+}
+function initials(name: string): string {
+  const words = name.trim().split(/\s+/);
+  return (words.length > 1 ? `${words[0][0]}${words[words.length - 1][0]}` : name.slice(0, 2)).toUpperCase();
+}
+function shortTime(iso: string): string {
+  return new Intl.DateTimeFormat('en-MY', { timeZone: 'Asia/Kuala_Lumpur', hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
 }
 function formatTime(iso: string): string {
   return new Intl.DateTimeFormat('en-MY', { timeZone: 'Asia/Kuala_Lumpur', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
@@ -126,21 +136,26 @@ export function MeetingPlanner({ meeting, commonGround }: { meeting: PlannerCont
     <div className="absolute inset-0"><BaseMap origin={draft ?? myOrigin} showOriginPin={false} regions={null} cityRegions={cityRegions} sharedArea waypoints={cityWaypoints} cityFrameRequest={frameRequest} cityFocus={selected ? { lat: selected.venue.lat, lon: selected.venue.lon, label: selected.venue.name } : null} onMapClick={at => choose({ at, source: 'map', label: null })}>
       <SharedMeetingMap members={members} frameRequest={frameRequest} draft={draft} />
       {!overlap.failed && <OverlapLayer polygons={overlap.polygons} />}
-      <RankedPlaceMarkers places={places} selectedId={selectedId} onSelect={setSelectedId} selections={selections} memberPoints={members.flatMap(member => member.at ? [member.at] : [])} />
+      <RankedPlaceMarkers places={places} selectedId={selectedId} onSelect={setSelectedId} selections={selections} confirmedId={room.confirmedPlan?.venue.id ?? null} memberPoints={members.flatMap(member => member.at ? [member.at] : [])} />
       <FocusOnPlace place={selected?.venue ?? null} />
     </BaseMap></div>
     {canCompute && common.state.status === 'loading' && <MeetingRadar />}
-    <div className="absolute left-1/2 top-4 z-[480] -translate-x-1/2 rounded-xl border border-teal-300/20 bg-[#0e1c29]/95 p-3 text-center text-xs text-slate-200">
-      <p>{room.confirmedPlan ? '✓ Meeting confirmed' : canCompute ? 'Explore & vote' : `${located}/${members.length} ready`}</p>
-      <button type="button" onClick={() => setFrameRequest(value => value + 1)} className="mt-2 text-teal-200 underline">Show everyone</button>
-      {result && <p className="mt-2">{overlap.failed ? 'Area could not be drawn' : overlap.polygons.length ? 'Shared reachability preview' : 'No overlap in this preview'}</p>}
+    <div className="absolute left-1/2 top-4 z-[480] flex -translate-x-1/2 items-center gap-1 rounded-full border border-teal-300/25 bg-[#0e1c29]/95 py-1.5 pl-4 pr-1.5 text-xs text-slate-200 shadow-xl backdrop-blur">
+      <p className="flex items-center gap-1.5 whitespace-nowrap font-semibold">
+        {room.confirmedPlan
+          ? <><CheckCircle2 size={14} className="text-emerald-300" aria-hidden="true" />{room.confirmedPlan.venue.name} · <span className="tabular-nums">{shortTime(room.confirmedPlan.arrivalTime)}</span></>
+          : canCompute ? 'Explore & vote' : `${located}/${members.length} ready`}
+      </p>
+      {result && <span className="hidden whitespace-nowrap text-slate-400 xl:inline">· {overlap.failed ? 'Area could not be drawn' : overlap.polygons.length ? 'Shaded = reachable by everyone' : 'No shared area in this preview'}</span>}
+      <button type="button" onClick={() => setFrameRequest(value => value + 1)} className="ml-2 inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-teal-300/10 px-3 py-1.5 font-semibold text-teal-200 hover:bg-teal-300/20"><Crosshair size={13} aria-hidden="true" />Show everyone</button>
     </div>
     <aside className="absolute bottom-4 left-4 top-4 z-[510] w-[340px] overflow-y-auto rounded-2xl border border-[#294456] bg-[#0e1c29]/95 p-5 text-slate-100 shadow-2xl backdrop-blur-xl">
       <h1 className="mb-3 text-xl font-bold text-white">Plan a group meeting</h1><ShareLink code={room.code} />
       <div className="mt-4"><MyStartingPoint me={members.some(member => member.isSelf && member.planningStatus === 'Ready') ? me : { ...me, at: null }} draft={draft} notice={notice} busy={meeting.busy} onSelect={choose} onShare={() => void share()} onCancel={() => { setDraft(null); setNotice(null); }} onWithdraw={() => { setDraft(null); setNotice(null); void meeting.setMyPoint(null); }} /></div>
       <p className="mb-2 mt-5 text-xs font-bold uppercase tracking-wider text-slate-400">Members · {located}/{members.length} ready</p>
-      <ul className="space-y-2">{members.map(member => <li key={member.id} className="flex items-center justify-between gap-2 rounded-xl bg-[#192a38] p-3">
-        <div className="min-w-0"><p className="truncate text-sm font-semibold">{member.displayName}{member.isSelf ? ' (you)' : ''}</p><p className="mt-1 truncate text-[11px] text-slate-400">{member.at ? member.label ?? 'Selected map point' : 'Choose a starting point'}</p></div>
+      <ul className="space-y-2">{members.map(member => <li key={member.id} className="flex items-center gap-3 rounded-xl bg-[#192a38] p-3">
+        <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-[#08121d]" style={{ background: memberColour(member.colourSlot) }}>{initials(member.displayName)}</span>
+        <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{member.displayName}{member.isSelf && <span className="ml-1.5 text-xs font-medium text-slate-400">you</span>}</p><p className="mt-0.5 truncate text-[11px] text-slate-400">{member.at ? member.label ?? 'Selected map point' : 'Choose a starting point'}</p></div>
         <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-bold ${member.planningStatus === 'Ready' ? 'bg-emerald-400/15 text-emerald-300' : 'bg-slate-500/15 text-slate-300'}`}>{member.planningStatus === 'Ready' ? '✓ Ready' : 'Not ready'}</span>
       </li>)}</ul>
       {room.isHost && <section className="mt-4 border-t border-[#294456] pt-4">
@@ -159,7 +174,7 @@ export function MeetingPlanner({ meeting, commonGround }: { meeting: PlannerCont
     </aside>
     <aside className="absolute bottom-4 right-4 top-4 z-[510] w-[370px] overflow-y-auto rounded-2xl border border-[#294456] bg-[#0e1c29]/95 p-5 text-slate-100 shadow-2xl backdrop-blur-xl">
       {room.confirmedPlan && <section className="mb-4 rounded-xl border border-emerald-300/40 bg-emerald-400/10 p-4" role="status">
-        <p className="text-xs font-semibold text-emerald-300">✓ Selected by group vote · v{room.confirmedPlan.version}</p><h2 className="mt-2 text-lg font-bold text-white">{room.confirmedPlan.venue.name}</h2><p className="mt-1 text-sm">{formatTime(room.confirmedPlan.arrivalTime)} MYT</p>
+        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-emerald-300"><CheckCircle2 size={14} aria-hidden="true" />Chosen by group vote</p><h2 className="mt-2 text-xl font-bold text-white">{room.confirmedPlan.venue.name}</h2><p className="mt-1 text-sm text-slate-200"><span className="tabular-nums">{formatTime(room.confirmedPlan.arrivalTime)}</span> MYT</p>
         <button type="button" disabled={!me.at || draft !== null || meeting.busy} className="btn-primary mt-4 w-full" onClick={() => setPassOpen(true)}>Generate my travel pass</button>
         {draft && <p className="mt-2 text-xs text-amber-200">Share or cancel your preview before generating a pass.</p>}
       </section>}
@@ -177,13 +192,18 @@ export function MeetingPlanner({ meeting, commonGround }: { meeting: PlannerCont
       <div className="mt-4 space-y-3">{displayed.map(proposal => {
         const voters = votes.filter(vote => vote.venue.id === proposal.venue.id && vote.venue.type === proposal.venue.type);
         const proposers = selections.filter(selection => selection.venue.id === proposal.venue.id && selection.venue.type === proposal.venue.type);
-        return <section key={`${proposal.venue.type}:${proposal.venue.id}`} className={`rounded-xl border p-3 ${selectedId === proposal.venue.id ? 'border-teal-300 bg-[#213844]' : 'border-[#294456] bg-[#192a38]'}`}>
+        const chosen = room.confirmedPlan?.venue.id === proposal.venue.id;
+        return <section key={`${proposal.venue.type}:${proposal.venue.id}`} className={`rounded-xl border p-3 transition-opacity ${chosen ? 'border-emerald-300/60 bg-emerald-400/10' : selectedId === proposal.venue.id ? 'border-teal-300 bg-[#213844]' : 'border-[#294456] bg-[#192a38]'} ${room.confirmedPlan && !chosen && selectedId !== proposal.venue.id ? 'opacity-60 hover:opacity-100' : ''}`}>
           <button type="button" className="w-full text-left" onClick={() => setSelectedId(proposal.venue.id)} aria-pressed={selectedId === proposal.venue.id}>
-            <span className="flex items-center justify-between gap-2"><strong className="text-sm">{proposal.rank}. {proposal.venue.name}</strong><span className="rounded-full bg-teal-300/10 px-2 py-1 text-xs text-teal-200">{voters.length} {voters.length === 1 ? 'vote' : 'votes'}</span></span>
-            <span className="mt-1 block text-xs text-slate-400">{proposal.venue.kindLabel} · longest {proposal.longestMinutes} min · gap {proposal.gapMinutes} min</span>
+            <span className="flex items-center justify-between gap-2"><strong className="text-sm">{proposal.rank}. {proposal.venue.name}</strong>
+              {chosen ? <span className="shrink-0 rounded-full bg-emerald-400/15 px-2 py-1 text-xs font-semibold text-emerald-300">Chosen</span>
+                : voters.length > 0 && <span className="flex shrink-0 items-center gap-1.5 text-xs text-slate-300"><span className="flex -space-x-1.5">{voters.map(voter => <span key={voter.memberId} title={voter.displayName} aria-hidden="true" className="flex h-5 w-5 items-center justify-center rounded-full border border-[#0e1c29] text-[9px] font-bold text-[#08121d]" style={{ background: memberColour(members.find(member => member.id === voter.memberId)?.colourSlot) }}>{initials(voter.displayName)}</span>)}</span>{voters.length} {voters.length === 1 ? 'vote' : 'votes'}</span>}
+            </span>
+            <span className="mt-1 block text-xs text-slate-400">{proposal.venue.kindLabel} · everyone within <span className="tabular-nums text-slate-200">{proposal.longestMinutes} min</span> · {proposal.gapMinutes === 0 ? 'equal trips' : <>trips differ by <span className="tabular-nums">{proposal.gapMinutes} min</span></>}</span>
+            <span className="mt-2 block h-1 overflow-hidden rounded-full bg-[#0e1c29]" aria-hidden="true"><span className="block h-full rounded-full bg-teal-300/60" style={{ width: `${Math.min(100, (proposal.longestMinutes / Math.max(1, room.timeBudget)) * 100)}%` }} /></span>
           </button>
           {proposers.length > 0 && <p className="mt-2 text-xs text-slate-300">Proposed by {proposers.map(person => person.displayName).join(', ')}</p>}
-          {voters.length > 0 && <p className="mt-1 text-xs text-teal-200">Voted: {voters.map(person => person.displayName).join(', ')}</p>}
+          {voters.length > 0 && <p className="mt-1 text-xs text-slate-400">Voted: {voters.map(person => person.displayName).join(', ')}</p>}
           {!room.confirmedPlan && <div className="mt-3 flex gap-2">
             <button type="button" disabled={meeting.busy || overlap.failed} className="btn-secondary flex-1 text-xs" onClick={() => void run(async () => { await meeting.proposeVenue(proposal.venue); setSelectedId(proposal.venue.id); }, 'The proposal was not shared. Reload and try again.')}>Propose</button>
             <button type="button" disabled={meeting.busy || overlap.failed} aria-pressed={myVote?.venue.id === proposal.venue.id} className="btn-primary flex flex-1 items-center justify-center gap-1 text-xs" onClick={() => void run(() => meeting.vote(proposal.venue), 'Your vote was not saved. The round may have changed; reload and try again.')}><Vote size={14} />{myVote?.venue.id === proposal.venue.id ? '✓ Your vote' : myVote ? 'Change vote' : 'Vote'}</button>

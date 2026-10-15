@@ -998,3 +998,28 @@
     opacity: 0.6;
   }
 }
+
+/* ── Epic 8 UI polish: travel pass timeline ─────────────────────────────── */
+.travel-timeline { display: grid; grid-template-columns: 4.5rem 1.5rem minmax(0, 1fr); column-gap: 0.75rem; }
+.travel-timeline-row { display: contents; }
+.travel-timeline-time { padding-top: 1px; text-align: right; font-size: 0.8125rem; font-weight: 600; color: #cfe0ea; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.travel-timeline-rail { position: relative; display: flex; justify-content: center; }
+.travel-timeline-dot { position: relative; z-index: 1; margin-top: 4px; width: 12px; height: 12px; border-radius: 9999px; background: #0e1c29; border: 3px solid #cfe0ea; }
+.travel-timeline-dot.is-terminal { width: 14px; height: 14px; margin-top: 3px; background: #74fcea; border-color: #0e1c29; box-shadow: 0 0 0 2px #74fcea; }
+.travel-timeline-line { position: absolute; top: -10px; bottom: -6px; width: 5px; border-radius: 9999px; background: var(--leg-colour, #60a5fa); }
+.travel-timeline-line.is-walk { width: 0; background: none; border-left: 4px dotted var(--leg-colour, #74fcea); }
+.travel-steps > summary { list-style: none; }
+.travel-steps > summary::-webkit-details-marker { display: none; }
+.travel-steps-chevron { transition: transform 0.15s ease; }
+.travel-steps[open] .travel-steps-chevron { transform: rotate(90deg); }
+.travel-pass-map-wrap .outing-map { height: 340px; min-height: 0; }
+@media (min-width: 1024px) {
+  .travel-pass-map-wrap { position: sticky; top: 88px; }
+  .travel-pass-map-wrap .outing-map { height: calc(100vh - 170px); min-height: 420px; }
+}
+.pass-map-label { font-weight: 600; }
+.transit-shell .leaflet-tooltip.pass-map-label.is-destination { background: #14b8a6; color: #04201c; border-color: #14b8a6; }
+.transit-shell .leaflet-tooltip.pass-map-label.is-destination::before { border-bottom-color: #14b8a6; }
+@media (prefers-reduced-motion: reduce) { .travel-steps-chevron { transition: none; } }
+.transit-shell .leaflet-tooltip.meeting-confirmed-label { background: #14b8a6; color: #04201c; border-color: #14b8a6; font-weight: 700; }
+.transit-shell .leaflet-tooltip.meeting-confirmed-label::before { border-bottom-color: #14b8a6; }
