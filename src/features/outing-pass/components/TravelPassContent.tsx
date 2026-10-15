@@ -66,10 +66,10 @@ export function TravelPassContent({ pass, options, originLabel, onSelectJourney,
         <JourneyTimeline legs={pass.legs} originLabel={originLabel} destinationLabel={pass.meeting.venue.name} />
       </div>}
       <div className="flex flex-wrap gap-3">
-        <button type="button" disabled={downloading} className="btn-primary flex items-center gap-2" onClick={() => {
+        <button type="button" disabled={downloading} aria-busy={downloading} className="btn-primary flex items-center gap-2" onClick={() => {
           setDownloading(true); setExportError(null);
           void downloadPassImage(pass).catch(() => setExportError('The image could not be downloaded. Try again.')).finally(() => setDownloading(false));
-        }}><Download size={16} aria-hidden="true" />Download pass</button>
+        }}><Download size={16} aria-hidden="true" />{downloading ? 'Preparing image…' : 'Download pass'}</button>
         <button type="button" className="btn-secondary flex items-center gap-2" onClick={onRecheck}><RefreshCw size={16} aria-hidden="true" />Refresh route</button>
       </div>
       {exportError && <p role="alert" className="text-sm text-rose-300">{exportError}</p>}

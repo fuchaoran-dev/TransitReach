@@ -94,7 +94,7 @@ const plannerStubs = {
   './components/SharedMeetingMap': 'export const SharedMeetingMap=()=>null;',
   './components/SharedParticipantAreasLayer': 'export const SharedParticipantAreasLayer=()=>null;',
   './components/OverlapLayer': 'export const OverlapLayer=()=>null;',
-  './components/MeetingRadar': 'export const MeetingRadar=()=>null;',
+  './components/MeetingRadarLayer': 'export const MeetingRadarLayer=()=>null;',
   './overlapService': 'export const intersectAreas=()=>[[[[101.6,3.1],[101.7,3.1],[101.7,3.2],[101.6,3.1]]]];',
   './hooks/useMeetingRoom': 'export const useMeetingRoom=()=>({});',
   './hooks/useServerCommonGround': 'export const useServerCommonGround=()=>({state:{status:"idle"},retry(){}});',

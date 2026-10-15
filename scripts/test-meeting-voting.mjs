@@ -75,6 +75,7 @@ const page = await load('src/features/meeting-point/MeetingPointPage.tsx', {
   '@/features/reachability/reachabilityService': 'export const isInStudyArea = () => true; export const formatCoord = () => "Saved starting point"; export const hitName = () => ""; export const originFromHit = () => null;',
   './components/RankedPlaceMarkers': 'export const FocusOnPlace = () => null; export const RankedPlaceMarkers = () => null;',
   './components/SharedMeetingMap': 'export const SharedMeetingMap = () => null;',
+  './components/MeetingRadarLayer': 'export const MeetingRadarLayer = () => <div role="status" aria-label="Calculating common reachable area"/>;',
   './components/SharedParticipantAreasLayer': 'export const SharedParticipantAreasLayer = () => null;',
   './components/OverlapLayer': 'export const OverlapLayer = () => null;',
   '@/features/outing-pass/components/MeetingTravelPass': 'export const MeetingTravelPass = () => null;',

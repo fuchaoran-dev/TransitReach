@@ -136,7 +136,9 @@ check(storage.loadStoredPass('ABCD2345', 'member-b', 2), null);
 check(storage.loadStoredPass('ABCD2345', 'member-a', 3), null);
 check(storage.listStoredPasses('member-a', { ABCD2345: 3 }, Date.parse('2026-10-07T00:00:00Z'))[0].outdated, true);
 
-const { createRoomQrData } = await load('src/features/outing-pass/passExport.ts');
+const { createRoomQrData } = await load('src/features/outing-pass/passExport.ts', {
+  './passRouteMap': 'export const renderPassRouteMap = async () => null;',
+});
 const qrPayload = createRoomQrData('ABCD2345', 'https://example.com/app?member=secret#private');
 check(qrPayload, 'https://example.com/app?meet=ABCD2345');
 check(qrPayload.includes('member'), false);

@@ -15,8 +15,11 @@ apply a migration, write a real room or run model training.
   fills the dialog behind an expandable bottom sheet; route bounds account for the
   sheet so endpoints remain visible.
 - PNG downloads use a ticket-style summary, a vertical timeline and a larger room-code
-  footer with the invitation QR. The route sketch uses recorded geometry only and is
-  explicitly labelled as a schematic. Long English/CJK names expand the layout.
+  footer with the invitation QR. Navy glass panels have cyan-to-blue gradient rims.
+  The route uses recorded geometry projected over public OpenFreeMap 3D buildings;
+  building height/footprint detail follows tile coverage, with attribution in the PNG.
+  A ten-second load deadline releases WebGL resources and exports an explicitly labelled
+  schematic when the map is unavailable. Long English/CJK names expand the layout.
 - Stop counts appear only when OTP supplies a valid intermediate-stop list. The client
   requests `showIntermediateStops=true`; the count includes the final alighting stop.
   Older passes with no count omit it. Mode presentation prefers OTP's GTFS `routeType`

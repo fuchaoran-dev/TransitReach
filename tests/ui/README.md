@@ -1,5 +1,28 @@
 # Epic 7 UI checks
 
+## Radar discovery animation
+
+Open `/tests/ui/radar-preview.html` for the isolated six-category demo over the existing
+OpenFreeMap basemap. The banner identifies every POI as synthetic; coordinates live only
+in `radarDemoData.ts` and are never imported into production. Use Stop/Start scanner to
+check cleanup, pan/zoom to check fixed geographic anchors, and inspect desktop and 390px
+layouts. The production Meet scanner is still visible only while common-ground calculation
+is loading. It uses existing PostgreSQL-backed services, rail/bus stops and consent-gated
+room member points, without claiming these are reachable proposals.
+
+One rAF clock rotates the beam clockwise every four seconds and scrubs paused Web
+Animations using each anchor's `atan2` angle. Icons start hidden, pop/glow after crossing,
+float, fade by 2.8 seconds and wait for the next crossing. There are no random discovery
+timers or React updates in the scan loop. Map events update projected anchors and retain
+the clock epoch. Reduced-motion mode uses a static sector and visible fixed markers.
+Run `node scripts/test-radar-scan.mjs` for controlled crossing/wraparound, background
+resume, rediscovery, cancellation, reduced-motion and map-projection regression checks.
+Verified in Chrome at desktop and 390 × 844 on 15 October 2026: six demo categories,
+different marker opacities matching beam phase, Stop/Start, and preserved map controls.
+The viewport override was reset. Radar (39), voting (49), meeting polish (23) and meeting
+experience (62) checks passed, as did typecheck and build. Lint has 18 existing warnings
+and no errors. This does not constitute a live multi-device/database calculation test.
+
 ## Automatic meeting and PNG revision (local)
 
 See [meeting experience](../../docs/meeting-experience.md) for the seven requested
@@ -117,7 +140,27 @@ expand/collapse the bottom sheet, open walking directions and check both route e
 remain above the sheet. Preview PNG renders the production download layout, including
 stop-code chips, transit stop counts, an arrival margin and the scannable room QR.
 Save preview image downloads the labelled fixture's design sample, not a real journey.
+The download uses the production Canvas renderer with layered navy panels, bevelled
+teal borders, a recessed geometry grid, luminous route/timeline segments and an elevated
+white QR tile. Cards have cyan-to-blue edge gradients that fade into their glass surfaces.
+This styling is drawn into the PNG and does not depend on page CSS.
+The fixed McDonald's / Bus 770 fixture departs at 2:59 pm, arrives at 3:07 pm and meets
+at 3:08 pm. Its eight-minute journey contains six minutes walking and two minutes on
+the bus; all fixture times and locations remain synthetic. Actual exports retain the
+saved pass's times, line colours and recorded geometry. Export now fetches public
+OpenFreeMap vector tiles for building footprints/heights and quiet streets, using a
+pitched camera shared by the route projection. No room code, itinerary or QR payload
+is sent to the tile server. Attribution is included inside the downloaded image.
+Building detail depends on source coverage and route extent. The map gets ten seconds;
+offline, failed or timed-out maps are labelled `3D map unavailable · schematic only`
+and retain the original recorded-geometry schematic. Zero travel skips map requests.
 The fixture neither joins a room nor queries OTP; changing the selected option is only a
 presentation test. Regression checks: `node scripts/test-travel-pass-presentation.mjs`
 and `node scripts/test-meeting-experience.mjs`. Implementation and API compatibility:
 [meeting UI polish](../../docs/meeting-ui-polish.md).
+
+3D PNG verification (15 October 2026): reviewed the actual 1200 × 2173 download in
+Chrome, including the transit card, stop labels and footer. Apple Vision decoded its
+QR back to the expected local invitation URL for synthetic room ABCDEFGH. Typecheck,
+production build, the 62 canvas/meeting experience checks, 42 pass domain checks and
+36 presentation checks passed. Lint had zero errors and 18 existing warnings.

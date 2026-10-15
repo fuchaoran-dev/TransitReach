@@ -118,5 +118,69 @@ drawPassCanvas({ ...pass, zeroTravel: true, legs: [], leaveTime: pass.estimatedA
 check(texts.some(item => item.text === 'No travel needed'), true);
 check(texts.some(item => item.text.includes('starting point is the meeting point')), true);
 check(texts.every(item => item.y < canvas.height), true);
+texts.length = 0; drawCalls.length = 0;
+const backdropCanvas = { fixture: 'public-building-map' };
+const mappedPass = { ...pass, legs: [{ ...pass.legs[0], geometry: [{lat:3.1,lon:101.6},{lat:3.11,lon:101.61}] }] };
+drawPassCanvas(mappedPass, {}, { canvas: backdropCanvas, paths: [[[100, 60], [700, 130]]] });
+check(texts.some(item => item.text.includes('3D map')), true);
+check(texts.some(item => item.text.includes('© OpenStreetMap contributors')), true);
+check(drawCalls.some(([name, args]) => name === 'drawImage' && args[0] === backdropCanvas), true);
+check(drawCalls.some(([name, args]) => name === 'moveTo' && args[0] === 194), true); // plot origin 94 + camera x 100
+texts.length = 0;
+drawPassCanvas(mappedPass, {}, null);
+check(texts.some(item => item.text.includes('3D map unavailable')), true);
 globalThis.document = originalDocument;
+
+// Map snapshot lifecycle: public tiles only, matched camera coordinates, bounded wait, cleanup.
+const mapDocument = globalThis.document;
+const mapFetch = globalThis.fetch;
+const oldFixture = globalThis.passMapFixture;
+const fixture = { removedMaps: 0, removedHosts: 0, fetches: 0, options: null, stall: false, zoom: 17.5, cameras: [], tightened: false };
+globalThis.passMapFixture = fixture;
+globalThis.document = {
+  body: { appendChild() {} },
+  createElement: tag => tag === 'canvas' ? { getContext: () => ({ drawImage() {} }) }
+    : { style: {}, setAttribute() {}, remove() { fixture.removedHosts++; } },
+};
+globalThis.fetch = async () => {
+  fixture.fetches++;
+  return { ok: true, json: async () => ({ version:8, sources:{public:{type:'vector'}},
+    layers:[{id:'building',type:'fill',source:'public'}] }) };
+};
+const { renderPassRouteMap } = await load('src/features/outing-pass/passRouteMap.ts', {
+  'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url': 'export default "fixture-worker";',
+  'maplibre-gl': `export const setWorkerUrl = () => {};
+    export class Map {
+      constructor(options) { globalThis.passMapFixture.options = options; }
+      once(event, cb) { if (event === 'load' || event === 'idle' && !globalThis.passMapFixture.stall) queueMicrotask(cb); }
+      fitBounds() {} triggerRepaint() {} getZoom() { return globalThis.passMapFixture.zoom; }
+      getCenter() { return [101.6,3.1]; } unproject() { return [101.61,3.11]; }
+      jumpTo(camera) { const f=globalThis.passMapFixture; f.cameras.push(camera); f.tightened=camera.zoom>f.zoom; }
+      project(point) { return {x:globalThis.passMapFixture.tightened ? -5 : point[0],y:point[1]}; }
+      getCanvas() { return {}; } remove() { globalThis.passMapFixture.removedMaps++; }
+    }`,
+});
+const backdrop = await renderPassRouteMap(mappedPass);
+check(backdrop.paths[0], [[101.6, 3.1], [101.61, 3.11]]);
+check(fixture.removedMaps, 1); check(fixture.removedHosts, 1);
+check(fixture.options.canvasContextAttributes.preserveDrawingBuffer, true);
+check(fixture.options.style.layers.some(layer => layer.type === 'fill-extrusion'), true);
+check(Object.values(fixture.options.style.sources).some(source => source.type === 'geojson'), false);
+check(await renderPassRouteMap({ ...mappedPass, zeroTravel: true }), null);
+check(fixture.fetches, 1);
+const nativeSetTimeout = globalThis.setTimeout;
+fixture.stall = true;
+globalThis.setTimeout = callback => nativeSetTimeout(callback, 10);
+try { check(await renderPassRouteMap(mappedPass), null); }
+finally { globalThis.setTimeout = nativeSetTimeout; }
+check(fixture.removedMaps, 2); check(fixture.removedHosts, 2);
+fixture.stall = false; fixture.zoom = 15;
+check((await renderPassRouteMap(mappedPass)).canvas.width, 1012);
+check(fixture.cameras.length, 2); // Clipped tighter framing must revert to the safe camera.
+check(fixture.cameras[1].zoom, 15);
+globalThis.fetch = async () => { throw new Error('offline'); };
+check(await renderPassRouteMap(mappedPass), null);
+globalThis.document = mapDocument;
+globalThis.fetch = mapFetch;
+globalThis.passMapFixture = oldFixture;
 console.log(`Meeting experience checks passed: ${checks}. Controlled UI/canvas fixtures, no cloud writes.`);
