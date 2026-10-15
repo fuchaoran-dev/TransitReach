@@ -1,7 +1,32 @@
 # Expo desktop reliability revision
 
-Scope: desktop browser only. This revision does not redesign mobile navigation,
-change production settings, migrate SQL, push Git commits or deploy services.
+Scope: desktop browser only. The implementation did not redesign mobile navigation
+or change SQL/environment settings. The subsequent authorized release is recorded below.
+
+## Production release — 15 October 2026
+
+- Runtime commit `bae4f6ef5d06b01ff720d571d9dfa729c8a21dcd` pushed to
+  `jxia0077-boop/TransitReach` main and mirrored to
+  `fuchaoran-dev/TransitReach` deploy/md8-6-20261008. Upstream had no newer
+  commits at the pre-release fetch. User report JSON, Word and artifacts excluded.
+- Render `dep-db8fbkivcj2c7398sid0`: **Deploy succeeded | Live**, source `bae4f6e`.
+  Backend deployed first. Both direct Render and the Netlify API proxy expose the
+  new job endpoint and reject unauthenticated requests with 401; OpenAPI includes it.
+- Netlify production `6ad0f688f0046efc56e05347`: **ready / production**, published
+  at 23:51 MYT, https://transitreach-kl-team8.netlify.app/.
+  Entry `index-bccpUotk.js`, main CSS and `MeetingPointPage-BYELW60P.js` matched
+  the local build byte-for-byte; favicon/social PNG also matched.
+- Public PostgreSQL bootstrap returned 200/gzip: 162 rail stops, 4,053 bus stops,
+  19,406 services, including 186 `shop=mall` records. This is dataset coverage,
+  not a claim that all malls qualify for any particular room.
+- Desktop Chrome opened the production homepage with map, weather and navigation
+  visible, without the data-unavailable screen. The protected draft URL returned
+  401, so it was not counted as a successful preview visual check.
+- No SQL migration, credential/environment change, existing-room mutation or OTP
+  upgrade. A real multi-account 60-minute room, voting and pass dry run remains
+  outstanding; automated fixture checks below do not substitute for it.
+
+This release supersedes the earlier local-only status in the preparation notes.
 
 ## Meeting calculation
 
