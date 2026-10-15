@@ -703,6 +703,7 @@
   background: radial-gradient(ellipse at 20% 0%, #12333d 0, transparent 45%), #080f18;
   min-height: 100vh;
   color-scheme: dark;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Epic 8 uses the same city palette for invitations, private passes and the device library. */
@@ -712,7 +713,7 @@
 .outing-muted { color: #afc0c9; }
 .outing-accent { color: #74fcea; }
 .outing-badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 5px 10px; font-size: 11px; font-weight: 700; background: #27333e; color: #c4d4df; }
-.outing-badge-ready { background: #163b39; color: #74fcea; }
+.outing-badge-ready { background: #163b2b; color: #86efac; }
 .outing-badge-attention { background: #41331b; color: #ffd88b; }
 .outing-badge-failed { background: #44202a; color: #ffb4ab; }
 .outing-ticket { position: relative; overflow: hidden; }
@@ -898,8 +899,8 @@
 .transit-shell .leaflet-tooltip-bottom::before { border-bottom-color: #6be8d4; }
 .transit-shell .leaflet-tooltip-left::before { border-left-color: #6be8d4; }
 .transit-shell .leaflet-tooltip-right::before { border-right-color: #6be8d4; }
-.transit-shell .leaflet-control-attribution { background: #0b1724dc; color: #aec7d9; }
-.transit-shell .leaflet-control-attribution a { color: #78dfd5; }
+.transit-shell .leaflet-container .leaflet-control-attribution { background: #0b1724e8; color: #aec7d9; font-size: 10px; }
+.transit-shell .leaflet-container .leaflet-control-attribution a { color: #78dfd5; }
 .transit-shell .leaflet-interactive.reach-area { filter: drop-shadow(0 0 3px #43d6c766); }
 .transit-shell .origin-marker-pin { background: #21b7aa; box-shadow: 0 0 22px #52e8d177; }
 .transit-shell .origin-marker-ground { border-color: #6df7df; }
@@ -1023,3 +1024,34 @@
 @media (prefers-reduced-motion: reduce) { .travel-steps-chevron { transition: none; } }
 .transit-shell .leaflet-tooltip.meeting-confirmed-label { background: #14b8a6; color: #04201c; border-color: #14b8a6; font-weight: 700; }
 .transit-shell .leaflet-tooltip.meeting-confirmed-label::before { border-bottom-color: #14b8a6; }
+
+/* Keep the route visible while the itinerary scrolls; small screens use a map and sheet. */
+.travel-pass-sheet-toggle { display: none; }
+.travel-pass-map-column { align-self: stretch; }
+.travel-pass-ready .travel-pass-map-wrap .outing-map { border: 1px solid #294456; }
+.travel-timeline-row > :last-child { overflow-wrap: anywhere; }
+.route-option:focus-visible { outline: 2px solid #74fcea; outline-offset: 3px; }
+@media (max-width: 1023px) {
+  .travel-pass-modal { padding: 0; }
+  .travel-pass-modal .travel-pass-scroll { border: 0; border-radius: 0; overflow: hidden; height: 100dvh; }
+  .travel-pass-header { min-height: 76px; }
+  .travel-pass-body { padding: 0; }
+  .travel-pass-body > [role='status'], .travel-pass-body > div:not(.travel-pass-ready) { padding: 20px; }
+  .travel-pass-ready { position: relative; display: block; height: 100%; }
+  .travel-pass-map-column { position: absolute; inset: 0; }
+  .travel-pass-ready .travel-pass-map-wrap, .travel-pass-ready .travel-pass-map-wrap .outing-map { height: 100%; border: 0; border-radius: 0; }
+  .travel-pass-sheet { position: absolute; z-index: 500; bottom: 0; left: 0; right: 0; max-height: 35%; overflow-y: auto; overscroll-behavior: contain; padding: 0 20px calc(24px + env(safe-area-inset-bottom)); border: 1px solid #315163; border-bottom: 0; border-radius: 24px 24px 0 0; background: #0e1c29f5; box-shadow: 0 -12px 40px #080f1840; }
+  .travel-pass-sheet.is-expanded { max-height: 64%; }
+  .travel-pass-sheet-toggle { position: sticky; top: 0; z-index: 2; display: flex; width: calc(100% + 40px); margin: 0 -20px; min-height: 48px; align-items: center; flex-direction: column; justify-content: center; gap: 5px; background: #0e1c29; color: #afc0c9; font-size: 11px; }
+  .travel-pass-sheet-toggle > span:first-child { width: 36px; height: 4px; background: #526b7a; border-radius: 99px; }
+  .travel-pass-sheet-toggle + * { margin-top: 8px; }
+  .travel-pass-ready .leaflet-control-attribution { max-width: 220px; bottom: auto; }
+  .travel-pass-ready .leaflet-bottom { top: 0; bottom: auto; }
+  .travel-timeline { grid-template-columns: 4rem 1rem minmax(0, 1fr); column-gap: 0.5rem; }
+}
+@media (max-width: 1023px) {
+  .travel-pass-modal .travel-pass-scroll { display: flex; flex-direction: column; }
+  .travel-pass-header { flex-shrink: 0; }
+  .travel-pass-body { flex: 1; min-height: 0; }
+  .travel-pass-ready { height: 100%; }
+}

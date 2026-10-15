@@ -20,6 +20,12 @@ See [meeting feedback](../../docs/meeting-feedback.md) for timing/coverage limit
 route-only semantics and actual verification. Do not use this fixture to claim
 live two-member voting or real GPS consent was verified.
 
+For layout-only review without PostgreSQL, open
+`/tests/ui/meeting-polish-preview.html`. It labels all room, member, area, venue and
+travel-time values as synthetic and performs no database, room, vote or route writes.
+Use it to inspect marker clustering, selected-place emphasis, the shared-area toggle,
+the collapsible member panel, room QR and the mobile bottom sheet.
+
 ## Service contrast checks
 
 Open `/tests/ui/contrast-preview.html` with Vite. This labelled synthetic fixture
@@ -102,3 +108,16 @@ the draft is explicitly NOT a calculated itinerary. No deployment this round.
   Centre opened in 3D; its 7-minute BRT journey showed real route geometry,
   two walking legs and 5-minute walking exposure. Missing hours showed Unknown.
 - Earlier mobile observations are outside this round's acceptance scope.
+
+## Travel pass layout and download preview
+
+Open `/tests/ui/travel-pass-preview.html` with Vite for a fully isolated synthetic pass.
+At desktop width, scroll the itinerary and confirm the route map stays visible. At 390px,
+expand/collapse the bottom sheet, open walking directions and check both route endpoints
+remain above the sheet. Preview PNG renders the production download layout, including
+stop-code chips, transit stop counts, an arrival margin and the scannable room QR.
+Save preview image downloads the labelled fixture's design sample, not a real journey.
+The fixture neither joins a room nor queries OTP; changing the selected option is only a
+presentation test. Regression checks: `node scripts/test-travel-pass-presentation.mjs`
+and `node scripts/test-meeting-experience.mjs`. Implementation and API compatibility:
+[meeting UI polish](../../docs/meeting-ui-polish.md).

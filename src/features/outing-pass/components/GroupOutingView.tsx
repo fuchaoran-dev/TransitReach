@@ -89,7 +89,7 @@ export function GroupOutingView({ room, me, members, onBack, onSuggestTime, onPu
       ) : (
         <span />
       )}
-      <span className="outing-badge">Room {room.code} · Plan v{plan.version}</span>
+      <span className="outing-badge">Room {room.code}</span>
     </div>
     {error && <p className="outing-warning mb-5" role="alert">{error}</p>}
     {notice && <p className="outing-card-inset mb-5 outing-accent" role="status">{notice}</p>}
@@ -102,7 +102,7 @@ export function GroupOutingView({ room, me, members, onBack, onSuggestTime, onPu
         {passOpen && state.status === 'ready' && <PersonalPassView pass={state.pass} options={state.options} busy={actionBusy} onBack={() => setPassOpen(false)} onRecheck={() => { setError(null); setNotice(null); personal.recheck(); }} onSelectJourney={personal.selectJourney} onLeaveEarlier={() => personal.leaveEarlier(10)} onDownload={() => void runDownload()} onSuggestTime={() => setShowProposal(true)} />}
       </div>
       <div className="min-w-0 space-y-6">
-        {passOpen && state.status === 'ready' && <PrivateJourneyMap pass={state.pass} />}
+        {passOpen && state.status === 'ready' && <div className="travel-pass-map-wrap"><PrivateJourneyMap pass={state.pass} /></div>}
         <GroupStatus members={members} />
         <section className="outing-card flex flex-wrap items-center gap-5"><div>{qr ? <img className="outing-qr" src={qr} alt={`QR opens the invitation for room ${room.code}`} /> : <QrCode size={64} aria-hidden="true" />}</div><div className="flex-1 min-w-[180px]"><h2 className="font-bold text-lg">Room invitation</h2><p className="text-sm outing-muted mt-2">This code contains only an opaque room reference. On another device, join and set your own starting point.</p><a className="outing-accent underline text-sm inline-block mt-3 break-all" href={shareLinkFor(room.code)}>Open room invitation</a></div></section>
         <p className="text-xs outing-muted flex gap-2"><ShieldCheck size={16} className="shrink-0" aria-hidden="true" />A new confirmed place or time creates a new plan version and requires a fresh personal check.</p>

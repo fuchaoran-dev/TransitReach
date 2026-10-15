@@ -26,6 +26,8 @@ from backend.app.services.travel_time_surface import TravelTimeSurface
 
 
 CALLER = UUID("33ddefe5-e814-4420-9fd0-42bf9a522d39")
+MEMBER_A = UUID("2b0f9c17-b1e1-4c36-ae47-304c92f64ac1")
+MEMBER_B = UUID("9075fa49-eb4f-44a0-b8c9-55beb1d42cb6")
 DEPARTURE = datetime.fromisoformat("2026-10-14T08:12:34+08:00")
 ARRIVAL = DEPARTURE + timedelta(minutes=30)
 OUTER = [[101.0, 3.0], [101.5, 3.0], [101.5, 3.5], [101.0, 3.5], [101.0, 3.0]]
@@ -59,7 +61,10 @@ class MeetingCalculationLoadingTests(unittest.TestCase):
                     "planning_started": started, "departure_time": departure, "voting_arrival_time": ARRIVAL if started else None,
                 }
                 database.execute.return_value.fetchall.side_effect = [
-                    [{"latitude": 3.1, "longitude": 101.1}, {"latitude": None, "longitude": None}],
+                    [
+                        {"id": MEMBER_A, "latitude": 3.1, "longitude": 101.1},
+                        {"id": MEMBER_B, "latitude": None, "longitude": None},
+                    ],
                     [],
                 ]
                 result = _load_calculation("ABCDEFGH", CALLER, ["station"])
@@ -68,10 +73,13 @@ class MeetingCalculationLoadingTests(unittest.TestCase):
                 self.assertEqual(result.room_revision, 7)
                 self.assertEqual(result.participant_count, 2)
                 self.assertEqual(len(result.origins), 1)
+                self.assertEqual(result.origins[0].participant_id, MEMBER_A)
         query, params = database.execute.call_args_list[0].args
         self.assertIn("r.planning_started, r.departure_time", query)
         self.assertIn("caller.user_id = %s", query)
         self.assertEqual(params, (CALLER, "ABCDEFGH"))
+        participant_query = database.execute.call_args_list[1].args[0]
+        self.assertIn("select id, latitude, longitude", participant_query)
 
     @patch("backend.app.services.meeting_service.connection")
     def test_nonmember_never_reads_private_origins(self, connect) -> None:
@@ -192,6 +200,8 @@ class MeetingCommonGroundTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.arrival_time, ARRIVAL)
         self.assertEqual(result.departure_time, DEPARTURE)
         self.assertEqual(result.area_method, "budget-window-preview")
+        self.assertEqual(result.proposals[0].participant_trips, [])
+        self.assertTrue(all(area.member_id is None for area in result.participant_areas))
         self.assertTrue(all(call.args[3] == DEPARTURE for call in surface.await_args_list))
         self.assertTrue(all(call.args[-1] == ARRIVAL for call in self.arrive_by.await_args_list))
 

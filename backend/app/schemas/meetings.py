@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Annotated, Literal
+from uuid import UUID
 
 from pydantic import AfterValidator, AwareDatetime, BaseModel, ConfigDict, Field, field_validator
 
@@ -37,8 +38,9 @@ class IsochroneRegion(BaseModel):
 
 
 class ParticipantArea(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
+    member_id: UUID | None = Field(default=None, alias="memberId")
     regions: list[IsochroneRegion] = Field(min_length=1)
 
 
@@ -69,6 +71,13 @@ class PublicVenue(BaseModel):
     hours: str | None = None
 
 
+class ParticipantTrip(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+    member_id: UUID = Field(alias="memberId")
+    minutes: int = Field(ge=0)
+
+
 class VenueProposal(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -76,6 +85,7 @@ class VenueProposal(BaseModel):
     venue: PublicVenue
     longest_minutes: int = Field(alias="longestMinutes", ge=0)
     gap_minutes: int = Field(alias="gapMinutes", ge=0)
+    participant_trips: list[ParticipantTrip] = Field(default_factory=list, alias="participantTrips")
 
 
 class CommonGroundResponse(BaseModel):
