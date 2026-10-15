@@ -1,12 +1,42 @@
 import type { Map as LeafletMap } from 'leaflet';
 
-/** On a wide screen, people and settings cover the map's left edge and ranked places its right. */
-const LEFT_PANEL_CLEARANCE_PX = 380;
-const RIGHT_PANEL_CLEARANCE_PX = 400;
-/** The `lg` breakpoint, from which both panels sit over the sides of the map. */
-const WIDE_MAP_PX = 1024;
-/** Below it the ranked list is a sheet along the bottom; leave room for its collapsed bar. */
-const SHEET_CLEARANCE_PX = 96;
+const HORIZONTAL_GUTTER_PX = 24;
+const TOP_GUTTER_PX = 48;
+const PANEL_GAP_PX = 16;
+
+interface RectLike {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  width: number;
+  height: number;
+}
+
+export function paddingForPanelRects(page: RectLike, panels: RectLike[]): {
+  paddingTopLeft: [number, number];
+  paddingBottomRight: [number, number];
+} {
+  let left = HORIZONTAL_GUTTER_PX;
+  let right = HORIZONTAL_GUTTER_PX;
+  let bottom = TOP_GUTTER_PX;
+
+  for (const panel of panels) {
+    const overlapWidth = Math.max(0, Math.min(page.right, panel.right) - Math.max(page.left, panel.left));
+    const overlapHeight = Math.max(0, Math.min(page.bottom, panel.bottom) - Math.max(page.top, panel.top));
+    if (!overlapWidth || !overlapHeight) continue;
+
+    if (overlapWidth >= page.width * 0.65) {
+      bottom = Math.max(bottom, page.bottom - panel.top + PANEL_GAP_PX);
+    } else if (panel.left < page.left + page.width / 2) {
+      left = Math.max(left, panel.right - page.left + PANEL_GAP_PX);
+    } else {
+      right = Math.max(right, page.right - panel.left + PANEL_GAP_PX);
+    }
+  }
+
+  return { paddingTopLeft: [left, TOP_GUTTER_PX], paddingBottomRight: [right, bottom] };
+}
 
 /**
  * Padding that keeps a framed point or area clear of whichever panels cover the map, so
@@ -16,7 +46,12 @@ export function panelPadding(map: LeafletMap): {
   paddingTopLeft: [number, number];
   paddingBottomRight: [number, number];
 } {
-  return map.getSize().x >= WIDE_MAP_PX
-    ? { paddingTopLeft: [LEFT_PANEL_CLEARANCE_PX, 48], paddingBottomRight: [RIGHT_PANEL_CLEARANCE_PX, 48] }
-    : { paddingTopLeft: [24, 48], paddingBottomRight: [24, SHEET_CLEARANCE_PX] };
+  const container = map.getContainer();
+  const page = container.closest<HTMLElement>('.meeting-map-page');
+  if (!page) return { paddingTopLeft: [HORIZONTAL_GUTTER_PX, TOP_GUTTER_PX], paddingBottomRight: [HORIZONTAL_GUTTER_PX, TOP_GUTTER_PX] };
+  const pageRect = page.getBoundingClientRect();
+  const panels = [...page.querySelectorAll<HTMLElement>('.meeting-left-panel:not([hidden]), .meeting-places-panel:not([hidden])')]
+    .filter(panel => panel.getClientRects().length > 0)
+    .map(panel => panel.getBoundingClientRect());
+  return paddingForPanelRects(pageRect, panels);
 }

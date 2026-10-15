@@ -70,7 +70,7 @@ export async function generateTravelPass(input: Input, signal?: AbortSignal): Pr
   const summaries = passes.map((pass, index): JourneyOptionSummary => ({ id: pass.selectedJourneyId,
     leaveTime: pass.leaveTime, estimatedArrivalTime: pass.estimatedArrivalTime,
     durationSeconds: (Date.parse(pass.estimatedArrivalTime) - Date.parse(pass.leaveTime)) / 1000,
-    walkingSeconds: pass.walking.totalSeconds, transferCount: Math.max(0, pass.legs.filter(leg => leg.transitLeg).length - 1),
+    walkingSeconds: pass.walking.totalSeconds, walkingDistanceMeters: pass.walking.totalDistanceMeters, transferCount: Math.max(0, pass.legs.filter(leg => leg.transitLeg).length - 1),
     status: 'Not checked', selected: index === 0 }));
   return { passes, summaries };
 }

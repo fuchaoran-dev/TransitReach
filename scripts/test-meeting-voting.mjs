@@ -9,7 +9,7 @@ const require = createRequire(import.meta.url);
 const Module = require('node:module');
 async function load(entry, stubs = {}) {
   const output = await build({ entryPoints: [entry], bundle: true, write: false, platform: 'node', format: 'cjs', jsx: 'automatic', external: ['react', 'react/jsx-runtime'], logLevel: 'silent',
-    define: { 'import.meta.env.VITE_RELIABILITY_API_URL': '""' }, plugins: [{ name: 'meeting-fixtures', setup(builder) {
+    define: { 'import.meta.env.VITE_RELIABILITY_API_URL': '""' }, loader: { '.css': 'empty' }, plugins: [{ name: 'meeting-fixtures', setup(builder) {
       builder.onResolve({ filter: /.*/ }, args => Object.hasOwn(stubs, args.path) ? { path: args.path, namespace: 'fixture' } : undefined);
       builder.onLoad({ filter: /.*/, namespace: 'fixture' }, args => ({ contents: stubs[args.path], loader: 'jsx' }));
     } }] });
@@ -75,6 +75,7 @@ const page = await load('src/features/meeting-point/MeetingPointPage.tsx', {
   '@/features/reachability/reachabilityService': 'export const isInStudyArea = () => true; export const formatCoord = () => "Saved starting point"; export const hitName = () => ""; export const originFromHit = () => null;',
   './components/RankedPlaceMarkers': 'export const FocusOnPlace = () => null; export const RankedPlaceMarkers = () => null;',
   './components/SharedMeetingMap': 'export const SharedMeetingMap = () => null;',
+  './components/SharedParticipantAreasLayer': 'export const SharedParticipantAreasLayer = () => null;',
   './components/OverlapLayer': 'export const OverlapLayer = () => null;',
   '@/features/outing-pass/components/MeetingTravelPass': 'export const MeetingTravelPass = () => null;',
   './components/ShareLink': 'import React from "react"; export const ShareLink = () => <p>Room ABCDEFGH · Invite your group</p>;',
@@ -156,7 +157,7 @@ assert.ok(baseScene.props.cityRegions.length > 0); checks++;
 assert.equal(baseScene.props.showOriginPin, false); checks++;
 assert.ok(baseScene.props.waypoints.some(point => point.label.includes('Proposed: Jia Wei'))); checks++;
 assert.equal(baseScene.props.cityFocus.label, venue.name); checks++;
-await act(async () => { planner.root.findAllByType('button').find(button => button.children.includes('Show everyone')).props.onClick(); });
+await act(async () => { planner.root.findByProps({ 'aria-label': 'Fit all members on the map' }).props.onClick(); });
 assert.equal(planner.root.find(node => Object.hasOwn(node.props, 'cityRegions')).props.cityFrameRequest, 1); checks++;
 globalThis.__meetingFixture.view = { ...originalView, room: { ...originalView.room, planningRevision: 5 } };
 await act(async () => { planner.update(React.createElement(page.MeetingPointPage)); });

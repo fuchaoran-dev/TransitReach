@@ -81,7 +81,7 @@ export function CityFocusView({ service, origin, showOriginPoint = true, sharedA
           id: 'city-buildings', type: 'fill-extrusion', source: building.source,
           'source-layer': 'building', minzoom: 14,
           paint: {
-            'fill-extrusion-color': daylightRef.current ? '#c6c2b6' : '#376079', 'fill-extrusion-opacity': 0.88,
+            'fill-extrusion-color': daylightRef.current ? '#c6c2b6' : '#264354', 'fill-extrusion-opacity': 0.55,
             'fill-extrusion-height': ['max', 0, ['to-number', ['get', 'render_height'], 0]],
             'fill-extrusion-base': ['max', 0, ['to-number', ['get', 'render_min_height'], 0]],
           },

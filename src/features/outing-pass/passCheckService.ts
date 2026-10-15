@@ -323,7 +323,7 @@ export async function checkPersonalPlan(
     leaveTime: pass.leaveTime,
     estimatedArrivalTime: pass.estimatedArrivalTime,
     durationSeconds: Math.round((Date.parse(pass.estimatedArrivalTime) - Date.parse(pass.leaveTime)) / 1000),
-    walkingSeconds: pass.walking.totalSeconds,
+    walkingSeconds: pass.walking.totalSeconds, walkingDistanceMeters: pass.walking.totalDistanceMeters,
     transferCount: pass.connections.length,
     status: pass.status,
     selected: index === 0,

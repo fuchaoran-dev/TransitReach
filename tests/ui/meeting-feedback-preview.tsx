@@ -27,10 +27,10 @@ function snapshot(confirmed = false): MeetingRoomSnapshot {
 }
 const result: CommonGroundResult = { status: 'ready', participantCount: 2, missingStartingPoints: 0, budgetMinutes: 30, roomRevision: 1,
   departureTime: previewStart, arrivalTime: arrival, areaMethod: 'budget-window-preview', participantAreas: [
-    { regions: [{ outer: [[101.68,3.13],[101.70,3.13],[101.70,3.15],[101.68,3.15],[101.68,3.13]], holes: [] }] },
-    { regions: [{ outer: [[101.69,3.135],[101.71,3.135],[101.71,3.155],[101.69,3.155],[101.69,3.135]], holes: [] }] },
+    { memberId: 'self-fixture', regions: [{ outer: [[101.68,3.13],[101.70,3.13],[101.70,3.15],[101.68,3.15],[101.68,3.13]], holes: [] }] },
+    { memberId: 'peer-fixture', regions: [{ outer: [[101.69,3.135],[101.71,3.135],[101.71,3.155],[101.69,3.155],[101.69,3.135]], holes: [] }] },
   ],
-  proposals: [{ rank: 1, venue, longestMinutes: 15, gapMinutes: 5 }] };
+  proposals: [{ rank: 1, venue, longestMinutes: 15, gapMinutes: 5, participantTrips: [{ memberId: 'self-fixture', minutes: 10 }, { memberId: 'peer-fixture', minutes: 15 }] }] };
 function Preview() {
   const [state, setState] = useState(() => snapshot());
   const [mode, setMode] = useState(0);

@@ -10,6 +10,7 @@ export interface CommonGroundProposal {
   venue: MeetingVenue;
   longestMinutes: number;
   gapMinutes: number;
+  participantTrips?: Array<{ memberId: string; minutes: number }>;
 }
 
 export interface CommonGroundResult {
@@ -21,7 +22,7 @@ export interface CommonGroundResult {
   departureTime: string | null;
   arrivalTime: string | null;
   areaMethod: 'budget-window-preview';
-  participantAreas: { regions: IsochroneRegion[] }[];
+  participantAreas: { memberId?: string | null; regions: IsochroneRegion[] }[];
   proposals: CommonGroundProposal[];
 }
 
@@ -52,9 +53,13 @@ export async function fetchCommonGround(
   });
   if (!response.ok) throw new Error(`Common-ground request failed (${response.status}).`);
   const result = await response.json() as CommonGroundResult;
+  const participantAreas = Array.isArray(result.participantAreas) ? result.participantAreas : [];
   if (result.areaMethod !== 'budget-window-preview' ||
+    !participantAreas.every(area => (area.memberId === undefined || area.memberId === null || typeof area.memberId === 'string') && Array.isArray(area.regions)) ||
+    !Array.isArray(result.proposals) ||
+    !result.proposals.every(proposal => proposal.participantTrips === undefined || (Array.isArray(proposal.participantTrips) && proposal.participantTrips.every(trip => typeof trip.memberId === 'string' && Number.isFinite(trip.minutes) && trip.minutes >= 0))) ||
     (result.status === 'ready' && (!result.arrivalTime || !Number.isFinite(Date.parse(result.arrivalTime))))) {
-    throw new Error('The backend requires the meeting-time update.');
+    throw new Error('The meeting service returned an incompatible response.');
   }
-  return result;
+  return { ...result, participantAreas };
 }
