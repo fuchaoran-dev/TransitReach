@@ -8,29 +8,29 @@ import { TravelPassContent } from '@/features/outing-pass/components/TravelPassC
 import { renderPassImage } from '@/features/outing-pass/passExport';
 import type { CheckedPassLeg, PersonalPass } from '@/features/outing-pass/types';
 
-const meetingTime = new Date(Date.now() + 90 * 60_000).toISOString();
-const leaveTime = new Date(Date.parse(meetingTime) - 22 * 60_000).toISOString();
+const meetingTime = '2026-10-15T15:08:00+08:00';
+const leaveTime = '2026-10-15T14:59:00+08:00';
 const time = (minutes: number) => new Date(Date.parse(leaveTime) + minutes * 60_000).toISOString();
-const names = ['Your starting point', 'SJ68 TAMAN SUBANG PERMAI (UTARA)', 'SJ78 PANGSAPURI ANGSANA', 'Bayu Cafe'];
+const names = ['Your starting point', 'SJ84 APARTMENT ANGSANA (SELATAN)', 'SJ628 Medan Selera USJ1/APARTMENT Meranti (Opp)', "McDonald's"];
 const points = [{ lat: 3.0509, lon: 101.591 }, { lat: 3.0512, lon: 101.593 }, { lat: 3.043, lon: 101.596 }, { lat: 3.042, lon: 101.597 }];
-const minutes = [0, 3, 7, 11];
+const minutes = [0, 3, 5, 8];
 const legs: CheckedPassLeg[] = points.slice(0, 3).map((point, index) => ({
-  id: `leg-${index}`, mode: index === 1 ? 'BUS' : 'WALK', routeType: index === 1 ? 3 : null, stopCount: index === 1 ? 3 : null, transitLeg: index === 1,
-  routeId: index === 1 ? 'fixture-bus' : null, routeShortName: index === 1 ? 'T776' : null,
-  routeLongName: index === 1 ? 'Stesen LRT USJ 7 ~ Subang Mewah' : null, routeColor: index === 1 ? '#93b5ff' : null,
-  durationSeconds: (minutes[index + 1] - minutes[index]) * 60, distanceMeters: [252, 1400, 300][index],
+  id: `leg-${index}`, mode: index === 1 ? 'BUS' : 'WALK', routeType: index === 1 ? 3 : null, stopCount: index === 1 ? 2 : null, transitLeg: index === 1,
+  routeId: index === 1 ? 'fixture-bus' : null, routeShortName: index === 1 ? '770' : null,
+  routeLongName: index === 1 ? 'Subang Mewah USJ 1 ~ Hab Pasar Seni' : null, routeColor: index === 1 ? '#007aff' : null,
+  durationSeconds: (minutes[index + 1] - minutes[index]) * 60, distanceMeters: [280, 1400, 250][index],
   startTimeMs: Date.parse(time(minutes[index])), endTimeMs: Date.parse(time(minutes[index + 1])),
   estimatedStartTime: time(minutes[index]), estimatedEndTime: time(minutes[index + 1]),
   from: { ...point, name: names[index], stopId: null }, to: { ...points[index + 1], name: names[index + 1], stopId: null },
   geometry: [point, points[index + 1]], cumulativeDelaySeconds: 0, delay: null,
-  steps: index === 1 ? [] : [{ relativeDirection: 'CONTINUE', streetName: index === 0 ? 'Jalan USJ 1/13' : 'Persiaran Subang Mewah', bogusName: false, distanceMeters: [252, 0, 300][index], ...point }],
+  steps: index === 1 ? [] : [{ relativeDirection: 'CONTINUE', streetName: index === 0 ? 'Persiaran Subang Indah' : 'Persiaran Subang Mewah', bogusName: false, distanceMeters: [280, 0, 250][index], ...point }],
 }));
 const pass: PersonalPass = {
   schemaVersion: 1, kind: 'group-outing', evidenceMode: 'route-only', id: 'synthetic-only', roomCode: 'ABCDEFGH', memberId: 'synthetic-only', planVersion: 1,
   checkedAt: new Date().toISOString(), routeTargetTime: meetingTime, selectedJourneyId: 'bus',
-  meeting: { version: 1, arrivalTime: meetingTime, venue: { id: 'fixture-venue', type: 'cafe', name: 'Bayu Cafe', kindLabel: 'Café', ...points[3] } },
-  leaveTime, estimatedArrivalTime: time(11), arrivalMarginSeconds: 660, status: 'Not checked', legs, connections: [],
-  walking: { totalSeconds: 420, totalDistanceMeters: 552, directions: legs.flatMap(leg => leg.steps.map(step => ({ ...step, legId: leg.id }))) },
+  meeting: { version: 1, arrivalTime: meetingTime, venue: { id: 'fixture-venue', type: 'restaurant', name: "McDonald's", kindLabel: 'Fast food', ...points[3] } },
+  leaveTime, estimatedArrivalTime: time(8), arrivalMarginSeconds: 60, status: 'Not checked', legs, connections: [],
+  walking: { totalSeconds: 360, totalDistanceMeters: 530, directions: legs.flatMap(leg => leg.steps.map(step => ({ ...step, legId: leg.id }))) },
   weather: [{ status: 'not-checked', reason: 'not-requested', label: 'Weather unknown' }],
   closingMargin: { status: 'not-checked', reason: 'not-requested', label: 'Hours unknown' },
   weakPoint: { kind: 'unchecked-delay', label: 'Synthetic route · No live evidence', marginSeconds: null },
@@ -46,8 +46,8 @@ function Preview() {
         <button className="btn-secondary ml-auto text-xs" onClick={() => void renderPassImage(pass).then(blob => setImage(URL.createObjectURL(blob)))}>Preview PNG</button>
       </header>
       <div className="travel-pass-body p-5 md:p-6"><TravelPassContent pass={{ ...pass, selectedJourneyId: selected }} options={[
-        { id: 'bus', leaveTime, estimatedArrivalTime: time(11), durationSeconds: 660, walkingSeconds: 420, walkingDistanceMeters: 552, transferCount: 0, status: 'Not checked', selected: selected === 'bus' },
-        { id: 'walk', leaveTime: time(-7), estimatedArrivalTime: time(11), durationSeconds: 1080, walkingSeconds: 1080, walkingDistanceMeters: 1400, transferCount: 0, status: 'Not checked', selected: selected === 'walk' },
+        { id: 'bus', leaveTime, estimatedArrivalTime: time(8), durationSeconds: 480, walkingSeconds: 360, walkingDistanceMeters: 530, transferCount: 0, status: 'Not checked', selected: selected === 'bus' },
+        { id: 'walk', leaveTime: time(-10), estimatedArrivalTime: time(8), durationSeconds: 1080, walkingSeconds: 1080, walkingDistanceMeters: 1400, transferCount: 0, status: 'Not checked', selected: selected === 'walk' },
       ]} originLabel="Your starting point" onSelectJourney={id => { setSelected(id); setNotice('Fixture selection only; route geometry stays synthetic.'); }} onRecheck={() => setNotice('Fixture refresh only; no network route request.')} /></div>
       {notice && <p role="status" className="p-4">{notice}</p>}
     </div>

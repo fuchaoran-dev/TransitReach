@@ -14,7 +14,7 @@ import { ShareLink } from './components/ShareLink';
 import { SharedMeetingMap } from './components/SharedMeetingMap';
 import { SharedParticipantAreasLayer } from './components/SharedParticipantAreasLayer';
 import { OverlapLayer } from './components/OverlapLayer';
-import { MeetingRadar } from './components/MeetingRadar';
+import { MeetingRadarLayer } from './components/MeetingRadarLayer';
 import { intersectAreas } from './overlapService';
 import type { RankedPlace } from './fairnessRanking';
 import { useMeetingRoom } from './hooks/useMeetingRoom';
@@ -159,8 +159,8 @@ export function MeetingPlanner({ meeting, commonGround }: { meeting: PlannerCont
       {showSharedArea && !overlap.failed && <OverlapLayer polygons={overlap.polygons} />}
       <RankedPlaceMarkers places={places} selectedId={selectedId} onSelect={setSelectedId} selections={selections} confirmedId={room.confirmedPlan?.venue.id ?? null} memberPoints={members.flatMap(member => member.at ? [member.at] : [])} />
       <FocusOnPlace place={selected?.venue ?? null} />
+      {canCompute && common.state.status === 'loading' && <MeetingRadarLayer members={members} />}
     </BaseMap></div>
-    {canCompute && common.state.status === 'loading' && <MeetingRadar />}
     <div className="meeting-status-pill absolute left-1/2 top-4 z-[480] flex -translate-x-1/2 items-center gap-1 rounded-full border border-teal-300/25 bg-[#0e1c29]/95 py-1.5 pl-4 pr-1.5 text-xs text-slate-200 shadow-xl backdrop-blur">
       <p className="flex items-center gap-1.5 whitespace-nowrap font-semibold">
         {room.confirmedPlan

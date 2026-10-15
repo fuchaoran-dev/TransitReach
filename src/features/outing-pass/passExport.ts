@@ -1,6 +1,7 @@
 import QRCode from 'qrcode';
 import type { PersonalPass } from './types';
 import { drawPassCanvas } from './passImageRenderer';
+import { renderPassRouteMap } from './passRouteMap';
 
 const ROOM_PATTERN = /^[ABCDEFGHJKMNPQRSTUVWXYZ2-9]{8}$/;
 
@@ -24,7 +25,7 @@ export function generateRoomQrDataUrl(roomCode: string, baseUrl?: string): Promi
   });
 }
 
-/** All graphics use the private pass's recorded geometry; no external tiles are fetched. */
+/** Route stays local; public vector tiles supply building footprints and heights. */
 export async function renderPassImage(pass: PersonalPass, baseUrl?: string): Promise<Blob> {
   if (document.fonts) await document.fonts.ready;
   const qrUrl = await generateRoomQrDataUrl(pass.roomCode, baseUrl);
@@ -34,7 +35,8 @@ export async function renderPassImage(pass: PersonalPass, baseUrl?: string): Pro
     image.onerror = () => reject(new Error('The pass QR image could not be rendered.'));
     image.src = qrUrl;
   });
-  const canvas = drawPassCanvas(pass, qr);
+  const backdrop = await renderPassRouteMap(pass);
+  const canvas = drawPassCanvas(pass, qr, backdrop);
   return new Promise((resolve, reject) => {
     canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('The pass image could not be created.')), 'image/png');
   });
