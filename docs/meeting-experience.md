@@ -1,4 +1,45 @@
-# Meeting experience revision (local, not deployed)
+# Meeting experience revision
+
+## Production release · 15 October 2026 (MYT)
+
+- Runtime commit `b2f53ed` is on upstream `main` and the Render source branch
+  `fuchaoran-dev/TransitReach:deploy/md8-6-20261008`.
+- Supabase project `tritrrkakzechbvlvbcj`: rollback preflight and application of
+  `meeting-auto-planning.sql` passed. SHA-256:
+  `4a936fd612463258c119f820b452ab490e757790dc38321f961698d263747159`.
+  Fingerprints (excluding the new schedule and room update timestamps) matched
+  across all six meeting tables: 19 rooms, 28 members, 19 creator records,
+  5 votes, 1 selection and 14 proposals. No existing agreement was reset.
+  Function-definition backup is restricted locally; it contains no credentials.
+- Netlify production: <https://transitreach-kl-team8.netlify.app/>, deployment
+  `6ad05137f8f86efecf2ada4c`. Published entry `index-BHWaMhT2.js` and the meeting,
+  room-service and app assets were byte-compared with the local production build.
+- Render deployment `dep-db852s6q1p3s739k6k00` succeeded for `b2f53ed`;
+  `/health` returned HTTP 200. No environment variables or OTP graph changed.
+- Repeated typecheck/build, lint (0 errors, 18 existing warnings), 76 backend
+  tests, all frontend checks listed below and 35 isolated SQL checks passed.
+- 47/47 live Auth/RLS/API/OTP/Realtime checks passed using public GTFS station
+  origins and a disposable room. They verified automatic all-Ready preparation,
+  late unready joining, member ensure idempotency, preserved meeting time,
+  fresh geometry after an origin change without host Start, proposer sharing,
+  tie handling, voting confirmation and six private arrive-by route options.
+  The test room and its three newly created anonymous identities were removed
+  with scoped guards; no existing room or account was deleted.
+- Native production Chrome additionally verified explicit Share → green Ready,
+  My Passes → Meet retaining the current room and shared origin, automatic radar
+  and calculation after the test peer joined, only the cyan intersection,
+  amber Propose/name feedback and the matching native 3D area/venue label.
+  Show everyone reframed the native 3D scene to include both named starts.
+  The additional UI test room and newly created peer were then removed;
+  the pre-existing browser identity was preserved.
+  Existing browser passes were not modified. Generic empty-list Go to Meet is
+  covered by the controlled regression, not an empty production browser store.
+- Remaining limits: this is not full two-physical-device acceptance, a fresh GPS
+  permission test, QR physical scanning, or a contention/load benchmark. The PNG
+  layout was inspected in the local browser fixture, not re-downloaded in this
+  production browser. Regional forecasts/routing remain estimates.
+
+The implementation notes below record the pre-release verification separately.
 
 ## Changes
 
@@ -48,7 +89,7 @@
 - Expired/too-close times are not automatically rolled forward. The creator must
   choose a valid time with a full future travel window, at most 30 days ahead.
 
-## Deployment prerequisite (not performed here)
+## Deployment order (applied in the release above)
 
 Apply `supabase/meeting-auto-planning.sql` **after** the existing voting migration,
 then publish the matched frontend. The existing arrive-by Render API remains
@@ -86,9 +127,11 @@ that changes an origin/time/budget legitimately clears that group's votes/agreem
   inspected for readable time cards, route sketch, timeline and QR stub.
   Native 3D additionally displayed the cyan shared region and merged
   member/Proposed label when Propose focused the venue; the exposed toolbar opened.
-- These UI states are explicitly synthetic. Production automatic rounds, real
+- These pre-release UI states are explicitly synthetic. At that stage,
+  production automatic rounds, real
   multi-browser navigation, fresh GPS permission, QR physical scanning and the
-  new cloud migration have not been accepted yet. No Git commit/push/deploy here.
+  new cloud migration had not been accepted. See the production release above
+  for the subsequent deployment and live verification, with remaining limits.
 
 Run locally:
 
