@@ -1,8 +1,7 @@
-import { useEffect, useMemo } from 'react';
-import { CircleMarker, MapContainer, Polyline, Tooltip, useMap } from 'react-leaflet';
+import { useEffect, useMemo, useState } from 'react';
+import { CircleMarker, MapContainer, Polyline, TileLayer, Tooltip, useMap } from 'react-leaflet';
 import { latLngBounds } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { VectorBaseLayer } from '@/features/reachability/map';
 import type { PersonalPass } from '../types';
 import { legColour, legTitle } from './legPresentation';
 
@@ -32,14 +31,19 @@ function RouteBounds({ pass, sheetCoverage }: { pass: PersonalPass; sheetCoverag
 export function PrivateJourneyMap({ pass, sheetCoverage = 0 }: { pass: PersonalPass; sheetCoverage?: number }) {
   const first = pass.legs[0]?.from;
   const destination = pass.meeting.venue;
+  const [tileError, setTileError] = useState(false);
   return <section className="outing-map" aria-label="Your private journey map">
     <MapContainer center={[destination.lat, destination.lon]} zoom={13} scrollWheelZoom={false}>
-      <VectorBaseLayer />
+      {/* A pass is a reading view: no extra WebGL context alongside the main 3D map. */}
+      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19}
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        eventHandlers={{ tileerror: () => setTileError(true) }} />
       <RouteBounds pass={pass} sheetCoverage={sheetCoverage} />
       {pass.legs.filter(leg => leg.geometry.length > 1).map(leg => <Polyline key={leg.id} positions={leg.geometry.map(point => [point.lat, point.lon])} pathOptions={{ color: legColour(leg), weight: leg.mode === 'WALK' ? 4 : 6, opacity: 0.95, dashArray: leg.mode === 'WALK' ? '2 8' : undefined, lineCap: 'round' }}><Tooltip sticky>{legTitle(leg).title}</Tooltip></Polyline>)}
       {first && <CircleMarker center={[first.lat, first.lon]} radius={7} pathOptions={{ color: '#0d141d', weight: 3, fillColor: '#74fcea', fillOpacity: 1 }}><Tooltip permanent direction="top" offset={[0, -8]} className="pass-map-label">Start · private</Tooltip></CircleMarker>}
       <CircleMarker center={[destination.lat, destination.lon]} radius={16} interactive={false} pathOptions={{ stroke: false, fillColor: '#74fcea', fillOpacity: 0.18 }} />
       <CircleMarker center={[destination.lat, destination.lon]} radius={8} pathOptions={{ color: '#ffffff', weight: 3, fillColor: '#14b8a6', fillOpacity: 1 }}><Tooltip permanent direction="bottom" offset={[0, 10]} className="pass-map-label is-destination">{destination.name}</Tooltip></CircleMarker>
     </MapContainer>
+    {tileError && <p role="status" className="absolute bottom-6 left-3 z-[500] rounded-lg bg-[#0e1c29]/95 p-2 text-xs text-amber-200">Some street tiles could not load. The route remains visible.</p>}
   </section>;
 }

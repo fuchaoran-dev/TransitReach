@@ -100,6 +100,15 @@ globalThis.__meetingGround.state = { status: 'loading' };
 assert.ok(markup().includes('Calculating common reachable area')); checks++;
 assert.equal(markup().includes('longest 20 min'), false); checks++;
 globalThis.__meetingGround.state = settledGround;
+globalThis.__meetingGround.state = { status: 'loading', result: { ...settledGround.result, status: 'finding_places', proposals: [] } };
+assert.ok(markup().includes('Shared area ready. Still finding places')); checks++;
+assert.equal(markup().includes('Calculating common reachable area'), false); checks++;
+assert.equal(markup().includes('>Propose<'), false); checks++;
+globalThis.__meetingGround.state = { status: 'failed', message: 'Place route checks timed out.', result: { ...settledGround.result, status: 'finding_places', proposals: [] } };
+assert.ok(markup().includes('Place route checks timed out')); checks++;
+assert.ok(markup().includes('Shared reachability')); checks++;
+assert.equal(markup().includes('>Propose<'), false); checks++;
+globalThis.__meetingGround.state = settledGround;
 globalThis.__meetingFixture.view.room.confirmedPlan = { version: 1, venue, arrivalTime: '2026-10-20T09:00:00+08:00' };
 assert.ok(markup().includes('Generate my travel pass')); checks++;
 assert.equal(markup().includes('No personal Pass checks are run here'), false); checks++;
@@ -172,6 +181,24 @@ assert.ok(markup().includes('meeting-auto-planning SQL migration')); checks++;
 assert.equal(markup().includes('Opening room'), false); checks++;
 globalThis.__meetingFixture.view = originalView;
 globalThis.__meetingFixture.error = null;
+// A locally filtered shortlist must explain missing categories, not imply no malls exist.
+await act(async () => { planner = create(React.createElement(page.MeetingPointPage)); });
+const categoryButton = label => planner.root.findAllByType('button').find(button => button.children.includes(label));
+const renderedText = () => JSON.stringify(planner.toJSON());
+for (const label of ['Stations', 'Cafés', 'Restaurants']) {
+  await act(async () => { categoryButton(label).props.onClick(); });
+}
+assert.ok(renderedText().includes('No verified places for the selected types in this shortlist')); checks++;
+assert.equal(categoryButton('Malls').props['aria-pressed'], true); checks++;
+const savedResult = globalThis.__meetingGround.state.result;
+globalThis.__meetingGround.state.result = { ...savedResult, proposals: [...savedResult.proposals, { rank: 2, venue: { ...venue, id: 'mall-test', type: 'mall', name: 'Test Mall' }, longestMinutes: 25, gapMinutes: 4 }] };
+await act(async () => { planner.update(React.createElement(page.MeetingPointPage)); });
+assert.ok(renderedText().includes('Test Mall')); checks++;
+assert.equal(renderedText().includes('No verified places for the selected types'), false); checks++;
+await act(async () => { categoryButton('Malls').props.onClick(); });
+assert.equal(categoryButton('Malls').props['aria-pressed'], true); checks++;
+await act(async () => { planner.unmount(); });
+globalThis.__meetingGround.state.result = savedResult;
 if (process.argv.includes('--markup')) {
   // Layout QA uses an internally consistent tied round, not the defensive state assertions above.
   const secondVenue = { ...venue, id: 'cafe-2', type: 'cafe', name: 'Example café', kindLabel: 'Café' };

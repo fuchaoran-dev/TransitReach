@@ -1,5 +1,14 @@
 # Epic 7 UI checks
 
+## Expo desktop reliability revision
+
+See [desktop fixes](../../docs/expo-desktop-fixes.md) for the local short-poll meeting
+contract and verification limits. Run `node scripts/test-expo-fixes.mjs` and the
+meeting-job backend tests. This revision is desktop-only; it does not require phones.
+Use the meeting feedback fixture for the real pass portal, visible Back/title and
+Escape focus return, and the travel-pass fixture for the street basemap and PNG.
+Fixtures do not establish a real multi-account room/voting test.
+
 ## Startup recovery
 
 Open `/tests/ui/bootstrap-preview.html` for labelled loading, slow/retrying and
@@ -160,7 +169,7 @@ OpenFreeMap vector tiles for building footprints/heights and quiet streets, usin
 pitched camera shared by the route projection. No room code, itinerary or QR payload
 is sent to the tile server. Attribution is included inside the downloaded image.
 Building detail depends on source coverage and route extent. The map gets ten seconds;
-offline, failed or timed-out maps are labelled `3D map unavailable · schematic only`
+offline, failed or timed-out maps are labelled `Street map unavailable · schematic only`
 and retain the original recorded-geometry schematic. Zero travel skips map requests.
 The fixture neither joins a room nor queries OTP; changing the selected option is only a
 presentation test. Regression checks: `node scripts/test-travel-pass-presentation.mjs`

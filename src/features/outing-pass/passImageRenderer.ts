@@ -310,8 +310,8 @@ export function drawPassCanvas(pass: PersonalPass, qr: HTMLImageElement, backdro
   // Public building tiles and the route share a camera; offline export is explicitly labelled.
   surface(PAD - 28, y, WIDTH - PAD * 2 + 56, 374);
   text('YOUR ROUTE', PAD + 28, y + 42, '800 22px "Plus Jakarta Sans", sans-serif', TEAL);
-  const mapLabel = backdrop ? 'Recorded route geometry · 3D map'
-    : backdrop === null && !pass.zeroTravel ? '3D map unavailable · schematic only' : 'Recorded route geometry · schematic only';
+  const mapLabel = backdrop ? 'Recorded route geometry · street map'
+    : backdrop === null && !pass.zeroTravel ? 'Street map unavailable · schematic only' : 'Recorded route geometry · schematic only';
   text(mapLabel, WIDTH - PAD - 390, y + 41, '19px Manrope, sans-serif', MUTED);
   const paths = pass.legs.map(leg => ({ leg, points: leg.geometry.filter(point => Number.isFinite(point.lat) && Number.isFinite(point.lon)) }));
   const points = paths.flatMap(path => path.points);

@@ -44,7 +44,7 @@ export function RoomLobby({ invitedCode, invitation, busy, error, onCreate, onJo
             <h2 id="room-invitation-title" className="text-2xl font-bold text-white">
               Meet at {invitation.confirmedPlan.venue.name}
             </h2>
-            <p className="mt-2 text-sm text-slate-300">Join this room to create a private journey from your own starting point.</p>
+            <p className="mt-2 text-sm text-slate-300">This meeting is already set. Ask the creator to reopen it before joining.</p>
           </div>
           <div className="space-y-3 rounded-xl bg-[#192a38] p-4">
             <p className="flex gap-3 text-sm text-slate-200">
@@ -63,7 +63,7 @@ export function RoomLobby({ invitedCode, invitation, busy, error, onCreate, onJo
         </div>
       )}
 
-      <label className="block text-sm font-semibold">
+      {!invitation?.confirmedPlan && <label className="block text-sm font-semibold">
         Your name in the room <span className="font-normal text-slate-500">(optional)</span>
         <input
           className="glass-input block w-full mt-2 p-3"
@@ -71,18 +71,18 @@ export function RoomLobby({ invitedCode, invitation, busy, error, onCreate, onJo
           value={nickname}
           onChange={event => setNickname(event.target.value)}
         />
-      </label>
+      </label>}
 
       {invitedCode ? (
         <div className="space-y-3">
           <p className="text-sm text-slate-600">
-            {invitation?.confirmedPlan ? 'Join' : 'You have been invited to'} room{' '}
+            {invitation?.confirmedPlan ? 'Confirmed meeting in' : 'You have been invited to'} room{' '}
             <strong className="font-mono tracking-wider text-slate-900">{invitedCode}</strong>.
             {!invitation?.confirmedPlan && ' The group plan is still being arranged.'}
           </p>
-          <button className="btn-primary w-full" disabled={busy || error === 'not_found'} onClick={() => onJoin(invitedCode, nickname)}>
+          {!invitation?.confirmedPlan && <button className="btn-primary w-full" disabled={busy || error === 'not_found'} onClick={() => onJoin(invitedCode, nickname)}>
             {busy ? 'Joining…' : 'Join room'}
-          </button>
+          </button>}
           <button className="btn-secondary w-full" disabled={busy} onClick={() => onCreate(nickname)}>
             Create a new room instead
           </button>

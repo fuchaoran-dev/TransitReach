@@ -4,6 +4,11 @@ Production website: [transitreach-kl-team8.netlify.app](https://transitreach-kl-
 The Netlify project was renamed on 14 October 2026; see
 [domain-change notes](docs/domain-change.md) for invitation and anonymous-session impact.
 
+The local desktop Expo reliability revision (short-poll meeting jobs, origin-save,
+transit failure handling and pass fixes) is described in
+[Expo desktop fixes](docs/expo-desktop-fixes.md). It requires a coordinated backend
+and frontend release; this note is not evidence of production deployment.
+
 ## Group invitations and personal passes
 
 The local automatic-Ready/map/PNG revision is described in

@@ -94,7 +94,7 @@ class CommonGroundResponse(BaseModel):
     # no_common_ground describes eligible venues, not whether the areas intersect.
     status: Literal[
         "waiting_for_planning", "waiting_for_participants", "waiting_for_origins",
-        "no_common_ground", "ready",
+        "no_common_ground", "ready", "finding_places",
     ]
     participant_count: int = Field(alias="participantCount", ge=1, le=6)
     missing_starting_points: int = Field(alias="missingStartingPoints", ge=0, le=6)
@@ -105,3 +105,16 @@ class CommonGroundResponse(BaseModel):
     area_method: Literal["budget-window-preview"] = Field(default="budget-window-preview", alias="areaMethod")
     participant_areas: list[ParticipantArea] = Field(default_factory=list, alias="participantAreas", max_length=6)
     proposals: list[VenueProposal]
+
+
+class CommonGroundJobRequest(CommonGroundRequest):
+    room_revision: int = Field(alias="roomRevision", ge=0)
+
+
+class CommonGroundJobResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    status: Literal["computing", "ready", "failed"]
+    result: CommonGroundResponse | None = None
+    reason: Literal["routing_unavailable", "room_changed", "calculation_failed"] | None = None
+    retry_after_seconds: int = Field(default=2, alias="retryAfterSeconds")

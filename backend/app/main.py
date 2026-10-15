@@ -8,6 +8,7 @@ from time import perf_counter
 import logging
 
 from backend.app.database import get_pool, close_pool
+from backend.app.services.meeting_jobs import meeting_jobs
 
 from backend.app.api.reliability import router as reliability_router
 from backend.app.api.data import router as data_router
@@ -20,6 +21,7 @@ async def lifespan(_app: FastAPI):
     try:
         yield
     finally:
+        await meeting_jobs.close()
         close_pool()
 
 

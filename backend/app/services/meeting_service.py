@@ -6,7 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from math import ceil
 from struct import error as StructError
-from typing import Annotated, Literal
+from typing import Annotated, Callable, Literal
+from weakref import WeakKeyDictionary
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -26,10 +27,36 @@ from backend.app.services.travel_time_surface import (
 
 ROUTING_TIMEOUT_SECONDS = 25.0
 MAX_PROPOSALS = 20
-MAX_CANDIDATE_CHECKS = 30
+MAX_CANDIDATE_CHECKS = 12
 MAX_ROUTING_CONCURRENCY = 6
 ROUTING_MODES = "WALK,SUBWAY,TRAM,BUS"
 DEPARTURE_TIME = TypeAdapter(AwareDatetime)
+_routing_slots: WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Semaphore] = WeakKeyDictionary()
+
+
+def routing_slots() -> asyncio.Semaphore:
+    """A process-wide bound, not six additional OTP requests for every room/browser."""
+    loop = asyncio.get_running_loop()
+    if loop not in _routing_slots:
+        _routing_slots[loop] = asyncio.Semaphore(MAX_ROUTING_CONCURRENCY)
+    return _routing_slots[loop]
+
+
+def check_room_revision(code: str, caller_id: UUID, revision: int, budget: int | None) -> int:
+    """Authorize every job poll, including cache hits, without reloading all venues."""
+    with connection() as database:
+        room = database.execute(
+            """select r.planning_revision, r.time_budget from public.meeting_rooms r
+               join public.meeting_participants p on p.room_code = r.code and p.user_id = %s
+               where r.code = %s and r.expires_at > now()""", (caller_id, code),
+        ).fetchone()
+    if room is None:
+        raise RoomUnavailableError
+    if room["planning_revision"] != revision:
+        raise MeetingInputsChangedError
+    if budget is not None and room["time_budget"] != budget:
+        raise BudgetChangedError
+    return int(room["time_budget"])
 
 
 class _Polygon(BaseModel):
@@ -327,11 +354,35 @@ async def _fetch_arrive_by_minutes(
         raise RoutingUnavailableError from error
 
 
+def _candidate_shortlist(
+    ranked: list[tuple[int, int, str, PublicVenue]],
+) -> list[tuple[int, int, str, PublicVenue]]:
+    """Share the fixed OTP budget across categories, preserving each category's rank."""
+    categories: dict[VenueType, list[tuple[int, int, str, PublicVenue]]] = {}
+    for item in ranked:
+        categories.setdefault(item[3].type, []).append(item)
+    selected: list[tuple[int, int, str, PublicVenue]] = []
+    # A sparse category's unused slots go to others; malls cannot be crowded out
+    # by many faster stations/restaurants. This is still a screened shortlist.
+    for offset in range(MAX_CANDIDATE_CHECKS):
+        for items in categories.values():
+            if offset < len(items):
+                selected.append(items[offset])
+                if len(selected) == MAX_CANDIDATE_CHECKS:
+                    return selected
+        if len(selected) == len(ranked):
+            break
+    return selected
+
+
 async def common_ground(
     code: str,
     caller_id: UUID,
     venue_types: list[VenueType],
     requested_budget: int | None,
+    *,
+    on_areas: Callable[[CommonGroundResponse], None] | None = None,
+    verification_timeout: float = ROUTING_TIMEOUT_SECONDS,
 ) -> CommonGroundResponse:
     calculation = await asyncio.to_thread(_load_calculation, code, caller_id, venue_types)
     missing = calculation.participant_count - len(calculation.origins)
@@ -363,15 +414,13 @@ async def common_ground(
     departure_time = arrival_time - timedelta(minutes=calculation.budget_minutes)
     base["departureTime"] = departure_time
     # Limit both endpoint requests together; private geometry exists only in this request.
-    semaphore = asyncio.Semaphore(MAX_ROUTING_CONCURRENCY)
+    semaphore = routing_slots()
 
     async def fetch_participant(
         client: httpx.AsyncClient, origin: PrivateOrigin,
-    ) -> tuple[TravelTimeSurface, ParticipantArea]:
+    ) -> ParticipantArea:
         async with semaphore:
-            surface = await _fetch_surface(client, origin, calculation.budget_minutes, departure_time)
-            area = await _fetch_isochrone(client, origin, calculation.budget_minutes, departure_time)
-            return surface, area
+            return await _fetch_isochrone(client, origin, calculation.budget_minutes, departure_time)
 
     timeout = httpx.Timeout(ROUTING_TIMEOUT_SECONDS)
     async with httpx.AsyncClient(
@@ -388,7 +437,27 @@ async def common_ground(
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
             raise
-    surfaces = [surface for surface, _area in results]
+    participant_areas = [
+        ParticipantArea(memberId=origin.participant_id, regions=area.regions)
+        for origin, area in zip(calculation.origins, results, strict=True)
+    ]
+    if on_areas is not None:
+        await asyncio.to_thread(check_room_revision, code, caller_id, calculation.room_revision, calculation.budget_minutes)
+        on_areas(CommonGroundResponse(status="finding_places", proposals=[], participantAreas=participant_areas, **base))
+
+    async def fetch_surface(client: httpx.AsyncClient, origin: PrivateOrigin) -> TravelTimeSurface:
+        async with semaphore:
+            return await _fetch_surface(client, origin, calculation.budget_minutes, departure_time)
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        tasks = [asyncio.create_task(fetch_surface(client, origin)) for origin in calculation.origins]
+        try:
+            surfaces = await asyncio.gather(*tasks)
+        except BaseException:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            raise
 
     ranked: list[tuple[int, int, str, PublicVenue]] = []
     for venue in calculation.venues:
@@ -422,9 +491,9 @@ async def common_ground(
         return max(rounded), max(rounded) - min(rounded), venue.name, venue, rounded
 
     async with httpx.AsyncClient(timeout=timeout, limits=httpx.Limits(max_connections=MAX_ROUTING_CONCURRENCY)) as client:
-        tasks = [asyncio.create_task(verify_candidate(item)) for item in ranked[:MAX_CANDIDATE_CHECKS]]
+        tasks = [asyncio.create_task(verify_candidate(item)) for item in _candidate_shortlist(ranked)]
         try:
-            verified = await asyncio.wait_for(asyncio.gather(*tasks), timeout=ROUTING_TIMEOUT_SECONDS)
+            verified = await asyncio.wait_for(asyncio.gather(*tasks), timeout=verification_timeout)
         except TimeoutError as error:
             for task in tasks:
                 task.cancel()
@@ -464,9 +533,6 @@ async def common_ground(
     return CommonGroundResponse(
         status="ready" if proposals else "no_common_ground",
         proposals=proposals,
-        participantAreas=[
-            ParticipantArea(memberId=origin.participant_id, regions=area.regions)
-            for origin, (_surface, area) in zip(calculation.origins, results, strict=True)
-        ],
+        participantAreas=participant_areas,
         **base,
     )

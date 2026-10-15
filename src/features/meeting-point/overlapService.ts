@@ -49,8 +49,25 @@ const toMultiPolygon = (regions: IsochroneRegion[]): MultiPolygon =>
  */
 export function intersectAreas(areas: IsochroneRegion[][], minimumPieceKm2 = MIN_PIECE_KM2): OverlapPolygon[] {
   if (areas.length === 0 || areas.some(regions => regions.length === 0)) return [];
-  const [first, ...rest] = areas.map(toMultiPolygon);
-  return intersection(first, ...rest).filter(polygon => polygonAreaKm2(polygon) > 0 && polygonAreaKm2(polygon) >= minimumPieceKm2);
+  const bounds = (area: MultiPolygon) => {
+    const points = area.flatMap(([outer]) => outer);
+    return points.reduce((box, [lon, lat]) => [Math.min(box[0], lon), Math.min(box[1], lat), Math.max(box[2], lon), Math.max(box[3], lat)], [Infinity, Infinity, -Infinity, -Infinity]);
+  };
+  const inputs = areas.map(toMultiPolygon).map(area => ({ area, box: bounds(area) }));
+  // Bounding boxes reject disjoint inputs without clipping thousands of vertices.
+  // Smaller envelopes first are a heuristic; geometry/holes remain exact throughout.
+  const west = Math.max(...inputs.map(({ box }) => box[0]));
+  const south = Math.max(...inputs.map(({ box }) => box[1]));
+  const east = Math.min(...inputs.map(({ box }) => box[2]));
+  const north = Math.min(...inputs.map(({ box }) => box[3]));
+  if (west >= east || south >= north) return [];
+  inputs.sort((a, b) => (a.box[2] - a.box[0]) * (a.box[3] - a.box[1]) - (b.box[2] - b.box[0]) * (b.box[3] - b.box[1]));
+  let common = inputs[0].area;
+  for (const input of inputs.slice(1)) {
+    common = intersection(common, input.area);
+    if (!common.length) return [];
+  }
+  return common.filter(polygon => polygonAreaKm2(polygon) > 0 && polygonAreaKm2(polygon) >= minimumPieceKm2);
 }
 
 /** Ray-casting point-in-ring test, on a [lon, lat] ring. */

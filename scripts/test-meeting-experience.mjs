@@ -122,13 +122,13 @@ texts.length = 0; drawCalls.length = 0;
 const backdropCanvas = { fixture: 'public-building-map' };
 const mappedPass = { ...pass, legs: [{ ...pass.legs[0], geometry: [{lat:3.1,lon:101.6},{lat:3.11,lon:101.61}] }] };
 drawPassCanvas(mappedPass, {}, { canvas: backdropCanvas, paths: [[[100, 60], [700, 130]]] });
-check(texts.some(item => item.text.includes('3D map')), true);
+check(texts.some(item => item.text.includes('street map')), true);
 check(texts.some(item => item.text.includes('© OpenStreetMap contributors')), true);
 check(drawCalls.some(([name, args]) => name === 'drawImage' && args[0] === backdropCanvas), true);
 check(drawCalls.some(([name, args]) => name === 'moveTo' && args[0] === 194), true); // plot origin 94 + camera x 100
 texts.length = 0;
 drawPassCanvas(mappedPass, {}, null);
-check(texts.some(item => item.text.includes('3D map unavailable')), true);
+check(texts.some(item => item.text.includes('Street map unavailable')), true);
 globalThis.document = originalDocument;
 
 // Map snapshot lifecycle: public tiles only, matched camera coordinates, bounded wait, cleanup.
@@ -144,8 +144,8 @@ globalThis.document = {
 };
 globalThis.fetch = async () => {
   fixture.fetches++;
-  return { ok: true, json: async () => ({ version:8, sources:{public:{type:'vector'}},
-    layers:[{id:'building',type:'fill',source:'public'}] }) };
+  return { ok: true, json: async () => ({ version:8, sources:{public:{type:'vector'}}, glyphs:'https://tiles.example.test/fonts/{fontstack}/{range}.pbf',
+    layers:[{id:'building',type:'fill',source:'public'},{id:'highway_minor',type:'line',source:'public'}] }) };
 };
 const { renderPassRouteMap } = await load('src/features/outing-pass/passRouteMap.ts', {
   'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url': 'export default "fixture-worker";',
@@ -164,7 +164,10 @@ const backdrop = await renderPassRouteMap(mappedPass);
 check(backdrop.paths[0], [[101.6, 3.1], [101.61, 3.11]]);
 check(fixture.removedMaps, 1); check(fixture.removedHosts, 1);
 check(fixture.options.canvasContextAttributes.preserveDrawingBuffer, true);
-check(fixture.options.style.layers.some(layer => layer.type === 'fill-extrusion'), true);
+check(fixture.options.style.layers.some(layer => layer.type === 'fill-extrusion'), false);
+check(fixture.options.style.layers.some(layer => layer.id === 'highway_minor'), true);
+check(fixture.options.pitch, 0);
+check(fixture.options.style.glyphs.includes('fonts'), true);
 check(Object.values(fixture.options.style.sources).some(source => source.type === 'geojson'), false);
 check(await renderPassRouteMap({ ...mappedPass, zeroTravel: true }), null);
 check(fixture.fetches, 1);

@@ -44,7 +44,7 @@ function Preview() {
     }, changeBudget: async () => {}, changeMeetingTime: async () => {}, leave: async () => {}, startPlanning: async () => {}, reopenPlanning: async () => {},
     proposeVenue: async () => { setState(current => ({ ...current, selections: [{ memberId: 'self-fixture', displayName: 'Aina', venue }] })); }, vote: async () => {},
   };
-  return <div className="transit-shell"><header className="fixed inset-x-0 top-0 z-[1500] flex h-16 items-center justify-between bg-[#080f18] px-6 text-xs text-amber-200">
+  return <div className="transit-shell"><header className="fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between bg-[#080f18] px-6 text-xs text-amber-200">
     <span>UI FIXTURE ONLY · No cloud writes · No real votes/areas · Pass button may query actual OTP using public stations</span>
     <div className="flex gap-3"><button onClick={() => selectMode(false)}>Shared starts</button><button onClick={() => selectMode(false,true)}>Calculating</button><button onClick={() => selectMode(true)}>Confirmed meeting</button></div>
   </header><MeetingPlanner key={mode} meeting={meeting} commonGround={{ state: loading ? { status: 'loading' } : { status: 'ready', result }, retry() {} }} /></div>;

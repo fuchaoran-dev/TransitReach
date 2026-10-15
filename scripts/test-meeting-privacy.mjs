@@ -107,7 +107,8 @@ const invitationMarkup = renderToStaticMarkup(React.createElement(RoomLobby, {
   onJoin() {},
 }));
 assert.ok(invitationMarkup.includes('Meet at Pasar Seni')); checks++;
-assert.ok(invitationMarkup.includes('Join room')); checks++;
+assert.equal(invitationMarkup.includes('Join room'), false); checks++;
+assert.ok(invitationMarkup.includes('Ask the creator to reopen')); checks++;
 assert.equal(invitationMarkup.includes('Jia Wei'), false); checks++;
 
 const { ShareLink } = await load('src/features/meeting-point/components/ShareLink.tsx', {

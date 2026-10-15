@@ -224,7 +224,10 @@ export function useMeetingRoom() {
     setBusy(true);
     try {
       await saveMyPoint(supabase, view.room.code, myUserId, point);
-      return await reloadRef.current?.() ?? false;
+      // A newer realtime reload may supersede this refresh. That does not undo the
+      // successful write or mean the caller should keep its "not shared" preview.
+      void reloadRef.current?.();
+      return true;
     } catch (reason) {
       setError(toRoomError(reason));
       void reloadRef.current?.();

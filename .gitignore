@@ -66,6 +66,7 @@ routing/deploy/*.pem
 
 # screenshots
 *.png
+!public/social-preview.png
 
 # Local Netlify folder
 .netlify

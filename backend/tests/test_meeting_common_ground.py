@@ -20,7 +20,7 @@ from backend.app.services.meeting_service import (
     BudgetChangedError, MeetingCalculation, PrivateOrigin,
     RoomUnavailableError, RoutingUnavailableError, _fetch_isochrone, _fetch_surface,
     _load_calculation, _store_proposals, common_ground,
-    _fetch_arrive_by_minutes,
+    _fetch_arrive_by_minutes, _candidate_shortlist, MAX_CANDIDATE_CHECKS,
 )
 from backend.app.services.travel_time_surface import TravelTimeSurface
 
@@ -183,6 +183,38 @@ class MeetingOtpGeometryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(requests[1].url.params["batch"], "true")
 
 
+class MeetingCandidateShortlistTests(unittest.TestCase):
+    def ranked(self, counts):
+        return [
+            (index + 1, 0, f"{kind}-{index:02}", VENUE.model_copy(update={
+                "id": f"{kind}-{index}", "type": kind, "name": f"{kind}-{index:02}",
+            }))
+            for kind, count in counts for index in range(count)
+        ]
+
+    def test_dense_categories_cannot_exclude_malls(self) -> None:
+        ranked = self.ranked([(kind, 20) for kind in ("station", "cafe", "restaurant", "mall")])
+        result = _candidate_shortlist(ranked)
+        self.assertEqual(len(result), MAX_CANDIDATE_CHECKS)
+        for kind in ("station", "cafe", "restaurant", "mall"):
+            self.assertEqual([item[3].id for item in result if item[3].type == kind],
+                             [f"{kind}-{index}" for index in range(3)])
+
+    def test_sparse_mall_category_releases_unused_slots(self) -> None:
+        result = _candidate_shortlist(self.ranked([("station", 20), ("mall", 1)]))
+        self.assertEqual(len(result), MAX_CANDIDATE_CHECKS)
+        self.assertEqual(sum(item[3].type == "mall" for item in result), 1)
+        self.assertEqual(len({item[3].id for item in result}), len(result))
+
+    def test_empty_small_and_single_category_lists(self) -> None:
+        self.assertEqual(_candidate_shortlist([]), [])
+        for count in (2, 20):
+            ranked = self.ranked([("mall", count)])
+            self.assertEqual(_candidate_shortlist(ranked), ranked[:MAX_CANDIDATE_CHECKS])
+        ranked = self.ranked([("station", 2), ("mall", 2)])
+        self.assertCountEqual(_candidate_shortlist(ranked), ranked)
+
+
 class MeetingCommonGroundTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         self.arrive_by_patch = patch("backend.app.services.meeting_service._fetch_arrive_by_minutes", new=AsyncMock(return_value=10))
@@ -216,6 +248,44 @@ class MeetingCommonGroundTests(unittest.IsolatedAsyncioTestCase):
             result = await common_ground("ABCDEFGH", CALLER, ["station"], 30)
         self.assertEqual(result.proposals, [])
         self.assertEqual(result.status, "no_common_ground")
+
+    async def test_mall_survives_dense_station_shortlist_but_still_needs_every_route(self) -> None:
+        stations = tuple(VENUE.model_copy(update={"id": f"station-{index}", "name": f"A{index:02}"})
+                         for index in range(20))
+        mall = VENUE.model_copy(update={"id": "mall-1", "name": "Z Mall", "type": "mall"})
+        calculation = replace(CALCULATION, venues=stations + (mall,))
+        for mall_reachable in (True, False):
+            async def route(_client, origin, venue, _budget, _arrival):
+                if venue.type == "mall" and origin == calculation.origins[1] and not mall_reachable:
+                    return None
+                return 10
+
+            with (
+                self.subTest(mall_reachable=mall_reachable),
+                patch("backend.app.services.meeting_service._load_calculation", return_value=calculation),
+                patch("backend.app.services.meeting_service._fetch_surface", new=AsyncMock(return_value=SURFACE)),
+                patch("backend.app.services.meeting_service._fetch_isochrone", new=AsyncMock(return_value=AREA)),
+                patch("backend.app.services.meeting_service._fetch_arrive_by_minutes", new=AsyncMock(side_effect=route)) as routes,
+                patch("backend.app.services.meeting_service._store_proposals") as store,
+            ):
+                result = await common_ground("ABCDEFGH", CALLER, ["station", "mall"], 30)
+            self.assertEqual(any(proposal.venue.type == "mall" for proposal in result.proposals), mall_reachable)
+            self.assertEqual(routes.await_count, MAX_CANDIDATE_CHECKS * len(calculation.origins))
+            self.assertEqual(sum(call.args[2].type == "mall" for call in routes.await_args_list), 2)
+            self.assertEqual([proposal.rank for proposal in result.proposals], list(range(1, len(result.proposals) + 1)))
+            self.assertEqual(store.call_args.args[3], result.proposals)
+
+    async def test_mall_outside_any_members_surface_is_not_proposed(self) -> None:
+        mall = VENUE.model_copy(update={"id": "mall-outside", "type": "mall", "lat": 5.0})
+        with (
+            patch("backend.app.services.meeting_service._load_calculation", return_value=replace(CALCULATION, venues=(mall,))),
+            patch("backend.app.services.meeting_service._fetch_surface", new=AsyncMock(return_value=SURFACE)),
+            patch("backend.app.services.meeting_service._fetch_isochrone", new=AsyncMock(return_value=AREA)),
+            patch("backend.app.services.meeting_service._store_proposals"),
+        ):
+            result = await common_ground("ABCDEFGH", CALLER, ["mall"], 30)
+        self.assertEqual(result.proposals, [])
+        self.arrive_by.assert_not_awaited()
 
     async def test_arrive_by_outage_does_not_store_partially_checked_candidates(self) -> None:
         self.arrive_by.side_effect = RoutingUnavailableError

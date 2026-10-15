@@ -138,6 +138,7 @@ interface OtpPlanResponse {
     itineraries?: OtpItinerary[];
   };
   error?: {
+    id?: number;
     message?: string;
   };
 }
@@ -323,11 +324,13 @@ async function fetchPlan(
       (await response.json()) as
         OtpPlanResponse;
 
-    if (body.error?.message) {
+    if (body.error) {
+      if (body.error.id === 404 || body.error.id === 409) return [];
       throw new TransitJourneyUnavailableError(
-        body.error.message,
+        body.error.message ?? 'The routing service could not calculate this journey.',
       );
     }
+    if (!Array.isArray(body.plan?.itineraries)) throw new TransitJourneyUnavailableError('The routing service returned an invalid plan.');
 
     return (
       body.plan?.itineraries ?? []
@@ -439,6 +442,12 @@ async function routeJourneyOptions(
       'Aborted',
       'AbortError',
     );
+  }
+
+  // An independently successful walk must not hide an unavailable transit search.
+  // A fulfilled transit response with no paths remains a genuine no-route result.
+  if (results[1].status === 'rejected') {
+    throw new TransitJourneyUnavailableError("Couldn't get transit times. Please try again.");
   }
 
   const successful =

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
 import type { ConfirmedMeetingPlan, StartingPoint } from '@/features/meeting-point/types';
 import { usePersonalPass } from '../hooks/usePersonalPass';
@@ -36,7 +37,7 @@ export function MeetingTravelPass({ code, memberId, plan, origin, budget, onClos
   }, [onClose]);
   const state = personal.state;
   const originLabel = origin.label ?? 'Your starting point';
-  return <div className="travel-pass-modal fixed inset-0 z-[1200] bg-[#080f18]/95 p-3 backdrop-blur-xl md:p-6">
+  return createPortal(<div className="transit-shell travel-pass-modal fixed inset-0 z-[1200] bg-[#080f18]/95 p-3 backdrop-blur-xl md:p-6">
     <div ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="travel-pass-title" className="travel-pass-scroll mx-auto h-full max-w-7xl overflow-y-auto rounded-2xl border border-[#294456] bg-[#0e1c29] text-slate-100">
       <header className="travel-pass-header sticky top-0 z-10 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-[#294456] bg-[#0e1c29]/95 px-5 py-4 backdrop-blur md:px-6">
         <button type="button" onClick={onClose} className="btn-icon shrink-0" aria-label="Back to meeting"><ArrowLeft size={18} aria-hidden="true" /></button>
@@ -51,5 +52,5 @@ export function MeetingTravelPass({ code, memberId, plan, origin, budget, onClos
         {state.status === 'ready' && <TravelPassContent pass={state.pass} options={state.options} originLabel={originLabel} onSelectJourney={personal.selectJourney} onRecheck={personal.recheck} />}
       </div>
     </div>
-  </div>;
+  </div>, document.body);
 }

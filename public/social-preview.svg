@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#091722"/>
+  <g fill="none" stroke="#244456" stroke-width="3">
+    <path d="m680 0 100 170-130 210 250 250M820 0 950 160 870 360 1200 450M600 100l600 70M600 300l600-30M650 500l550 50"/>
+  </g>
+  <circle cx="900" cy="300" r="170" fill="#54dfca" fill-opacity=".1" stroke="#54dfca" stroke-width="2"/>
+  <path d="m760 390 100-150 100 80 110-130" fill="none" stroke="#54dfca" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#54dfca" stroke="#fff" stroke-width="4"><circle cx="760" cy="390" r="12"/><circle cx="860" cy="240" r="12"/><circle cx="960" cy="320" r="12"/><circle cx="1070" cy="190" r="12"/></g>
+  <rect x="78" y="112" width="80" height="80" rx="22" fill="#153c48"/>
+  <path d="m96 148 45-19-18 47-8-20Z" fill="#54dfca"/>
+  <g font-family="Arial, sans-serif">
+    <text x="78" y="280" fill="#f0f8ff" font-size="74" font-weight="700">TransitReach</text>
+    <text x="80" y="337" fill="#54dfca" font-size="30" font-weight="700">KLANG VALLEY</text>
+    <text x="80" y="409" fill="#bdcfdb" font-size="28">Explore your reach.</text>
+    <text x="80" y="452" fill="#bdcfdb" font-size="28">Plan your outing. Meet together.</text>
+  </g>
+</svg>

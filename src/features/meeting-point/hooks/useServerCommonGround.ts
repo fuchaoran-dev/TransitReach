@@ -5,9 +5,9 @@ import type { VenueType } from '../venueService';
 
 export type ServerCommonGroundState =
   | { status: 'idle' }
-  | { status: 'loading' }
+  | { status: 'loading'; result?: CommonGroundResult }
   | { status: 'ready'; result: CommonGroundResult }
-  | { status: 'failed'; message?: string };
+  | { status: 'failed'; message?: string; result?: CommonGroundResult };
 
 export function useServerCommonGround(
   code: string | null,
@@ -37,14 +37,17 @@ export function useServerCommonGround(
     const controller = new AbortController();
     let current = true;
     setSettled({ key: requestKey, value: { status: 'loading' } });
-    fetchCommonGround(client, code, timeBudget, selectedTypes, controller.signal)
+    let preview: CommonGroundResult | undefined;
+    fetchCommonGround(client, code, timeBudget, selectedTypes, controller.signal, Number(roomRevision), result => {
+      if (current) { preview = result; setSettled({ key: requestKey, value: { status: 'loading', result } }); }
+    })
       .then(result => {
         if (current) setSettled({ key: requestKey, value: { status: 'ready', result } });
       })
       .catch(error => {
         if (!current || controller.signal.aborted) return;
         console.error('Could not calculate shared meeting places:', error);
-        setSettled({ key: requestKey, value: { status: 'failed', message: error instanceof Error ? error.message : 'Common-ground calculation is unavailable.' } });
+        setSettled({ key: requestKey, value: { status: 'failed', result: preview, message: error instanceof Error ? error.message : 'Common-ground calculation is unavailable.' } });
       });
 
     return () => {
