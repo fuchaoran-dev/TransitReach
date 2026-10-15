@@ -60,13 +60,13 @@ export function MyStartingPoint({ me, draft, notice, busy = false, onSelect, onS
       <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="text-xs text-teal-200">Preview · not shared</p><p className="mt-1 break-words text-sm font-semibold">{draft.label ?? 'Selected map point'}</p></div>
         <button type="button" onClick={cancel} disabled={busy} aria-label="Cancel starting point preview" className="btn-icon shrink-0"><X size={14} /></button></div>
       <button type="button" disabled={busy || locating} onClick={onShare} className="btn-primary mt-3 w-full text-sm">{me?.at ? 'Share updated starting point' : 'Share starting point'}</button>
-      <p className="mt-2 text-xs leading-relaxed text-slate-300">Your group can see this point and your name. No live tracking.</p>
+      <p className="mt-2 text-xs text-slate-300">Shares your point + name. No live tracking.</p>
     </section>}
     {me?.at && <section className="rounded-xl border border-[#294456] bg-[#192a38] p-3">
       <p className="text-xs text-emerald-300">Shared with this room</p><p className="mt-1 break-words text-sm font-semibold">{me.label ?? 'Selected map point'}</p>
       <button type="button" disabled={busy} onClick={() => { cancel(); onWithdraw(); }} className="mt-2 text-xs text-slate-300 underline">Stop sharing</button>
     </section>}
-    {!draft && !me?.at && <p className="text-xs leading-relaxed text-slate-400">Search or tap the map, then share to become Ready. A nearby station can protect your home address.</p>}
+    {!draft && !me?.at && <p className="text-xs text-slate-400">Choose a point, then Share to become Ready.</p>}
     {notice && <p role="alert" className="text-xs text-rose-300">{notice}</p>}
     {locationError && <p role="alert" className="text-xs text-rose-300">{locationError}</p>}
     {busy && <p role="status" className="text-xs text-slate-300">Saving room changes…</p>}

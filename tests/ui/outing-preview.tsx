@@ -11,7 +11,7 @@ import type { PersonalPass } from '../../src/features/outing-pass/types';
 import type { MeetingRoom, SharedMemberStatus } from '../../src/features/meeting-point/types';
 
 const room: MeetingRoom = {
-  code: 'ABCDEFGH', timeBudget: 45, expiresAt: '2026-10-12T12:00:00Z', proposedArrivalTime: null,
+  code: 'ABCDEFGH', timeBudget: 45, meetingTime: '2026-10-10T18:30:00+08:00', planningRevision: 1, updatedAt: '2026-10-07T16:00:00+08:00', expiresAt: '2026-10-12T12:00:00Z', proposedArrivalTime: null,
   confirmedPlan: { version: 3, arrivalTime: '2026-10-10T18:30:00+08:00', venue: { id: 'fixture-venue', type: 'mall', name: 'Fixture Sunway meeting', kindLabel: 'Test destination', lat: 3.0733, lon: 101.6067 } },
 };
 const members: SharedMemberStatus[] = [

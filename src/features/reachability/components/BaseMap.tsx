@@ -64,6 +64,11 @@ interface BaseMapProps {
   origin: Origin | null;
   /** Meeting rooms draw their own consent-gated member markers. */
   showOriginPin?: boolean;
+  /** A child-managed 2D overlay can supply the same region separately to 3D. */
+  cityRegions?: IsochroneRegion[] | null;
+  sharedArea?: boolean;
+  cityFocus?: { lat: number; lon: number; label: string } | null;
+  cityFrameRequest?: number;
   /** Disjoint reachable regions, or null when there is nothing to draw. */
   regions: IsochroneRegion[] | null;
   coverage?: DepartureCoverage | null;
@@ -74,7 +79,7 @@ interface BaseMapProps {
   selectedService?: ServiceLocation | null;
   onServiceSelect?: (service: ServiceLocation) => void;
   /** Labelled in the 3D view, where the Leaflet children are not drawn. */
-  waypoints?: Array<{ lat: number; lon: number; label: string }>;
+  waypoints?: Array<{ lat: number; lon: number; label: string; colour?: string }>;
   children?: ReactNode;
 }
 
@@ -254,7 +259,7 @@ function ReachabilityLayer({ regions }: { regions: IsochroneRegion[] }) {
   );
 }
 
-export function BaseMap({ origin, showOriginPin = true, regions, coverage, onMapClick, services, selectedServiceId, selectedService, onServiceSelect, children, journey, highlightedLegId, focusedStep, waypoints }: BaseMapProps) {
+export function BaseMap({ origin, showOriginPin = true, regions, cityRegions, sharedArea, cityFocus, cityFrameRequest, coverage, onMapClick, services, selectedServiceId, selectedService, onServiceSelect, children, journey, highlightedLegId, focusedStep, waypoints }: BaseMapProps) {
   return (
     <div className="city-map-frame" style={{ width: '100%', height: '100%', position: 'relative' }}>
     <MapContainer
@@ -282,7 +287,7 @@ export function BaseMap({ origin, showOriginPin = true, regions, coverage, onMap
       {children}
       {origin && showOriginPin && <OriginPin at={origin.at} onMove={onMapClick} />}
     </MapContainer>
-    <CityFocusView service={selectedService} origin={origin} regions={regions} coverage={coverage} journey={journey} highlightedLegId={highlightedLegId} focusedStep={focusedStep} waypoints={waypoints} />
+    <CityFocusView service={selectedService} origin={origin} showOriginPoint={showOriginPin} regions={cityRegions === undefined ? regions : cityRegions} sharedArea={sharedArea} focusPoint={cityFocus} frameRequest={cityFrameRequest} coverage={coverage} journey={journey} highlightedLegId={highlightedLegId} focusedStep={focusedStep} waypoints={waypoints} />
     </div>
   );
 }

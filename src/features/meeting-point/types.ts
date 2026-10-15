@@ -22,6 +22,8 @@ export interface MeetingRoom {
   confirmedPlan: ConfirmedMeetingPlan | null;
   /** A member's suggestion is visible, but never changes the agreement by itself. */
   proposedArrivalTime: string | null;
+  /** Persistent meeting target, retained when an origin invalidates a round. */
+  meetingTime: string;
   planningStarted?: boolean;
   departureTime?: string | null;
   votingArrivalTime?: string | null;
@@ -123,6 +125,6 @@ export const ROOM_ERROR_MESSAGES: Record<RoomError, string> = {
   not_found: 'That room does not exist or is no longer available.',
   full: `That room is full. A room holds up to ${MAX_PARTICIPANTS} people.`,
   unavailable: 'Could not reach the room service. Try again.',
-  schema_required: 'This deployment needs the meeting-voting SQL migration before rooms can open.',
+  schema_required: 'This deployment needs the meeting-auto-planning SQL migration before rooms can open.',
   planning_started: 'This round has started. Ask the creator to reopen the room before joining.',
 };

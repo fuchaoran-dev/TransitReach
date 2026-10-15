@@ -56,7 +56,7 @@ const snapshot = await roomService.loadRoom({
           updated_at: '2026-10-07T10:00:00Z', confirmed_venue: null,
           planning_revision: 4,
           planning_started: true, departure_time: '2026-10-20T08:00:00+08:00',
-          voting_arrival_time: '2026-10-20T09:00:00+08:00', is_host: true,
+          voting_arrival_time: '2026-10-20T09:00:00+08:00', meeting_time: '2026-10-20T09:00:00+08:00', is_host: true,
           confirmed_arrival_time: null, plan_version: 0, proposed_arrival_time: null,
         },
         self: {
@@ -114,9 +114,9 @@ const { ShareLink } = await load('src/features/meeting-point/components/ShareLin
   '../roomLink': 'export const shareLinkFor = code => `https://example.com/?meet=${code}`;',
 });
 const shareMarkup = renderToStaticMarkup(React.createElement(ShareLink, { code: 'ABCDEFGH' }));
-assert.ok(shareMarkup.includes('Saved starting points are visible to room members')); checks++;
+assert.ok(shareMarkup.includes('Share only with your group')); checks++;
 assert.equal(shareMarkup.includes("everyone&#x27;s starting points"), false); checks++;
-assert.ok(shareMarkup.includes('after the agreed arrival')); checks++;
+assert.ok(shareMarkup.includes('Copy link')); checks++;
 
 const { MyStartingPoint } = await load('src/features/meeting-point/components/MyStartingPoint.tsx', {
   '@/features/reachability': 'export const LocationSearch = () => null;',
@@ -125,7 +125,7 @@ const { MyStartingPoint } = await load('src/features/meeting-point/components/My
 const startingMarkup = renderToStaticMarkup(React.createElement(MyStartingPoint, {
   me: null, draft: null, notice: null, onSelect() {}, onShare() {}, onCancel() {}, onWithdraw() {},
 }));
-assert.ok(startingMarkup.includes('then share to become Ready')); checks++;
+assert.ok(startingMarkup.includes('Share to become Ready')); checks++;
 assert.ok(startingMarkup.includes('Use my current location')); checks++;
 assert.equal(startingMarkup.includes('Everyone in the room sees'), false); checks++;
 

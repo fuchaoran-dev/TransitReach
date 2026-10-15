@@ -61,11 +61,11 @@ Object.defineProperty(globalThis, 'navigator', { configurable: true, value: oldN
 
 const ring = [[101.68, 3.13], [101.7, 3.13], [101.7, 3.15], [101.68, 3.15], [101.68, 3.13]];
 globalThis.__meetingFixture = {
-  view: { status: 'ready', room: { code: 'ABCDEFGH', timeBudget: 30, planningRevision: 4, planningStarted: true, isHost: true, departureTime: '2026-10-20T08:00:00+08:00', votingArrivalTime: '2026-10-20T09:00:00+08:00', voteStatus: 'waiting', confirmedPlan: null },
+  view: { status: 'ready', room: { code: 'ABCDEFGH', timeBudget: 30, meetingTime: '2026-10-20T09:00:00+08:00', planningRevision: 4, planningStarted: true, isHost: true, departureTime: '2026-10-20T08:00:00+08:00', votingArrivalTime: '2026-10-20T09:00:00+08:00', voteStatus: 'waiting', confirmedPlan: null },
     me: { id: 'a', userId: 'own', nickname: 'Aina', at: { lat: 3.13, lon: 101.68 }, source: 'map' },
     members: [{ id: 'a', displayName: 'Aina', planningStatus: 'Ready', at: { lat: 3.13, lon: 101.68 }, isSelf: true }, { id: 'b', displayName: 'Jia Wei', planningStatus: 'Not ready', at: null, isSelf: false }],
     votes: [], selections: [{ memberId: 'b', displayName: 'Jia Wei', venue }] },
-  busy: false, error: null, setMyPoint: async () => {}, changeBudget: async () => {}, leave: async () => {}, startPlanning: async () => {}, reopenPlanning: async () => {}, proposeVenue: async () => {}, vote: async () => {},
+  busy: false, error: null, setMyPoint: async () => {}, changeBudget: async () => {}, changeMeetingTime: async () => {}, leave: async () => {}, startPlanning: async () => {}, reopenPlanning: async () => {}, proposeVenue: async () => {}, vote: async () => {},
 };
 globalThis.__meetingGround = { state: { status: 'ready', result: { roomRevision: 4, status: 'ready', arrivalTime: '2026-10-20T09:00:00+08:00', areaMethod: 'budget-window-preview', participantAreas: [{ regions: [{ outer: ring, holes: [] }] }, { regions: [{ outer: ring, holes: [] }] }], proposals: [{ rank: 1, venue, longestMinutes: 20, gapMinutes: 5 }] } }, retry() {} };
 const page = await load('src/features/meeting-point/MeetingPointPage.tsx', {
@@ -84,12 +84,20 @@ const page = await load('src/features/meeting-point/MeetingPointPage.tsx', {
 const markup = () => renderToStaticMarkup(React.createElement(page.MeetingPointPage));
 assert.ok(markup().includes('✓ Ready')); checks++;
 assert.ok(markup().includes('Not ready')); checks++;
+assert.equal(markup().includes('longest 20 min'), false); checks++;
+globalThis.__meetingFixture.view.members[1] = { ...globalThis.__meetingFixture.view.members[1], planningStatus: 'Ready', at: { lat: 3.15, lon: 101.7 } };
 assert.ok(markup().includes('Proposed by Jia Wei')); checks++;
 assert.equal(markup().includes('Confirm for everyone'), false); checks++;
 assert.equal(markup().includes('Check needed'), false); checks++;
 assert.ok(markup().includes('data-origin-pin="false"')); checks++;
 assert.equal(markup().includes('Shared departure'), false); checks++;
 assert.ok(markup().includes('Meeting time')); checks++;
+assert.equal(markup().includes('Start group planning'), false); checks++;
+const settledGround = globalThis.__meetingGround.state;
+globalThis.__meetingGround.state = { status: 'loading' };
+assert.ok(markup().includes('Calculating common reachable area')); checks++;
+assert.equal(markup().includes('longest 20 min'), false); checks++;
+globalThis.__meetingGround.state = settledGround;
 globalThis.__meetingFixture.view.room.confirmedPlan = { version: 1, venue, arrivalTime: '2026-10-20T09:00:00+08:00' };
 assert.ok(markup().includes('Generate my travel pass')); checks++;
 assert.equal(markup().includes('No personal Pass checks are run here'), false); checks++;
@@ -133,6 +141,35 @@ assert.equal(globalThis.__meetingFixture.view.members[0].planningStatus, 'Ready'
 await act(async () => { planner.unmount(); });
 globalThis.__meetingFixture.view = originalView;
 globalThis.__meetingFixture.setMyPoint = originalSave;
+const originalPropose = globalThis.__meetingFixture.proposeVenue;
+globalThis.__meetingFixture.proposeVenue = async () => { throw new Error('Controlled fixture failure'); };
+await act(async () => { planner = create(React.createElement(page.MeetingPointPage)); });
+const proposeButton = () => planner.root.findAllByType('button').find(button => button.children.includes('Propose'));
+const markerControl = () => planner.root.find(node => Array.isArray(node.props.places) && Object.hasOwn(node.props, 'selectedId'));
+await act(async () => { proposeButton().props.onClick(); });
+assert.equal(markerControl().props.selectedId, null); checks++;
+globalThis.__meetingFixture.proposeVenue = async () => {};
+await act(async () => { proposeButton().props.onClick(); });
+assert.equal(markerControl().props.selectedId, venue.id); checks++;
+const baseScene = planner.root.find(node => Object.hasOwn(node.props, 'cityRegions'));
+assert.ok(baseScene.props.cityRegions.length > 0); checks++;
+assert.equal(baseScene.props.showOriginPin, false); checks++;
+assert.ok(baseScene.props.waypoints.some(point => point.label.includes('Proposed: Jia Wei'))); checks++;
+assert.equal(baseScene.props.cityFocus.label, venue.name); checks++;
+await act(async () => { planner.root.findAllByType('button').find(button => button.children.includes('Show everyone')).props.onClick(); });
+assert.equal(planner.root.find(node => Object.hasOwn(node.props, 'cityRegions')).props.cityFrameRequest, 1); checks++;
+globalThis.__meetingFixture.view = { ...originalView, room: { ...originalView.room, planningRevision: 5 } };
+await act(async () => { planner.update(React.createElement(page.MeetingPointPage)); });
+assert.equal(markerControl().props.selectedId, null); checks++;
+assert.equal(markerControl().props.places.length, 0); checks++;
+await act(async () => { planner.unmount(); });
+globalThis.__meetingFixture.proposeVenue = originalPropose;
+globalThis.__meetingFixture.view = { status: 'checking', code: 'ABCDEFGH' };
+globalThis.__meetingFixture.error = 'schema_required';
+assert.ok(markup().includes('meeting-auto-planning SQL migration')); checks++;
+assert.equal(markup().includes('Opening room'), false); checks++;
+globalThis.__meetingFixture.view = originalView;
+globalThis.__meetingFixture.error = null;
 if (process.argv.includes('--markup')) {
   // Layout QA uses an internally consistent tied round, not the defensive state assertions above.
   const secondVenue = { ...venue, id: 'cafe-2', type: 'cafe', name: 'Example café', kindLabel: 'Café' };

@@ -4,10 +4,8 @@ import type { OverlapPolygon } from '../overlapService';
 /**
  * The ground everyone can reach.
  *
- * Graphite, the colour that already means "reachable area" on the reachability map (AC 1.3.4) —
- * here, the area the whole group can reach. It is drawn over the coloured areas with a darker,
- * heavier outline and a stronger fill than any one person's area, because it is the answer the
- * screen exists to give.
+ * Only the true intersection is drawn; individual surfaces remain calculation inputs.
+ * A bright cyan border makes the answer legible on both light and dark basemaps.
  */
 export function OverlapLayer({ polygons }: { polygons: OverlapPolygon[] }) {
   return (
@@ -20,11 +18,11 @@ export function OverlapLayer({ polygons }: { polygons: OverlapPolygon[] }) {
           interactive={false}
           pathOptions={{
             className: 'meeting-overlap',
-            color: '#1e293b',
-            weight: 3,
-            opacity: 0.9,
-            fillColor: '#475569',
-            fillOpacity: 0.35,
+            color: '#0891b2',
+            weight: 4,
+            opacity: 1,
+            fillColor: '#22d3ee',
+            fillOpacity: 0.38,
           }}
         />
       ))}

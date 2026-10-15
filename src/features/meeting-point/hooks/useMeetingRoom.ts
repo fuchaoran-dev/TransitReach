@@ -20,6 +20,8 @@ import {
   reopenMeetingPlanning,
   proposeMeetingVenue,
   castMeetingVote,
+  ensureMeetingPlanning,
+  setMeetingTime,
   type MeetingRoomSnapshot,
 } from '../roomService';
 import type { ArrivalStatus, MeetingInvitation, MeetingRoom, MeetingVenue, RoomError, StartingPoint } from '../types';
@@ -45,7 +47,7 @@ function toRoomError(error: unknown): RoomError {
   if (error instanceof RoomNotFoundError) return 'not_found';
   if (error instanceof RoomFullError) return 'full';
   const message = error && typeof error === 'object' && 'message' in error ? String(error.message) : '';
-  if (message.includes('Meeting voting SQL migration is required')) return 'schema_required';
+  if (/Meeting (voting|auto-planning) SQL migration is required/.test(message)) return 'schema_required';
   if (message.includes('meeting_planning_started')) return 'planning_started';
   return 'unavailable';
 }
@@ -82,8 +84,19 @@ export function useMeetingRoom() {
     const reload = async (): Promise<boolean> => {
       const mine = ++ticket;
       try {
-        const snapshot = await loadRoom(client, code);
+        let snapshot = await loadRoom(client, code);
         if (cancelled || mine !== ticket) return false;
+        // The database starts changed-origin rounds even if the host is offline.
+        // This idempotent member RPC also prepares an already-ready, pre-upgrade room.
+        if (snapshot && !snapshot.room.planningStarted && snapshot.members.length >= 2 &&
+          snapshot.members.every(member => member.planningStatus === 'Ready') &&
+          Date.parse(snapshot.room.meetingTime) - snapshot.room.timeBudget * 60_000 > Date.now() &&
+          Date.parse(snapshot.room.meetingTime) <= Date.now() + 30 * 24 * 3600_000) {
+          await ensureMeetingPlanning(client, code);
+          if (cancelled || mine !== ticket) return false;
+          snapshot = await loadRoom(client, code);
+          if (cancelled || mine !== ticket) return false;
+        }
         if (!snapshot) {
           const invitation = await loadMeetingInvitation(client, code);
           if (cancelled || mine !== ticket) return false;
@@ -284,6 +297,7 @@ export function useMeetingRoom() {
     join,
     leave,
     changeBudget,
+    changeMeetingTime: (arrival: string) => roomAction((client, room) => setMeetingTime(client, room.code, arrival)),
     setMyPoint,
     confirmPlan,
     suggestTime,

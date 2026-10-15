@@ -35,6 +35,7 @@ interface RoomRow {
   confirmed_arrival_time: string | null;
   plan_version: number;
   proposed_arrival_time: string | null;
+  meeting_time: string;
   planning_started?: boolean;
   departure_time?: string | null;
   voting_arrival_time?: string | null;
@@ -106,6 +107,7 @@ const toRoom = (row: RoomRow): MeetingRoom => ({
     ? { venue: row.confirmed_venue, arrivalTime: row.confirmed_arrival_time, version: row.plan_version }
     : null,
   proposedArrivalTime: row.proposed_arrival_time,
+  meetingTime: row.meeting_time,
   planningStarted: row.planning_started ?? false,
   departureTime: row.departure_time ?? null,
   votingArrivalTime: row.voting_arrival_time ?? null,
@@ -202,6 +204,9 @@ export async function loadRoom(
   if (typeof state.room.planning_started !== 'boolean') {
     throw new Error('Meeting voting SQL migration is required.');
   }
+  if (typeof state.room.meeting_time !== 'string' || !Number.isFinite(Date.parse(state.room.meeting_time))) {
+    throw new Error('Meeting auto-planning SQL migration is required.');
+  }
   const { data: session } = await client.auth.getSession();
   if (!session.session) throw new Error('A room session is required.');
   return {
@@ -218,6 +223,16 @@ export async function startMeetingPlanning(client: SupabaseClient, code: string,
 
 export async function reopenMeetingPlanning(client: SupabaseClient, code: string): Promise<void> {
   const { error } = await client.rpc('reopen_meeting_planning', { p_code: code });
+  if (error) throw error;
+}
+
+export async function ensureMeetingPlanning(client: SupabaseClient, code: string): Promise<void> {
+  const { error } = await client.rpc('ensure_meeting_planning', { p_code: code });
+  if (error) throw error;
+}
+
+export async function setMeetingTime(client: SupabaseClient, code: string, arrival: string): Promise<void> {
+  const { error } = await client.rpc('set_meeting_time', { p_code: code, p_arrival_time: arrival });
   if (error) throw error;
 }
 

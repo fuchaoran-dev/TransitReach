@@ -34,6 +34,15 @@ export function writeRoomCodeToUrl(code: string | null): void {
   window.history.replaceState(null, '', url);
 }
 
+/** A generic Go to Meet is navigation, not withdrawal from the active room. */
+export function openRoomFromPass(code?: string): void {
+  if (code) {
+    const normalized = normaliseRoomCode(code);
+    if (!normalized) throw new Error('The saved room reference is invalid.');
+    writeRoomCodeToUrl(normalized);
+  }
+}
+
 export function shareLinkFor(code: string): string {
   const url = new URL(window.location.pathname, window.location.origin);
   url.searchParams.set(PARAM, code);

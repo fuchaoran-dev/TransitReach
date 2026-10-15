@@ -4,6 +4,8 @@ import type { Participant } from './types';
 import type { Venue } from './venueService';
 
 export interface RankedPlace {
+  /** Server rank stays consistent when categories hide other list entries. */
+  rank?: number;
   venue: Venue;
   /** Each counted participant's travel time in whole minutes, rounded up, in participant order. */
   minutes: number[];

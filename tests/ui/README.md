@@ -1,5 +1,13 @@
 # Epic 7 UI checks
 
+## Automatic meeting and PNG revision (local)
+
+See [meeting experience](../../docs/meeting-experience.md) for the seven requested
+changes, isolated SQL test, current test evidence and the un-applied migration.
+The meeting fixture now has a Calculating mode for the radar and labelled synthetic
+intersection polygons. Propose adds an amber marker/name label. The outing fixture's
+Preview offline image uses the new production PNG renderer. No cloud room is written.
+
 ## Meeting feedback desktop preview
 
 After starting local Vite/FastAPI with PostgreSQL configured, open

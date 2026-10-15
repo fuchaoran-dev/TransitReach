@@ -17,14 +17,18 @@ interface Props {
   focusedStep?: WalkStep | null;
   service?: ServiceLocation | null;
   origin: Origin | null;
+  showOriginPoint?: boolean;
+  sharedArea?: boolean;
+  focusPoint?: { lat: number; lon: number; label: string } | null;
+  frameRequest?: number;
   regions: IsochroneRegion[] | null;
   coverage?: DepartureCoverage | null;
   /** Places to label besides the origin and the selected service: an outing's stops. */
-  waypoints?: Array<{ lat: number; lon: number; label: string }>;
+  waypoints?: Array<{ lat: number; lon: number; label: string; colour?: string }>;
 }
 
 /** Native MapLibre scene: the camera and its overlays use the same projection. */
-export function CityFocusView({ service, origin, regions, coverage, journey, highlightedLegId, focusedStep, waypoints }: Props) {
+export function CityFocusView({ service, origin, showOriginPoint = true, sharedArea = false, focusPoint, frameRequest, regions, coverage, journey, highlightedLegId, focusedStep, waypoints }: Props) {
   const daylight = useContext(MapDaylight);
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -33,11 +37,13 @@ export function CityFocusView({ service, origin, regions, coverage, journey, hig
   const styleRef = useRef<StyleSpecification | null>(null);
   const daylightRef = useRef(daylight);
   daylightRef.current = daylight;
-  const lat = service?.lat ?? origin?.at.lat;
-  const lon = service?.lon ?? origin?.at.lon;
+  const lat = focusPoint?.lat ?? service?.lat ?? origin?.at.lat;
+  const lon = focusPoint?.lon ?? service?.lon ?? origin?.at.lon;
   const hasCoordinates = lat !== undefined && lon !== undefined;
   const focusRef = useRef({ lat, lon });
   focusRef.current = { lat, lon };
+  const pointsRef = useRef(waypoints);
+  pointsRef.current = waypoints;
 
   useEffect(() => {
     if (service?.id && service.lat !== undefined && service.lon !== undefined) setOpen(true);
@@ -94,7 +100,7 @@ export function CityFocusView({ service, origin, regions, coverage, journey, hig
         clearTimeout(timer);
         map.addSource('location-pins', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
         map.addLayer({ id: 'location-pins', type: 'circle', source: 'location-pins', paint: {
-          'circle-radius': 9, 'circle-color': ['match', ['get', 'kind'], 'origin', '#53e5d5', '#ff8198'],
+          'circle-radius': 9, 'circle-color': ['coalesce', ['get', 'colour'], ['match', ['get', 'kind'], 'origin', '#53e5d5', '#ff8198']],
           'circle-stroke-color': '#ffffff', 'circle-stroke-width': 3,
         } });
         map.addLayer({ id: 'location-pin-labels', type: 'symbol', source: 'location-pins', layout: {
@@ -125,13 +131,24 @@ export function CityFocusView({ service, origin, regions, coverage, journey, hig
 
   useEffect(() => {
     const map = mapRef.current;
+    const points = pointsRef.current ?? [];
+    if (!frameRequest || !map || status !== 'ready' || !open || !points.length) return;
+    const side = Math.min(400, map.getContainer().clientWidth / 3);
+    map.fitBounds([[Math.min(...points.map(p => p.lon)), Math.min(...points.map(p => p.lat))],
+      [Math.max(...points.map(p => p.lon)), Math.max(...points.map(p => p.lat))]],
+    { padding: { top: 160, bottom: 100, left: side, right: side }, maxZoom: 15, pitch: 50,
+      duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600 });
+  }, [frameRequest, status, open]);
+
+  useEffect(() => {
+    const map = mapRef.current;
     if (!map || status !== 'ready' || !open) return;
     const features: GeoJSON.Feature<GeoJSON.Point>[] = [];
-    if (origin) features.push({ type: 'Feature', properties: { kind: 'origin', label: 'Starting point' }, geometry: { type: 'Point', coordinates: [origin.at.lon, origin.at.lat] } });
+    if (origin && showOriginPoint) features.push({ type: 'Feature', properties: { kind: 'origin', label: 'Starting point' }, geometry: { type: 'Point', coordinates: [origin.at.lon, origin.at.lat] } });
     if (service?.lat !== undefined && service.lon !== undefined) features.push({ type: 'Feature', properties: { kind: 'destination', label: service.name }, geometry: { type: 'Point', coordinates: [service.lon, service.lat] } });
-    for (const point of waypoints ?? []) features.push({ type: 'Feature', properties: { kind: 'waypoint', label: point.label }, geometry: { type: 'Point', coordinates: [point.lon, point.lat] } });
+    for (const point of waypoints ?? []) features.push({ type: 'Feature', properties: { kind: 'waypoint', label: point.label, colour: point.colour }, geometry: { type: 'Point', coordinates: [point.lon, point.lat] } });
     (map.getSource('location-pins') as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features });
-  }, [origin, service, waypoints, status, open, lat, lon]);
+  }, [origin, showOriginPoint, service, waypoints, status, open, lat, lon]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -141,7 +158,13 @@ export function CityFocusView({ service, origin, regions, coverage, journey, hig
         type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [region.outer, ...region.holes] },
       })),
     });
-  }, [regions, status, open, lat, lon]);
+    if (sharedArea) {
+      map.setPaintProperty('reach-fill', 'fill-color', '#22d3ee');
+      map.setPaintProperty('reach-fill', 'fill-opacity', 0.38);
+      map.setPaintProperty('reach-edge', 'line-color', '#0891b2');
+      map.setPaintProperty('reach-edge', 'line-width', 4);
+    }
+  }, [regions, sharedArea, status, open, lat, lon]);
 
   useEffect(() => {
     const map = mapRef.current;

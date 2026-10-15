@@ -34,10 +34,7 @@ export function ShareLink({ code }: { code: string }) {
           {copied ? 'Copied' : 'Copy link'}
         </button>
       </div>
-      <p className="text-xs text-slate-500">
-        Share only with your group. Saved starting points are visible to room members. Joining closes when planning starts. A confirmed meeting
-        remains available through 24 hours after the agreed arrival.
-      </p>
+      <p className="text-xs text-slate-400">Share only with your group.</p>
     </div>
   );
 }

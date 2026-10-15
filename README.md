@@ -6,6 +6,10 @@ The Netlify project was renamed on 14 October 2026; see
 
 ## Group invitations and personal passes
 
+The local automatic-Ready/map/PNG revision is described in
+[meeting experience](docs/meeting-experience.md). It is not deployed yet and requires
+`supabase/meeting-auto-planning.sql` after the existing voting migration.
+
 MD8-6 adds confirmed group meetings, private arrive-by passes, device storage,
 room invitation QR codes and image downloads. Service setup, privacy boundaries
 and verification are documented in [docs/group-passes.md](docs/group-passes.md).

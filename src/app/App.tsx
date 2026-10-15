@@ -16,7 +16,7 @@ import { DEFAULT_TIME_BUDGET } from '@/features/reachability';
 import { useOutingDraft } from '@/features/trip-planner';
 import { originFromHit, type SearchHit } from '@/features/reachability/reachabilityService';
 import type { Origin } from '@/features/reachability/types';
-import { hasRoomLink, writeRoomCodeToUrl } from '@/features/meeting-point/roomLink';
+import { hasRoomLink, openRoomFromPass } from '@/features/meeting-point/roomLink';
 import { malaysiaToday } from '@/pages/components/WeatherPlanning';
 
 // Supabase/realtime and meeting ranking are not needed to open the map.
@@ -104,7 +104,7 @@ function App() {
         {activePage === 'typology' && <TypologyPage />}
         {activePage === 'meeting' && <Suspense fallback={<p className="p-6 pt-24 text-center" role="status">Loading meeting planner…</p>}><MeetingPointPage key={roomOpenKey} /></Suspense>}
         {activePage === 'passes' && <Suspense fallback={<p className="p-6 pt-24 text-center" role="status">Loading saved passes…</p>}><MyPassesPage onOpenRoom={code => {
-          writeRoomCodeToUrl(code);
+          openRoomFromPass(code);
           setRoomOpenKey(previous => previous + 1);
           handleNavigate('meeting');
         }} /></Suspense>}

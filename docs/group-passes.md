@@ -5,6 +5,11 @@
 > Follow [meeting-voting.md](meeting-voting.md) and apply its final SQL migration;
 > the older smoke-test workflows below are not current meeting acceptance tests.
 
+The newer local client additionally requires `supabase/meeting-auto-planning.sql`
+after `meeting-voting.sql`; see [meeting experience](meeting-experience.md).
+For a fresh setup, apply transit-data → meeting-rooms → meeting-voting →
+meeting-auto-planning in that order. This revision has not applied cloud SQL.
+
 Meet now confirms a public ranked venue and a Malaysia-time arrival as a versioned
 room agreement. A member opens the invitation to calculate their own arrive-by pass.
 My Passes lists upcoming passes stored in this browser under the same anonymous

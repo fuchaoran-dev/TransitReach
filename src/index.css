@@ -1,6 +1,51 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700&display=swap');
 
 @tailwind base;
+
+.meeting-radar-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 470;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.meeting-radar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  border: 1px solid #67e8f9;
+  color: #a5f3fc;
+  overflow: hidden;
+  background: repeating-radial-gradient(circle, transparent 0 34px, #67e8f943 35px 36px), #0e1c29b3;
+  box-shadow: 0 0 64px #22d3ee33;
+}
+.meeting-radar-sweep {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0deg 240deg, #22d3ee08 240deg, #22d3ee88 359deg, transparent 360deg);
+  animation: meeting-radar-spin 2.4s linear infinite;
+}
+.meeting-radar > svg { z-index: 1; }
+.meeting-proposed-pin > div { outline: 4px solid #fbbf2440; }
+.meeting-map-page .city-view-toggle {
+  left: 50%; right: auto; bottom: 24px; transform: translateX(-50%);
+}
+.meeting-map-page .city-focus-toolbar {
+  position: absolute; left: 50%; top: auto; bottom: 24px;
+  z-index: 470; display: flex; gap: 8px; transform: translateX(-50%);
+}
+.meeting-map-page .city-focus-toolbar button { position: static; transform: none; white-space: nowrap; }
+@keyframes meeting-radar-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .meeting-radar-sweep { animation: none; }
+}
 @tailwind components;
 @tailwind utilities;
 
