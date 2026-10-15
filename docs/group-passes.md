@@ -12,8 +12,20 @@ meeting-auto-planning in that order. This revision has not applied cloud SQL.
 
 Meet now confirms a public ranked venue and a Malaysia-time arrival as a versioned
 room agreement. A member opens the invitation to calculate their own arrive-by pass.
-My Passes lists upcoming passes stored in this browser under the same anonymous
-Supabase identity. Reopening recalculates the journey and checks current evidence.
+My Passes lists saved personal journeys, including historical meetings, stored in
+this browser under the same anonymous Supabase identity (up to 20 records, with the
+latest generated pass replacing the previous pass for that room). View journey
+opens the saved route, timeline and walking directions directly, without reading,
+joining or reopening the room and without recalculating the route. Leaving a room,
+other members going offline, or room expiry does not delete the local pass.
+
+Saved-pass details offer Download pass, with no Refresh route or route alternatives.
+They show the saved timestamp and disclose that the route is not updated live.
+After the agreed meeting time, the journey remains readable/downloadable as history
+and no longer shows a departure countdown. Back returns to My Passes. Meet remains
+the separate entry point for collaboration, replanning and generating a new pass;
+the live generation view retains its route-refresh action. Room links/QR codes still
+open Meet and may report that a room is no longer available.
 
 ## Required service setup
 

@@ -151,6 +151,22 @@ the draft is explicitly NOT a calculated itinerary. No deployment this round.
 
 ## Travel pass layout and download preview
 
+Saved-journey navigation regression: `node scripts/test-saved-passes.mjs` checks
+private local storage, retained history, direct View journey, the absence of room/
+route requests and refresh controls, downloads, returning to the list, and the
+countdown transition at the agreed meeting time. It uses synthetic data only.
+In `/tests/ui/travel-pass-preview.html`, use View historical pass / View upcoming
+pass to inspect the production saved-pass dialog at desktop and 390px widths.
+Confirm the saved timestamp, no route alternatives or Refresh route, expandable
+walking directions, Download pass, and Escape/Back focus return. These fixture
+buttons neither read nor write rooms and do not persist a pass.
+
+Verified locally in Chrome on 16 October 2026 at desktop and 390 × 844: saved
+timestamp and historical/upcoming states, no refresh/options in the saved dialog,
+walking directions, sheet collapse, Back/Escape focus return, and no horizontal
+overflow. Download from the saved dialog produced a 1200 × 2173 PNG with the saved
+journey and room QR. These are synthetic UI checks, not live multi-account tests.
+
 Open `/tests/ui/travel-pass-preview.html` with Vite for a fully isolated synthetic pass.
 At desktop width, scroll the itinerary and confirm the route map stays visible. At 390px,
 expand/collapse the bottom sheet, open walking directions and check both route endpoints
