@@ -136,6 +136,7 @@ export interface JourneyOptionSummary {
   estimatedArrivalTime: string;
   durationSeconds: number;
   walkingSeconds: number;
+  walkingDistanceMeters?: number;
   transferCount: number;
   status: PersonalPassStatus;
   selected: boolean;

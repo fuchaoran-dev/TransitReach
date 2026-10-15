@@ -55,6 +55,10 @@ export interface WalkStep {
 
 export interface TransitPlanLeg {
   mode: string;
+  /** GTFS route_type reported by OTP; absent in older saved passes. */
+  routeType?: number | null;
+  /** Number of ridden stop-to-stop hops, only when OTP returns intermediate stops. */
+  stopCount?: number | null;
   routeId: string | null;
   routeShortName: string | null;
   routeLongName: string | null;
@@ -91,6 +95,8 @@ interface OtpPlace {
 
 interface OtpLeg {
   mode?: string;
+  routeType?: number;
+  intermediateStops?: OtpPlace[] | null;
   routeId?: string;
   route?: string;
   routeShortName?: string;
@@ -218,6 +224,10 @@ function normalizeLeg(leg: OtpLeg): TransitPlanLeg {
   const mode = (leg.mode ?? 'UNKNOWN').toUpperCase();
   return {
     mode,
+    routeType: typeof leg.routeType === 'number' && Number.isInteger(leg.routeType) && leg.routeType >= 0 ? leg.routeType : null,
+    stopCount: (leg.transitLeg ?? mode !== 'WALK') && Array.isArray(leg.intermediateStops) &&
+      leg.intermediateStops.every(stop => stop && Number.isFinite(stop.lat) && Number.isFinite(stop.lon))
+      ? leg.intermediateStops.length + 1 : null,
     routeId: leg.routeId ?? null,
     routeShortName: leg.routeShortName ?? leg.route ?? null,
     routeLongName: leg.routeLongName ?? null,
@@ -281,6 +291,7 @@ async function fetchPlan(
   });
 
   if (mode !== 'WALK') {
+    params.set('showIntermediateStops', 'true');
     params.set(
       'walkReluctance',
       '4',

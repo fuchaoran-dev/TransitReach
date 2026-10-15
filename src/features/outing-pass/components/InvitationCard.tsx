@@ -16,7 +16,7 @@ export function InvitationCard({ room, memberCount, hasOrigin, onOpen, onEditOri
   if (!plan) return null;
   return (
     <section className="outing-card outing-ticket space-y-6" aria-labelledby="invitation-title">
-      <div className="flex justify-between flex-wrap gap-2"><span className="outing-accent flex items-center gap-2 text-xs font-bold tracking-widest uppercase"><Ticket size={18} aria-hidden="true" />You're invited</span><span className="outing-badge">Group outing · Plan v{plan.version}</span></div>
+      <div className="flex justify-between flex-wrap gap-2"><span className="outing-accent flex items-center gap-2 text-xs font-bold tracking-widest uppercase"><Ticket size={18} aria-hidden="true" />You're invited</span><span className="outing-badge">Group meet-up</span></div>
       <div><h1 id="invitation-title" className="text-3xl md:text-4xl font-bold leading-tight break-words">Meet at {plan.venue.name}</h1><p className="outing-muted mt-3">A confirmed meeting for {memberCount} {memberCount === 1 ? 'member' : 'members'}.</p></div>
       <div className="outing-card-inset space-y-6">
         <div className="flex gap-4"><CalendarClock className="outing-accent shrink-0 mt-1" aria-hidden="true" /><div><h2 className="font-bold text-xl">{passDate(plan.arrivalTime)}</h2><p className="outing-accent mt-2">Agreed arrival · {passTime(plan.arrivalTime)} MYT</p></div></div>
