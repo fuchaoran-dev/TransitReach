@@ -70,7 +70,7 @@ const PAINT_OVERRIDES: Record<string, Record<string, unknown>> = {
   landcover_wood: { 'fill-color': '#cce4c0' },
   water: { 'fill-color': '#b3d8ee' },
   waterway: { 'line-color': '#a3cfe8' },
-  building: { 'fill-color': '#e6dfd1', 'fill-outline-color': '#dad1c0' },
+  building: { 'fill-color': '#e6dfd1', 'fill-outline-color': '#dad1c0', 'fill-opacity': 0.45 },
   road_area_pier: { 'fill-color': LAND },
   road_pier: { 'line-color': LAND },
   highway_path: { 'line-color': '#ebe4d6' },
@@ -111,7 +111,7 @@ const NIGHT_PAINT: Record<string, Record<string, unknown>> = {
   landcover_wood: { 'fill-color': '#102a27' },
   water: { 'fill-color': '#07101c' },
   waterway: { 'line-color': '#163348' },
-  building: { 'fill-color': '#21374b', 'fill-outline-color': '#36556b' },
+  building: { 'fill-color': '#1b2c3b', 'fill-outline-color': '#243b4d', 'fill-opacity': 0.4 },
   highway_path: { 'line-color': '#294356' },
   highway_minor: { 'line-color': '#273b4c' },
   highway_major_casing: { 'line-color': '#142536' },
@@ -128,7 +128,7 @@ export function applyMapDaylight(map: GLMap, style: StyleSpecification, daylight
     if (!map.getLayer(layer.id) || !layer.paint) continue;
     for (const [property, value] of Object.entries(layer.paint)) map.setPaintProperty(layer.id, property as Parameters<GLMap['setPaintProperty']>[1], value);
   }
-  if (map.getLayer('city-buildings')) map.setPaintProperty('city-buildings', 'fill-extrusion-color', daylight ? '#c6c2b6' : '#376079');
+  if (map.getLayer('city-buildings')) map.setPaintProperty('city-buildings', 'fill-extrusion-color', daylight ? '#c6c2b6' : '#264354');
 }
 
 export function VectorBaseLayer() {

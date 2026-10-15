@@ -1,5 +1,5 @@
 import { Fragment, type ReactNode } from 'react';
-import { Bus, ChevronRight, Footprints, MapPin, TrainFront } from 'lucide-react';
+import { Bus, ChevronRight, Footprints, MapPin, Navigation, TrainFront } from 'lucide-react';
 import { describeStep } from '@/features/interchange/interchangeService';
 import type { CheckedPassLeg } from '../types';
 import { passTime } from './passPresentation';
@@ -41,7 +41,7 @@ export function JourneyTimeline({ legs, originLabel, destinationLabel }: Props) 
       const { title, subtitle } = legTitle(leg);
       const isLast = index === legs.length - 1;
       const to = stopLabel(leg.to.name);
-      const Icon = kind === 'walk' ? Footprints : kind === 'bus' ? Bus : TrainFront;
+      const Icon = kind === 'walk' ? Footprints : kind === 'bus' ? Bus : kind === 'rail' ? TrainFront : Navigation;
       return <Fragment key={leg.id}>
           <li className="travel-timeline-row">
             <span className="travel-timeline-time" />
@@ -55,12 +55,13 @@ export function JourneyTimeline({ legs, originLabel, destinationLabel }: Props) 
                 </details>}
               </div>
               : <div className="my-2 min-w-0 rounded-xl border p-3.5" style={{ borderColor: `${colour}55`, background: `${colour}12` }}>
-                <p className="flex items-center gap-2 text-sm font-bold text-white">
+                <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-white">
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[#08121d]" style={{ background: colour }}><Icon size={16} aria-hidden="true" /></span>
                   {title}
                   <span className="ml-auto shrink-0 text-xs font-medium text-slate-300">{minutesLabel(leg.durationSeconds)}</span>
                 </p>
                 {subtitle && <p className="mt-1.5 pl-9 text-xs text-slate-300">{subtitle}</p>}
+                {leg.stopCount != null && <p className="mt-2 pl-9 text-xs text-slate-300">Ride {leg.stopCount} {leg.stopCount === 1 ? 'stop' : 'stops'}</p>}
                 <p className="mt-2 pl-9 text-xs text-slate-300">Board at <StopName stop={stopLabel(leg.from.name)} /></p>
                 <p className="mt-1 pl-9 text-xs text-slate-300">Get off at <StopName stop={to} /></p>
               </div>}

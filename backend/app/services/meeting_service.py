@@ -16,8 +16,8 @@ from pydantic import AwareDatetime, BaseModel, Field, TypeAdapter, ValidationErr
 
 from backend.app.database import connection
 from backend.app.schemas.meetings import (
-    CommonGroundResponse, IsochroneRegion, ParticipantArea, PublicVenue, Ring,
-    VenueProposal, VenueType,
+    CommonGroundResponse, IsochroneRegion, ParticipantArea, ParticipantTrip,
+    PublicVenue, Ring, VenueProposal, VenueType,
 )
 from backend.app.services.travel_time_surface import (
     TravelTimeSurface, decode_travel_time_surface, minutes_at,
@@ -72,6 +72,7 @@ class MeetingInputsChangedError(Exception):
 class PrivateOrigin:
     latitude: float
     longitude: float
+    participant_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -109,7 +110,7 @@ def _load_calculation(
 
         participants = database.execute(
             """
-            select latitude, longitude
+            select id, latitude, longitude
             from (
               select case when origin_shared then lat end as latitude,
                      case when origin_shared then lon end as longitude, joined_at, id
@@ -120,7 +121,10 @@ def _load_calculation(
             (code,),
         ).fetchall()
         origins = tuple(
-            PrivateOrigin(float(row["latitude"]), float(row["longitude"]))
+            PrivateOrigin(
+                float(row["latitude"]), float(row["longitude"]),
+                participant_id=row["id"],
+            )
             for row in participants
             if row["latitude"] is not None and row["longitude"] is not None
         )
@@ -397,7 +401,9 @@ async def common_ground(
 
     ranked.sort(key=lambda item: (item[0], item[1], item[2].casefold(), item[3].id))
     # Bound OTP work. Ranking covers a screened shortlist, not all POIs globally.
-    async def verify_candidate(item: tuple[int, int, str, PublicVenue]) -> tuple[int, int, str, PublicVenue] | None:
+    async def verify_candidate(
+        item: tuple[int, int, str, PublicVenue],
+    ) -> tuple[int, int, str, PublicVenue, list[int]] | None:
         venue = item[3]
         async def verify_member(origin: PrivateOrigin) -> float | None:
             async with semaphore:
@@ -413,7 +419,7 @@ async def common_ground(
         if any(value is None for value in durations):
             return None
         rounded = [ceil(value) for value in durations if value is not None]
-        return max(rounded), max(rounded) - min(rounded), venue.name, venue
+        return max(rounded), max(rounded) - min(rounded), venue.name, venue, rounded
 
     async with httpx.AsyncClient(timeout=timeout, limits=httpx.Limits(max_connections=MAX_ROUTING_CONCURRENCY)) as client:
         tasks = [asyncio.create_task(verify_candidate(item)) for item in ranked[:MAX_CANDIDATE_CHECKS]]
@@ -429,13 +435,27 @@ async def common_ground(
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
             raise
-    ranked = sorted((item for item in verified if item is not None), key=lambda item: (item[0], item[1], item[2].casefold(), item[3].id))
+    verified_ranked = sorted(
+        (item for item in verified if item is not None),
+        key=lambda item: (item[0], item[1], item[2].casefold(), item[3].id),
+    )
+
+    def participant_trips(minutes: list[int]) -> list[ParticipantTrip]:
+        if any(origin.participant_id is None for origin in calculation.origins):
+            return []
+        return [
+            ParticipantTrip(memberId=origin.participant_id, minutes=duration)
+            for origin, duration in zip(calculation.origins, minutes, strict=True)
+            if origin.participant_id is not None
+        ]
+
     proposals = [VenueProposal(
         rank=index,
         venue=venue,
         longestMinutes=longest,
         gapMinutes=gap,
-    ) for index, (longest, gap, _name, venue) in enumerate(ranked[:MAX_PROPOSALS], 1)]
+        participantTrips=participant_trips(minutes),
+    ) for index, (longest, gap, _name, venue, minutes) in enumerate(verified_ranked[:MAX_PROPOSALS], 1)]
     # Even an empty venue ranking carries geometry that must pass the same revision guard.
     await asyncio.to_thread(
         _store_proposals, code, caller_id, calculation.room_revision, proposals,
@@ -444,6 +464,9 @@ async def common_ground(
     return CommonGroundResponse(
         status="ready" if proposals else "no_common_ground",
         proposals=proposals,
-        participantAreas=[area for _surface, area in results],
+        participantAreas=[
+            ParticipantArea(memberId=origin.participant_id, regions=area.regions)
+            for origin, (_surface, area) in zip(calculation.origins, results, strict=True)
+        ],
         **base,
     )

@@ -75,25 +75,48 @@ check(readFileSync('src/index.css', 'utf8').includes('.meeting-radar-sweep { ani
 // Exercise the real canvas layout with a controlled drawing context, no browser or network.
 const { drawPassCanvas, imageTextLines } = await load('src/features/outing-pass/passImageRenderer.ts');
 const texts = []; const drawCalls = [];
-const context = new Proxy({ font: '', measureText: text => ({ width: text.length * 14 }), fillText: (text, x, y) => texts.push({ text, x, y }),
+const mockTextWidth = (value, font) => {
+  const size = Number(/(\d+)px/.exec(font)?.[1] ?? 16);
+  return Array.from(value).reduce((width, character) => width + (/[^\x00-\xff]/.test(character) ? size : size * 0.58), 0);
+};
+let context;
+context = new Proxy({ font: '', measureText: text => ({ width: mockTextWidth(text, context.font) }),
+  fillText: (text, x, y) => texts.push({ text, x, y, width: mockTextWidth(text, context.font) }),
   createLinearGradient: () => ({ addColorStop() {} }) }, { get(target, key) { return key in target ? target[key] : (...args) => drawCalls.push([key, args]); } });
 const originalDocument = globalThis.document;
 const canvas = { getContext: () => context, width: 0, height: 0 };
 globalThis.document = { createElement: () => canvas };
 const pass = { roomCode: 'ABCDEFGH', planVersion: 2, evidenceMode: 'route-only', meeting: { venue: { name: 'A very long synthetic meeting venue name '.repeat(4) }, arrivalTime: '2026-10-20T18:30:00+08:00' },
   leaveTime: '2026-10-20T18:00:00+08:00', estimatedArrivalTime: '2026-10-20T18:20:00+08:00', checkedAt: '2026-10-15T08:00:00+08:00',
-  legs: [{ mode: 'WALK', geometry: [{lat:3.1,lon:101.6},{lat:3.11,lon:101.61}], durationSeconds: 1200, routeShortName: null, startTimeMs: Date.parse('2026-10-20T18:00:00+08:00'), from:{name:'Synthetic start'},to:{name:'Synthetic end'} }],
+  legs: [
+    { mode: 'WALK', geometry: [{lat:3.1,lon:101.6},{lat:3.11,lon:101.61}], durationSeconds: 240, distanceMeters: 300, routeShortName: null, routeLongName: null, routeColor: null, transitLeg: false, startTimeMs: Date.parse('2026-10-20T18:00:00+08:00'), estimatedStartTime: null, from:{name:'Synthetic start'},to:{name:'SJ68 TAMAN SUBANG PERMAI (UTARA)'} },
+    { mode: 'BUS', geometry: [{lat:3.11,lon:101.61},{lat:3.12,lon:101.62}], durationSeconds: 300, distanceMeters: 2800, stopCount: 5, routeShortName: 'T776', routeLongName: 'Stesen LRT USJ 7 ~ Subang Mewah', routeColor: '#93b5ff', transitLeg: true, startTimeMs: Date.parse('2026-10-20T18:04:00+08:00'), estimatedStartTime: null, from:{name:'SJ68 TAMAN SUBANG PERMAI (UTARA)'},to:{name:`SJ78 ${'BOUNDARYCHECK '.repeat(15)}终点站终点站终点站终点站`} },
+  ],
   walking: { totalSeconds: 1200, directions: [{relativeDirection:'CONTINUE',streetName:'Synthetic street',distanceMeters:800}] } };
 drawPassCanvas(pass, {});
 check(canvas.width, 1200); check(texts.every(item => item.y < canvas.height), true);
 check(texts.some(item => item.text === 'JOURNEY TIMELINE'), true);
 check(texts.some(item => item.text === 'YOUR ROUTE'), true);
 check(drawCalls.some(([name]) => name === 'drawImage'), true);
-check(texts.some(item => item.text.includes('not checked')), true);
+check(texts.map(item => item.text).join(' ').includes('not checked'), true);
+check(texts.some(item => item.text === 'Bus T776'), true);
+check(texts.some(item => item.text === '5 stops'), true);
+check(texts.some(item => item.text === 'SJ68'), true);
+check(texts.some(item => item.text.includes('Taman Subang Permai')), true);
+const longStopLines = texts.filter(item => /Boundarycheck|终点站/.test(item.text));
+check(longStopLines.length > 1, true);
+check(longStopLines.every(item => item.x + item.width <= 1200 - 64), true);
 check(imageTextLines(context, '没有空格的很长的中文名字', 56).every(line => line.length <= 4), true);
 const previousPaths = drawCalls.filter(([name]) => name === 'lineTo').length;
-pass.legs[0].geometry = []; texts.length = 0; drawPassCanvas(pass, {});
+pass.legs.forEach(leg => { leg.geometry = []; }); texts.length = 0; drawPassCanvas(pass, {});
 check(texts.some(item => item.text.includes('Route geometry unavailable')), true);
-check(drawCalls.filter(([name]) => name === 'lineTo').length, previousPaths + 1); // Divider only; no invented route.
+const missingGeometryPaths = drawCalls.filter(([name]) => name === 'lineTo').length - previousPaths;
+check(missingGeometryPaths < previousPaths, true); // Static layout remains, but no route segments are invented.
+texts.length = 0; drawCalls.length = 0;
+drawPassCanvas({ ...pass, zeroTravel: true, legs: [], leaveTime: pass.estimatedArrivalTime,
+  walking: { totalSeconds: 0, directions: [] } }, {});
+check(texts.some(item => item.text === 'No travel needed'), true);
+check(texts.some(item => item.text.includes('starting point is the meeting point')), true);
+check(texts.every(item => item.y < canvas.height), true);
 globalThis.document = originalDocument;
 console.log(`Meeting experience checks passed: ${checks}. Controlled UI/canvas fixtures, no cloud writes.`);

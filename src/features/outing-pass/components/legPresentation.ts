@@ -23,27 +23,34 @@ function titleWord(word: string): string {
 export function stopLabel(raw: string | null | undefined): StopLabel {
   const value = (raw ?? '').trim();
   if (!value) return { code: null, name: 'Unnamed stop' };
-  if (value !== value.toUpperCase()) return { code: null, name: value };
   const match = STOP_CODE.exec(value);
   const code = match ? match[1] : null;
   const rest = match ? match[2] : value;
-  return { code, name: rest.split(/\s+/).map(titleWord).join(' ') };
+  return { code, name: rest === rest.toUpperCase() ? rest.split(/\s+/).map(titleWord).join(' ') : rest };
 }
 
-export type LegKind = 'walk' | 'bus' | 'rail';
+export type LegKind = 'walk' | 'bus' | 'rail' | 'transit';
 
-export function legKind(leg: Pick<CheckedPassLeg, 'mode'>): LegKind {
+export function legKind(leg: Pick<CheckedPassLeg, 'mode' | 'routeType'>): LegKind {
   if (leg.mode === 'WALK') return 'walk';
+  const type = leg.routeType;
+  if (type !== null && type !== undefined) {
+    if (type === 3 || type === 11 || (type >= 700 && type < 900)) return 'bus';
+    if ([0, 1, 2, 5, 6, 7, 12].includes(type) || (type >= 100 && type < 200) || (type >= 400 && type < 500) || (type >= 900 && type < 1000)) return 'rail';
+    return 'transit';
+  }
   if (leg.mode === 'BUS' || leg.mode === 'COACH' || leg.mode === 'TROLLEYBUS') return 'bus';
-  return 'rail';
+  // OTP resolves the feed's route_type into mode; line names can mention LRT even for buses.
+  if (['TRAM', 'SUBWAY', 'RAIL', 'FUNICULAR', 'CABLE_CAR', 'GONDOLA'].includes(leg.mode)) return 'rail';
+  return 'transit';
 }
 
-const KIND_FALLBACK_COLOUR: Record<LegKind, string> = { walk: '#74fcea', bus: '#60a5fa', rail: '#a78bfa' };
+const KIND_FALLBACK_COLOUR: Record<LegKind, string> = { walk: '#74fcea', bus: '#60a5fa', rail: '#a78bfa', transit: '#fbbf24' };
 
-export function legColour(leg: Pick<CheckedPassLeg, 'mode' | 'routeColor'>): string {
+export function legColour(leg: Pick<CheckedPassLeg, 'mode' | 'routeType' | 'routeColor'>): string {
   const kind = legKind(leg);
   if (kind === 'walk') return KIND_FALLBACK_COLOUR.walk;
-  return leg.routeColor ?? KIND_FALLBACK_COLOUR[kind];
+  return leg.routeColor && /^#[0-9a-f]{6}$/i.test(leg.routeColor) ? leg.routeColor : KIND_FALLBACK_COLOUR[kind];
 }
 
 /** A bus is named by its route number; a rail line by its line name. */
@@ -55,11 +62,12 @@ export function legTitle(leg: CheckedPassLeg): { title: string; subtitle: string
       ? { title: `Bus ${leg.routeShortName}`, subtitle: leg.routeLongName }
       : { title: 'Bus', subtitle: leg.routeLongName };
   }
+  if (kind === 'transit') return { title: leg.mode === 'UNKNOWN' ? 'Transit' : leg.mode.charAt(0) + leg.mode.slice(1).toLowerCase(), subtitle: leg.routeLongName ?? leg.routeShortName };
   return { title: leg.routeLongName ?? leg.routeShortName ?? 'Train', subtitle: leg.routeLongName && leg.routeShortName ? leg.routeShortName : null };
 }
 
 export function minutesLabel(seconds: number): string {
-  const minutes = Math.max(1, Math.ceil(seconds / 60));
+  const minutes = Math.max(0, Math.ceil(seconds / 60));
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;

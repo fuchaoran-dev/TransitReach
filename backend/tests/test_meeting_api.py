@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -27,6 +28,8 @@ from backend.app.services.travel_time_surface import (
 
 
 CALLER_ID = UUID("33ddefe5-e814-4420-9fd0-42bf9a522d39")
+MEMBER_A = UUID("2b0f9c17-b1e1-4c36-ae47-304c92f64ac1")
+MEMBER_B = UUID("9075fa49-eb4f-44a0-b8c9-55beb1d42cb6")
 ROOT = Path(__file__).resolve().parents[2]
 DEPARTURE = datetime.fromisoformat("2026-10-14T08:00:00+08:00")
 AREA = ParticipantArea(regions=[{
@@ -82,6 +85,7 @@ class MeetingProposalPersistenceTests(unittest.TestCase):
         database.cursor.return_value.__enter__.return_value = cursor
         proposal = VenueProposal(
             rank=1, longestMinutes=20, gapMinutes=2,
+            participantTrips=[{"memberId": MEMBER_A, "minutes": 18}],
             venue=PublicVenue(
                 id="station-a", type="station", name="Public Alpha",
                 kindLabel="Rail station", lat=3.1, lon=101.6,
@@ -93,6 +97,7 @@ class MeetingProposalPersistenceTests(unittest.TestCase):
         self.assertEqual(row[:4], ("ABCDEFGH", 4, "station-a", "station"))
         self.assertNotIn("user_id", row[4].obj)
         self.assertNotIn("origin", row[4].obj)
+        self.assertNotIn("participantTrips", row[4].obj)
         self.assertIn("for share of r", database.execute.call_args_list[0].args[0])
 
     @patch("backend.app.services.meeting_service.connection")
@@ -133,6 +138,10 @@ class MeetingApiTests(unittest.TestCase):
                     "kindLabel": "Rail station", "lat": 3.1579, "lon": 101.7123,
                 },
                 "longestMinutes": 24, "gapMinutes": 3,
+                "participantTrips": [
+                    {"memberId": str(MEMBER_A), "minutes": 21},
+                    {"memberId": str(MEMBER_B), "minutes": 24},
+                ],
             }],
         )
         with patch("backend.app.api.meetings.common_ground", new=AsyncMock(return_value=result)) as calculate:
@@ -148,10 +157,18 @@ class MeetingApiTests(unittest.TestCase):
         self.assertNotIn("surface", serialized)
         self.assertNotIn("user_id", serialized)
         self.assertNotIn("minutes\": [", serialized)
+        self.assertNotIn(str(CALLER_ID), serialized)
         self.assertEqual(body["proposals"][0]["venue"]["name"], "KLCC")
+        self.assertEqual(body["proposals"][0]["participantTrips"], [
+            {"memberId": str(MEMBER_A), "minutes": 21},
+            {"memberId": str(MEMBER_B), "minutes": 24},
+        ])
         self.assertEqual(body["roomRevision"], 4)
         self.assertEqual(body["departureTime"], DEPARTURE.isoformat())
-        self.assertEqual(body["participantAreas"], [AREA.model_dump(mode="json")] * 2)
+        self.assertEqual(
+            body["participantAreas"],
+            [AREA.model_dump(mode="json", by_alias=True)] * 2,
+        )
         self.assertEqual(calculate.await_args.args[1], CALLER_ID)
 
     def test_request_rejects_client_supplied_identity_and_duplicate_types(self) -> None:
@@ -208,7 +225,10 @@ class MeetingRankingTests(unittest.IsolatedAsyncioTestCase):
         calculation = MeetingCalculation(
             budget_minutes=30,
             participant_count=2,
-            origins=(PrivateOrigin(3.1, 101.1), PrivateOrigin(3.2, 101.2)),
+            origins=(
+                PrivateOrigin(3.123456, 101.123456, MEMBER_B),
+                PrivateOrigin(3.234567, 101.234567, MEMBER_A),
+            ),
             venues=venues,
             room_revision=4,
             planning_started=True,
@@ -221,7 +241,10 @@ class MeetingRankingTests(unittest.IsolatedAsyncioTestCase):
             patch("backend.app.services.meeting_service._load_calculation", return_value=calculation),
             patch("backend.app.services.meeting_service._fetch_surface", new=AsyncMock(side_effect=[first, second])),
             patch("backend.app.services.meeting_service._fetch_isochrone", new=AsyncMock(return_value=AREA)),
-            patch("backend.app.services.meeting_service._fetch_arrive_by_minutes", new=AsyncMock(side_effect=[10, 20])),
+            patch(
+                "backend.app.services.meeting_service._fetch_arrive_by_minutes",
+                new=AsyncMock(side_effect=[11.1, 19.1]),
+            ),
             patch("backend.app.services.meeting_service._store_proposals") as store,
         ):
             result = await common_ground("ABCDEFGH", CALLER_ID, ["station"], 30)
@@ -229,7 +252,23 @@ class MeetingRankingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.status, "ready")
         self.assertEqual([proposal.venue.id for proposal in result.proposals], ["station-a"])
         self.assertEqual(result.proposals[0].longest_minutes, 20)
-        self.assertEqual(result.proposals[0].gap_minutes, 10)
+        self.assertEqual(result.proposals[0].gap_minutes, 8)
+        self.assertEqual(
+            result.proposals[0].model_dump(mode="json", by_alias=True)["participantTrips"],
+            [
+                {"memberId": str(MEMBER_B), "minutes": 12},
+                {"memberId": str(MEMBER_A), "minutes": 20},
+            ],
+        )
+        self.assertEqual(
+            [area.member_id for area in result.participant_areas],
+            [MEMBER_B, MEMBER_A],
+        )
+        serialized = json.dumps(result.model_dump(mode="json", by_alias=True))
+        self.assertNotIn("3.123456", serialized)
+        self.assertNotIn("101.123456", serialized)
+        self.assertNotIn("3.234567", serialized)
+        self.assertNotIn("101.234567", serialized)
         store.assert_called_once()
         self.assertEqual(store.call_args.args[:3], ("ABCDEFGH", CALLER_ID, 4))
         self.assertEqual(store.call_args.args[3][0].venue.id, "station-a")
