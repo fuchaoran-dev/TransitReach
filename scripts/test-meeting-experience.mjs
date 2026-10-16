@@ -25,7 +25,7 @@ let checks = 0;
 const check = (value, expected) => { assert.deepEqual(value, expected); checks++; };
 const oldWindow = globalThis.window;
 let url = 'https://example.test/?meet=ABCDEFGH&keep=value';
-globalThis.window = { location: { get href() { return url; }, get search() { return new URL(url).search; } }, history: { replaceState(_state, _title, value) { url = value.toString(); } } };
+globalThis.window = { setInterval: () => 1, clearInterval() {}, location: { get href() { return url; }, get search() { return new URL(url).search; } }, history: { replaceState(_state, _title, value) { url = value.toString(); } } };
 const { openRoomFromPass } = await load('src/features/meeting-point/roomLink.ts');
 openRoomFromPass(); check(new URL(url).searchParams.get('meet'), 'ABCDEFGH');
 openRoomFromPass(''); check(new URL(url).searchParams.get('meet'), 'ABCDEFGH');
@@ -36,7 +36,8 @@ check(new URL(url).searchParams.get('meet'), 'DEMN2345');
 const { MyPassesPage } = await load('src/features/outing-pass/components/MyPassesPage.tsx', {
   '@/features/meeting-point/supabaseClient': 'export const supabase = {auth:{getSession:async()=>({data:{session:{user:{id:"fixture"}}}})}};',
   '@/features/meeting-point/roomService': 'export const loadRoom = async () => null;',
-  '../passStorage': 'export const listStoredPasses = () => [];',
+  '../passStorage': 'export const listStoredPasses = () => []; export const loadStoredPass = () => null;',
+  './SavedTravelPass': 'export const SavedTravelPass = () => null;',
 });
 let page; let code = 'not-clicked';
 await act(async () => { page = create(React.createElement(MyPassesPage, { onOpenRoom: value => { code = value; openRoomFromPass(value); } })); });

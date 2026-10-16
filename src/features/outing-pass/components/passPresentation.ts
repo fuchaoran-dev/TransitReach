@@ -9,6 +9,10 @@ export function passDate(value: string): string {
   return new Intl.DateTimeFormat('en-MY', { timeZone: 'Asia/Kuala_Lumpur', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(value));
 }
 
+export function isPastMeeting(arrivalTime: string, now: number): boolean {
+  return Date.parse(arrivalTime) <= now;
+}
+
 export function marginLabel(seconds: number | null): string {
   if (seconds === null) return 'Not checked';
   return seconds < 0 ? `${Math.ceil(Math.abs(seconds) / 60)} min short` : `${Math.floor(seconds / 60)} min spare`;
