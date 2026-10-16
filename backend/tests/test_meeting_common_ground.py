@@ -17,11 +17,12 @@ from backend.app.api.meetings import authenticated_user
 from backend.app.main import app
 from backend.app.schemas.meetings import CommonGroundResponse, ParticipantArea, PublicVenue
 from backend.app.services.meeting_service import (
-    BudgetChangedError, MeetingCalculation, PrivateOrigin,
+    BudgetChangedError, MeetingInputsChangedError, MeetingCalculation, PrivateOrigin,
     RoomUnavailableError, RoutingUnavailableError, _fetch_isochrone, _fetch_surface,
     _load_calculation, _store_proposals, common_ground,
     _fetch_arrive_by_minutes, _candidate_shortlist, MAX_CANDIDATE_CHECKS,
     MAX_MALL_REPLACEMENT_CHECKS, MALL_REPLACEMENT_BATCH_SIZE,
+    MAX_TOTAL_CANDIDATE_CHECKS, TARGET_VERIFIED_PROPOSALS,
 )
 from backend.app.services.travel_time_surface import TravelTimeSurface
 
@@ -271,7 +272,7 @@ class MeetingCommonGroundTests(unittest.IsolatedAsyncioTestCase):
             ):
                 result = await common_ground("ABCDEFGH", CALLER, ["station", "mall"], 30)
             self.assertEqual(any(proposal.venue.type == "mall" for proposal in result.proposals), mall_reachable)
-            self.assertEqual(routes.await_count, MAX_CANDIDATE_CHECKS * len(calculation.origins))
+            self.assertEqual(routes.await_count, (MAX_CANDIDATE_CHECKS + (not mall_reachable)) * len(calculation.origins))
             self.assertEqual(sum(call.args[2].type == "mall" for call in routes.await_args_list), 2)
             self.assertEqual([proposal.rank for proposal in result.proposals], list(range(1, len(result.proposals) + 1)))
             self.assertEqual(store.call_args.args[3], result.proposals)
@@ -318,6 +319,8 @@ class MeetingCommonGroundTests(unittest.IsolatedAsyncioTestCase):
             patch("backend.app.services.meeting_service._fetch_isochrone", new=AsyncMock(return_value=AREA)),
             patch("backend.app.services.meeting_service._fetch_arrive_by_minutes", new=AsyncMock(side_effect=route)) as routes,
             patch("backend.app.services.meeting_service._store_proposals") as store,
+            # Isolate the existing mall reserve from the new overall-list refill.
+            patch("backend.app.services.meeting_service.TARGET_VERIFIED_PROPOSALS", 9),
         ):
             if outage or stall:
                 with self.assertRaises(RoutingUnavailableError):
@@ -358,6 +361,200 @@ class MeetingCommonGroundTests(unittest.IsolatedAsyncioTestCase):
             await self.check_mall_reserve(set(), stall=True)
         deadline.assert_called_once()
         self.assertEqual(deadline.call_args.kwargs["timeout"], 0.05)
+
+    async def test_larger_budget_refills_displaced_feasible_places(self) -> None:
+        known = tuple(VENUE.model_copy(update={"id": f"known-{index}", "name": f"Z{index}", "lat": 3.01})
+                      for index in range(5))
+        newcomers = tuple(VENUE.model_copy(update={"id": f"new-{index}", "name": f"A{index}", "lat": 3.11})
+                          for index in range(8))
+
+        async def surface(_client, _origin, budget, _departure):
+            return replace(SURFACE, seconds=(budget,))
+
+        def minutes(surface, lat, _lon):
+            if lat == 3.11:
+                return 99 if surface.seconds[0] == 30 else 1
+            return 10
+
+        async def route(_client, _origin, venue, _budget, _arrival):
+            return None if venue.id.startswith("new-") else 10
+
+        results = []
+        for budget in (30, 60):
+            calculation = replace(CALCULATION, budget_minutes=budget, venues=known + newcomers)
+            with (
+                patch("backend.app.services.meeting_service._load_calculation", return_value=calculation),
+                patch("backend.app.services.meeting_service._fetch_surface", new=AsyncMock(side_effect=surface)),
+                patch("backend.app.services.meeting_service.minutes_at", side_effect=minutes),
+                patch("backend.app.services.meeting_service._fetch_isochrone", new=AsyncMock(return_value=AREA)),
+                patch("backend.app.services.meeting_service._fetch_arrive_by_minutes", new=AsyncMock(side_effect=route)) as routes,
+                patch("backend.app.services.meeting_service._store_proposals"),
+            ):
+                result = await common_ground("ABCDEFGH", CALLER, ["station"], budget)
+                results.append({proposal.venue.id for proposal in result.proposals})
+                if budget == 60:
+                    self.assertEqual(routes.await_count, 13 * 2)  # The thirteenth candidate was previously lost.
+        self.assertEqual(results[0], {venue.id for venue in known})
+        self.assertEqual(results[1], results[0])
+
+    async def test_general_refill_restores_all_categories_even_with_initial_mall(self) -> None:
+        venues = tuple(VENUE.model_copy(update={
+            "id": f"{kind}-{index}", "type": kind, "name": f"{kind}-{index:02}",
+        }) for kind in ("station", "cafe", "restaurant", "mall") for index in range(20))
+
+        async def route(_client, _origin, venue, _budget, _arrival):
+            return 10 if int(venue.id.split("-")[1]) in (0, 3, 4) else None
+
+        with (
+            patch("backend.app.services.meeting_service._load_calculation", return_value=replace(CALCULATION, venues=venues)),
+            patch("backend.app.services.meeting_service._fetch_surface", new=AsyncMock(return_value=SURFACE)),
+            patch("backend.app.services.meeting_service._fetch_isochrone", new=AsyncMock(return_value=AREA)),
+            patch("backend.app.services.meeting_service._fetch_arrive_by_minutes", new=AsyncMock(side_effect=route)) as routes,
+            patch("backend.app.services.meeting_service._store_proposals"),
+        ):
+            result = await common_ground("ABCDEFGH", CALLER, ["station", "cafe", "restaurant", "mall"], 30)
+        self.assertEqual(len(result.proposals), TARGET_VERIFIED_PROPOSALS)
+        for kind in ("station", "cafe", "restaurant", "mall"):
+            self.assertEqual(sum(proposal.venue.type == kind for proposal in result.proposals), 3)
+        checked = [call.args[2].id for call in routes.await_args_list]
+        self.assertEqual(len(checked), 20 * 2)
+        self.assertEqual(len(set(checked)), 20)
+        self.assertFalse(any(venue.endswith("-5") for venue in checked))
+        self.assertEqual([proposal.rank for proposal in result.proposals], list(range(1, 13)))
+
+    async def test_refill_stops_at_total_cap_and_never_relaxes_member_checks(self) -> None:
+        venues = tuple(VENUE.model_copy(update={
+            "id": f"{kind}-{index}", "type": kind, "name": f"{kind}-{index:02}",
+        }) for kind in ("station", "cafe", "restaurant", "mall") for index in range(40))
+        origins = tuple(PrivateOrigin(3.1 + index / 100, 101.1 + index / 100) for index in range(5))
+
+        async def route(_client, origin, _venue, _budget, _arrival):
+            return None if origin == origins[-1] else 10
+
+        calculation = replace(CALCULATION, participant_count=5, origins=origins, venues=venues)
+        with (
+            patch("backend.app.services.meeting_service._load_calculation", return_value=calculation),
+            patch("backend.app.services.meeting_service._fetch_surface", new=AsyncMock(return_value=SURFACE)),
+            patch("backend.app.services.meeting_service._fetch_isochrone", new=AsyncMock(return_value=AREA)),
+            patch("backend.app.services.meeting_service._fetch_arrive_by_minutes", new=AsyncMock(side_effect=route)) as routes,
+            patch("backend.app.services.meeting_service._store_proposals"),
+        ):
+            result = await common_ground("ABCDEFGH", CALLER, ["station", "cafe", "restaurant", "mall"], 30)
+        self.assertEqual(result.proposals, [])
+        checked = [call.args[2] for call in routes.await_args_list]
+        self.assertEqual(len(checked), MAX_TOTAL_CANDIDATE_CHECKS * 5)
+        self.assertEqual(len({(venue.type, venue.id) for venue in checked}), MAX_TOTAL_CANDIDATE_CHECKS)
+        self.assertEqual(sum(venue.type == "mall" for venue in checked), (3 + MAX_MALL_REPLACEMENT_CHECKS) * 5)
+
+    async def test_full_initial_list_does_not_run_general_refill(self) -> None:
+        venues = tuple(VENUE.model_copy(update={"id": f"station-{index}", "name": f"A{index:02}"})
+                       for index in range(40))
+        with (
+            patch("backend.app.services.meeting_service._load_calculation", return_value=replace(CALCULATION, venues=venues)),
+            patch("backend.app.services.meeting_service._fetch_surface", new=AsyncMock(return_value=SURFACE)),
+            patch("backend.app.services.meeting_service._fetch_isochrone", new=AsyncMock(return_value=AREA)),
+            patch("backend.app.services.meeting_service._store_proposals"),
+        ):
+            result = await common_ground("ABCDEFGH", CALLER, ["station"], 30)
+        self.assertEqual(len(result.proposals), MAX_CANDIDATE_CHECKS)
+        self.assertEqual(self.arrive_by.await_count, MAX_CANDIDATE_CHECKS * 2)
+
+    async def test_general_refill_timeout_cancels_pending_routes_without_partial_store(self) -> None:
+        venues = tuple(VENUE.model_copy(update={"id": f"station-{index}", "name": f"A{index:02}"})
+                       for index in range(20))
+        cancelled = []
+
+        async def route(_client, _origin, venue, _budget, _arrival):
+            index = int(venue.id.split("-")[1])
+            if index < MAX_CANDIDATE_CHECKS:
+                return 10 if index < 4 else None
+            try:
+                await asyncio.Event().wait()
+            finally:
+                cancelled.append(venue.id)
+
+        with (
+            patch("backend.app.services.meeting_service._load_calculation", return_value=replace(CALCULATION, venues=venues)),
+            patch("backend.app.services.meeting_service._fetch_surface", new=AsyncMock(return_value=SURFACE)),
+            patch("backend.app.services.meeting_service._fetch_isochrone", new=AsyncMock(return_value=AREA)),
+            patch("backend.app.services.meeting_service._fetch_arrive_by_minutes", new=AsyncMock(side_effect=route)),
+            patch("backend.app.services.meeting_service._store_proposals") as store,
+        ):
+            with self.assertRaises(RoutingUnavailableError):
+                await common_ground("ABCDEFGH", CALLER, ["station"], 30, verification_timeout=0.05)
+        self.assertTrue(cancelled)
+        store.assert_not_called()
+
+    async def test_more_reuses_screening_and_never_rechecks_old_candidates(self) -> None:
+        venues = tuple(VENUE.model_copy(update={"id": f"station-{index}", "name": f"A{index:02}"}) for index in range(20))
+        searches = []
+        with (
+            patch("backend.app.services.meeting_service._load_calculation", return_value=replace(CALCULATION, venues=venues)),
+            patch("backend.app.services.meeting_service._fetch_surface", new=AsyncMock(return_value=SURFACE)) as surfaces,
+            patch("backend.app.services.meeting_service._fetch_isochrone", new=AsyncMock(return_value=AREA)) as areas,
+            patch("backend.app.services.meeting_service._store_proposals") as store,
+        ):
+            first = await common_ground("ABCDEFGH", CALLER, ["station"], 30, on_search=searches.append)
+            second = await common_ground("ABCDEFGH", CALLER, ["station"], 30, search=searches[-1], on_search=searches.append)
+        self.assertEqual((len(first.proposals), first.search_page, first.has_more, first.checked_places), (12, 0, True, 12))
+        self.assertEqual((len(second.proposals), second.search_page, second.has_more, second.checked_places), (20, 1, False, 20))
+        self.assertEqual((surfaces.await_count, areas.await_count), (2, 2))
+        self.assertEqual(self.arrive_by.await_count, 20 * 2)
+        self.assertEqual(store.call_args.args[3], second.proposals)
+        self.assertEqual(len(searches[0].tried), 12)
+        self.assertEqual(len(searches[1].tried), 20)
+
+    async def test_failed_more_keeps_original_search_progress_unmodified(self) -> None:
+        venues = tuple(VENUE.model_copy(update={"id": f"station-{index}", "name": f"A{index:02}"}) for index in range(30))
+        searches = []
+        with (
+            patch("backend.app.services.meeting_service._load_calculation", return_value=replace(CALCULATION, venues=venues)),
+            patch("backend.app.services.meeting_service._fetch_surface", new=AsyncMock(return_value=SURFACE)),
+            patch("backend.app.services.meeting_service._fetch_isochrone", new=AsyncMock(return_value=AREA)),
+            patch("backend.app.services.meeting_service._store_proposals") as store,
+        ):
+            await common_ground("ABCDEFGH", CALLER, ["station"], 30, on_search=searches.append)
+            self.arrive_by.side_effect = RoutingUnavailableError
+            with self.assertRaises(RoutingUnavailableError):
+                await common_ground("ABCDEFGH", CALLER, ["station"], 30, search=searches[0], on_search=searches.append)
+        self.assertEqual(len(searches), 1)
+        self.assertEqual(len(searches[0].tried), 12)
+        self.assertEqual(len(searches[0].verified), 12)
+        store.assert_called_once()
+
+    async def test_continuation_rejects_changed_budget_arrival_types_or_revision(self) -> None:
+        searches = []
+        with (
+            patch("backend.app.services.meeting_service._load_calculation", return_value=CALCULATION),
+            patch("backend.app.services.meeting_service._fetch_surface", new=AsyncMock(return_value=SURFACE)),
+            patch("backend.app.services.meeting_service._fetch_isochrone", new=AsyncMock(return_value=AREA)),
+            patch("backend.app.services.meeting_service._store_proposals"),
+        ):
+            await common_ground("ABCDEFGH", CALLER, ["station"], 30, on_search=searches.append)
+        for changes in ({"budget": 60}, {"revision": 8}, {"arrival": ARRIVAL + timedelta(hours=1)}, {"types": frozenset({"mall"})}, {"page": 19}):
+            with (
+                self.subTest(changes=changes),
+                patch("backend.app.services.meeting_service._load_calculation", return_value=CALCULATION),
+                patch("backend.app.services.meeting_service._store_proposals") as store,
+            ):
+                with self.assertRaises(MeetingInputsChangedError):
+                    await common_ground("ABCDEFGH", CALLER, ["station"], 30, search=replace(searches[0], **changes))
+                store.assert_not_called()
+
+    async def test_last_allowed_page_reports_limit_not_full_coverage(self) -> None:
+        venues = tuple(VENUE.model_copy(update={"id": f"station-{index}", "name": f"A{index:02}"}) for index in range(50))
+        searches = []
+        with (
+            patch("backend.app.services.meeting_service._load_calculation", return_value=replace(CALCULATION, venues=venues)),
+            patch("backend.app.services.meeting_service._fetch_surface", new=AsyncMock(return_value=SURFACE)),
+            patch("backend.app.services.meeting_service._fetch_isochrone", new=AsyncMock(return_value=AREA)),
+            patch("backend.app.services.meeting_service._store_proposals"),
+        ):
+            await common_ground("ABCDEFGH", CALLER, ["station"], 30, on_search=searches.append)
+            result = await common_ground("ABCDEFGH", CALLER, ["station"], 30, search=replace(searches[0], page=18))
+        self.assertEqual(result.search_page, 19)
+        self.assertFalse(result.has_more)
+        self.assertTrue(result.search_limit_reached)
 
     async def test_arrive_by_outage_does_not_store_partially_checked_candidates(self) -> None:
         self.arrive_by.side_effect = RoutingUnavailableError

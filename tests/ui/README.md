@@ -1,5 +1,14 @@
 # Epic 7 UI checks
 
+## Local meeting pagination
+
+See [paged search](../../docs/meeting-pagination.md). The meeting-polish fixture
+includes Find more: its six labelled synthetic examples become twelve, retaining
+the original cards/map and then showing the screened-set exhaustion message.
+This is layout-only; no real room or route is written. Actual paging failure,
+expiry, explicit category search and stale-response behaviour are covered by
+`node scripts/test-meeting-pagination.mjs`, not by those synthetic added venues.
+
 ## Expo desktop reliability revision
 
 See [desktop fixes](../../docs/expo-desktop-fixes.md) for the local short-poll meeting

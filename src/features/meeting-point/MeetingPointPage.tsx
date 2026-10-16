@@ -90,6 +90,7 @@ export function MeetingPlanner({ meeting, commonGround }: { meeting: PlannerCont
   useEffect(() => { if (room?.meetingTime) setArrivalInput(malaysiaInputTime(room.meetingTime)); }, [room?.meetingTime]);
   const serverCommon = useServerCommonGround(!commonGround && canCompute && room ? room.code : null, room?.timeBudget ?? 30, ALL_VENUE_TYPES, String(room?.planningRevision ?? 0));
   const common = commonGround ?? serverCommon;
+  const categorySearchPending = common.searchTypesKey !== undefined && common.searchTypesKey !== [...venueTypes].sort().join(',');
   const availableResult = 'result' in common.state ? common.state.result : null;
   const result = canCompute && availableResult?.roomRevision === room?.planningRevision && availableResult?.arrivalTime && Date.parse(availableResult.arrivalTime) === Date.parse(room?.votingArrivalTime ?? '') ? availableResult : null;
   const overlap = useMemo(() => {
@@ -100,7 +101,8 @@ export function MeetingPlanner({ meeting, commonGround }: { meeting: PlannerCont
   const places = useMemo<RankedPlace[]>(() => (result?.proposals ?? []).filter(proposal => venueTypes.has(proposal.venue.type) || snapshot?.selections.some(selection => selection.venue.id === proposal.venue.id && selection.venue.type === proposal.venue.type))
     .map(proposal => ({ rank: proposal.rank, venue: proposal.venue, minutes: [], longest: proposal.longestMinutes, gap: proposal.gapMinutes })), [result, venueTypes, snapshot?.selections]);
   const cityRegions = useMemo(() => overlap.polygons.map(([outer, ...holes]) => ({ outer, holes })), [overlap.polygons]);
-  const cityWaypoints = useMemo(() => meetingMapWaypoints(snapshot?.members ?? [], places, snapshot?.selections ?? [], draft), [snapshot?.members, snapshot?.selections, places, draft]);
+  const confirmedVenue = room?.confirmedPlan?.venue ?? null;
+  const cityWaypoints = useMemo(() => meetingMapWaypoints(snapshot?.members ?? [], places, snapshot?.selections ?? [], draft, confirmedVenue), [snapshot?.members, snapshot?.selections, places, draft, confirmedVenue]);
   const myLat = snapshot?.me.at?.lat;
   const myLon = snapshot?.me.at?.lon;
   const mySource = snapshot?.me.source;
@@ -122,7 +124,9 @@ export function MeetingPlanner({ meeting, commonGround }: { meeting: PlannerCont
   const individualTimesUnavailable = displayed.some(proposal => members.some(member => !(proposal.participantTrips ?? []).some(trip => trip.memberId === member.id && Number.isFinite(trip.minutes) && trip.minutes >= 0)));
   const located = members.filter(member => member.planningStatus === 'Ready').length;
   const myVote = votes.find(vote => vote.memberId === me.id);
-  const selected = result?.proposals.find(proposal => proposal.venue.id === selectedId) ?? null;
+  const selected = result?.proposals.find(proposal => proposal.venue.id === selectedId)
+    ?? selections.find(selection => selection.venue.id === selectedId)
+    ?? (confirmedVenue?.id === selectedId ? { venue: confirmedVenue } : null);
   const choose = (point: StartingPoint) => {
     if (meeting.busy) return;
     if (!isInStudyArea(point.at)) { setNotice('Selected point is outside the covered area.'); return; }
@@ -156,7 +160,7 @@ export function MeetingPlanner({ meeting, commonGround }: { meeting: PlannerCont
     <div className="absolute inset-0"><BaseMap origin={draft ?? myOrigin} showOriginPin={false} regions={null} cityRegions={showSharedArea ? cityRegions : []} sharedArea={showSharedArea} waypoints={cityWaypoints} cityFrameRequest={frameRequest} cityFocus={selected ? { lat: selected.venue.lat, lon: selected.venue.lon, label: selected.venue.name } : null} onMapClick={at => choose({ at, source: 'map', label: null })}>
       <SharedMeetingMap members={members} frameRequest={frameRequest} draft={draft} />
       {showSharedArea && !overlap.failed && <OverlapLayer polygons={overlap.polygons} />}
-      <RankedPlaceMarkers places={places} selectedId={selectedId} onSelect={setSelectedId} selections={selections} confirmedId={room.confirmedPlan?.venue.id ?? null} memberPoints={members.flatMap(member => member.at ? [member.at] : [])} />
+      <RankedPlaceMarkers places={places} selectedId={selectedId} onSelect={setSelectedId} selections={selections} confirmedId={room.confirmedPlan?.venue.id ?? null} confirmedVenue={confirmedVenue} memberPoints={members.flatMap(member => member.at ? [member.at] : [])} />
       <FocusOnPlace place={selected?.venue ?? null} />
       {canCompute && common.state.status === 'loading' && !result && <MeetingRadarLayer members={members} />}
     </BaseMap></div>
@@ -201,13 +205,15 @@ export function MeetingPlanner({ meeting, commonGround }: { meeting: PlannerCont
         <button type="button" disabled={!me.at || draft !== null || meeting.busy} className="btn-primary mt-4 w-full" onClick={() => setPassOpen(true)}>Generate my travel pass</button>
         {draft && <p className="mt-2 text-xs text-amber-200">Share or cancel your preview before generating a pass.</p>}
       </section>}
-      <h2 className="text-lg font-bold text-white">Common places</h2>
+      <div className="flex items-center justify-between gap-2"><h2 className="text-lg font-bold text-white">Common places</h2>
+        {common.state.status === 'ready' && result && <span aria-label="Verified places in this shortlist" className="shrink-0 text-xs tabular-nums text-teal-200">{displayed.length} verified</span>}
+      </div>
       <div className="mt-3 flex flex-wrap gap-2" aria-label="Venue types">{VENUE_TYPES.map(option => <button key={option.id} type="button" aria-pressed={venueTypes.has(option.id)} onClick={() => toggleType(option.id)} className={`rounded-lg border px-2 py-1.5 text-xs ${venueTypes.has(option.id) ? 'border-teal-300 text-teal-100' : 'border-[#315163] text-slate-300'}`}>{option.label}</button>)}</div>
       {!allReady && <p role="status" className="mt-4 text-sm">Waiting for everyone to share a start.</p>}
-      {canCompute && common.state.status === 'loading' && <p role="status" className="mt-4 text-sm text-teal-200">{result ? overlap.polygons.length ? 'Shared area ready. Still finding places…' : 'Areas calculated. Still checking places…' : 'Finding your shared area and places…'}</p>}
-      {common.state.status === 'failed' && <div role="alert" className="mt-4 text-sm text-rose-300">{common.state.message ?? 'Common-ground calculation is unavailable.'}<button type="button" onClick={common.retry} className="btn-secondary mt-2 flex items-center gap-2"><RefreshCw size={14} />Retry</button></div>}
+      {canCompute && common.state.status === 'loading' && <p role="status" className="mt-4 text-sm text-teal-200">{common.loadingMore ? 'Finding more verified places…' : result?.status === 'ready' ? 'Checking selected types…' : result ? overlap.polygons.length ? 'Shared area ready. Still finding places…' : 'Areas calculated. Still checking places…' : 'Finding your shared area and places…'}</p>}
+      {common.state.status === 'failed' && <div role="alert" className="mt-4 text-sm text-rose-300">{common.state.message ?? 'Common-ground calculation is unavailable.'}<button type="button" onClick={common.state.restartRequired ? common.restart : common.retry} className="btn-secondary mt-2 flex items-center gap-2"><RefreshCw size={14} />{common.state.restartRequired ? 'Restart search' : 'Retry'}</button></div>}
       {overlap.failed && <p role="alert" className="mt-4 text-sm text-rose-300">The shared boundary could not be calculated. Retry before voting.</p>}
-      {result?.status === 'no_common_ground' && <p className="mt-4 text-sm">No venue in this screened shortlist fits everyone’s arrive-by budget. Reopen to adjust the meeting time or budget.</p>}
+      {result?.status === 'no_common_ground' && <p className="mt-4 text-sm">{result.hasMore ? 'No verified matches yet. Find more places to check another batch.' : 'No venue in this screened shortlist fits everyone’s arrive-by budget. Try another meeting time or budget.'}</p>}
       {common.state.status === 'ready' && result?.status === 'ready' && displayed.length === 0 && <p role="status" className="mt-4 text-sm text-slate-300">No verified places for the selected types in this shortlist. Try another type, meeting time or travel budget.</p>}
       {result?.status === 'waiting_for_origins' && <p role="status" className="mt-4 text-sm">Waiting for {result.missingStartingPoints} saved starting point(s). No partial group result is shown.</p>}
       {result?.status === 'waiting_for_participants' && <p role="status" className="mt-4 text-sm">At least two participants are needed.</p>}
@@ -242,8 +248,12 @@ export function MeetingPlanner({ meeting, commonGround }: { meeting: PlannerCont
           </div>}
         </section>;
       })}</div>
+      {!room.confirmedPlan && result && common.loadMore && <div className="mt-4">
+        {(result.hasMore || categorySearchPending) && <button type="button" disabled={common.state.status !== 'ready'} onClick={() => common.loadMore?.(venueTypes)} className="btn-secondary w-full">{common.loadingMore ? 'Finding more…' : categorySearchPending ? 'Search selected types' : 'Find more places'}</button>}
+        {common.state.status === 'ready' && !categorySearchPending && result.hasMore === false && <p role="status" className="text-xs text-slate-400">{result.searchLimitReached ? 'Search limit reached. Narrow the place types to continue.' : 'All candidates in this screened set checked. Try other types or meeting times.'}</p>}
+      </div>}
       {actionError && <p role="alert" className="mt-3 text-sm text-rose-300">{actionError}</p>}
-      <details className="mt-4 text-xs leading-relaxed text-slate-400"><summary className="cursor-pointer">How it works</summary><p className="mt-2">Propose highlights a place; Vote chooses it. Everyone must vote, with one unique highest count. Changing members, origins, time or budget resets votes. Ranked within the checked shortlist by longest trip, then time gap. Individual colours are shown in 2D; the 3D view shows the shared area. Routes and the shared boundary are estimates; hours are not guaranteed.</p></details>
+      <details className="mt-4 text-xs leading-relaxed text-slate-400"><summary className="cursor-pointer">How it works</summary><p className="mt-2">Propose highlights a place; Vote chooses it. Everyone must vote, with one unique highest count. Changing members, origins, time or budget resets votes. Ranked within the checked shortlist by longest trip, then time gap. This is not a count of all reachable places. Larger budgets also change the map preview’s departure time. Individual colours are shown in 2D; the 3D view shows the shared area. Routes and the shared boundary are estimates; hours are not guaranteed.</p></details>
     </aside>
     {passOpen && room.confirmedPlan && myOrigin && <MeetingTravelPass key={`${room.confirmedPlan.version}:${myOrigin.at.lat}:${myOrigin.at.lon}:${room.timeBudget}`} code={room.code} memberId={me.userId} plan={room.confirmedPlan} origin={{ ...myOrigin, label: me.label }} budget={room.timeBudget} onClose={closePass} />}
   </div>;

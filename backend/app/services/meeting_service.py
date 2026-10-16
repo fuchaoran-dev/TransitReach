@@ -26,8 +26,11 @@ from backend.app.services.travel_time_surface import (
 
 
 ROUTING_TIMEOUT_SECONDS = 25.0
-MAX_PROPOSALS = 20
+MAX_SEARCH_PAGES = 20
 MAX_CANDIDATE_CHECKS = 12
+TARGET_VERIFIED_PROPOSALS = 12
+MAX_TOTAL_CANDIDATE_CHECKS = 24
+REPLACEMENT_BATCH_SIZE = 4
 MAX_MALL_REPLACEMENT_CHECKS = 6
 MALL_REPLACEMENT_BATCH_SIZE = 2
 MAX_ROUTING_CONCURRENCY = 6
@@ -114,6 +117,25 @@ class MeetingCalculation:
     planning_started: bool
     departure_time: datetime | None
     arrival_time: datetime | None = None
+
+
+RankedCandidate = tuple[int, int, str, PublicVenue]
+VerifiedCandidate = tuple[int, int, str, PublicVenue, list[int]]
+
+
+@dataclass(frozen=True)
+class MeetingSearch:
+    """Short-lived consent-gated search progress; no origins, tokens or rasters."""
+
+    revision: int
+    budget: int
+    arrival: datetime
+    types: frozenset[VenueType]
+    page: int
+    ranked: tuple[RankedCandidate, ...]
+    tried: frozenset[tuple[VenueType, str]]
+    verified: tuple[VerifiedCandidate, ...]
+    areas: tuple[ParticipantArea, ...]
 
 
 def _load_calculation(
@@ -358,6 +380,7 @@ async def _fetch_arrive_by_minutes(
 
 def _candidate_shortlist(
     ranked: list[tuple[int, int, str, PublicVenue]],
+    limit: int = MAX_CANDIDATE_CHECKS,
 ) -> list[tuple[int, int, str, PublicVenue]]:
     """Share the fixed OTP budget across categories, preserving each category's rank."""
     categories: dict[VenueType, list[tuple[int, int, str, PublicVenue]]] = {}
@@ -366,11 +389,11 @@ def _candidate_shortlist(
     selected: list[tuple[int, int, str, PublicVenue]] = []
     # A sparse category's unused slots go to others; malls cannot be crowded out
     # by many faster stations/restaurants. This is still a screened shortlist.
-    for offset in range(MAX_CANDIDATE_CHECKS):
+    for offset in range(limit):
         for items in categories.values():
             if offset < len(items):
                 selected.append(items[offset])
-                if len(selected) == MAX_CANDIDATE_CHECKS:
+                if len(selected) == limit:
                     return selected
         if len(selected) == len(ranked):
             break
@@ -385,6 +408,8 @@ async def common_ground(
     *,
     on_areas: Callable[[CommonGroundResponse], None] | None = None,
     verification_timeout: float = ROUTING_TIMEOUT_SECONDS,
+    search: MeetingSearch | None = None,
+    on_search: Callable[[MeetingSearch], None] | None = None,
 ) -> CommonGroundResponse:
     calculation = await asyncio.to_thread(_load_calculation, code, caller_id, venue_types)
     missing = calculation.participant_count - len(calculation.origins)
@@ -425,52 +450,56 @@ async def common_ground(
             return await _fetch_isochrone(client, origin, calculation.budget_minutes, departure_time)
 
     timeout = httpx.Timeout(ROUTING_TIMEOUT_SECONDS)
-    async with httpx.AsyncClient(
-        timeout=timeout, limits=httpx.Limits(max_connections=MAX_ROUTING_CONCURRENCY),
-    ) as client:
-        tasks = [
-            asyncio.create_task(fetch_participant(client, origin))
-            for origin in calculation.origins
+    if search is not None:
+        if (search.revision != calculation.room_revision or search.budget != calculation.budget_minutes
+                or search.arrival != arrival_time or search.types != frozenset(venue_types)
+                or search.page >= MAX_SEARCH_PAGES - 1):
+            raise MeetingInputsChangedError
+        participant_areas = list(search.areas)
+        ranked = list(search.ranked)
+    else:
+        async with httpx.AsyncClient(
+            timeout=timeout, limits=httpx.Limits(max_connections=MAX_ROUTING_CONCURRENCY),
+        ) as client:
+            tasks = [asyncio.create_task(fetch_participant(client, origin)) for origin in calculation.origins]
+            try:
+                results = await asyncio.gather(*tasks)
+            except BaseException:
+                for task in tasks:
+                    task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
+                raise
+        participant_areas = [
+            ParticipantArea(memberId=origin.participant_id, regions=area.regions)
+            for origin, area in zip(calculation.origins, results, strict=True)
         ]
-        try:
-            results = await asyncio.gather(*tasks)
-        except BaseException:
-            for task in tasks:
-                task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
-            raise
-    participant_areas = [
-        ParticipantArea(memberId=origin.participant_id, regions=area.regions)
-        for origin, area in zip(calculation.origins, results, strict=True)
-    ]
-    if on_areas is not None:
-        await asyncio.to_thread(check_room_revision, code, caller_id, calculation.room_revision, calculation.budget_minutes)
-        on_areas(CommonGroundResponse(status="finding_places", proposals=[], participantAreas=participant_areas, **base))
+        if on_areas is not None:
+            await asyncio.to_thread(check_room_revision, code, caller_id, calculation.room_revision, calculation.budget_minutes)
+            on_areas(CommonGroundResponse(status="finding_places", proposals=[], participantAreas=participant_areas, **base))
 
-    async def fetch_surface(client: httpx.AsyncClient, origin: PrivateOrigin) -> TravelTimeSurface:
-        async with semaphore:
-            return await _fetch_surface(client, origin, calculation.budget_minutes, departure_time)
+        async def fetch_surface(client: httpx.AsyncClient, origin: PrivateOrigin) -> TravelTimeSurface:
+            async with semaphore:
+                return await _fetch_surface(client, origin, calculation.budget_minutes, departure_time)
 
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        tasks = [asyncio.create_task(fetch_surface(client, origin)) for origin in calculation.origins]
-        try:
-            surfaces = await asyncio.gather(*tasks)
-        except BaseException:
-            for task in tasks:
-                task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
-            raise
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            tasks = [asyncio.create_task(fetch_surface(client, origin)) for origin in calculation.origins]
+            try:
+                surfaces = await asyncio.gather(*tasks)
+            except BaseException:
+                for task in tasks:
+                    task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
+                raise
 
-    ranked: list[tuple[int, int, str, PublicVenue]] = []
-    for venue in calculation.venues:
-        exact = [minutes_at(surface, venue.lat, venue.lon) for surface in surfaces]
-        if any(value is None or value > calculation.budget_minutes for value in exact):
-            continue
-        rounded = [ceil(value) for value in exact if value is not None]
-        longest = max(rounded)
-        ranked.append((longest, longest - min(rounded), venue.name, venue))
-
-    ranked.sort(key=lambda item: (item[0], item[1], item[2].casefold(), item[3].id))
+        ranked: list[RankedCandidate] = []
+        for venue in calculation.venues:
+            exact = [minutes_at(surface, venue.lat, venue.lon) for surface in surfaces]
+            if any(value is None or value > calculation.budget_minutes for value in exact):
+                continue
+            rounded = [ceil(value) for value in exact if value is not None]
+            longest = max(rounded)
+            ranked.append((longest, longest - min(rounded), venue.name, venue))
+        ranked.sort(key=lambda item: (item[0], item[1], item[2].casefold(), item[3].id))
     # Bound OTP work. Ranking covers a screened shortlist, not all POIs globally.
     async def verify_candidate(
         item: tuple[int, int, str, PublicVenue],
@@ -506,30 +535,58 @@ async def common_ground(
                 raise
 
         async def verify_shortlist() -> list[tuple[int, int, str, PublicVenue, list[int]] | None]:
-            shortlist = _candidate_shortlist(ranked)
+            prior_tried = search.tried if search else frozenset()
+            remaining_ranked = [item for item in ranked if (item[3].type, item[3].id) not in prior_tried]
+            shortlist = _candidate_shortlist(remaining_ranked)
             checked = await verify_batch(shortlist)
-            if any(item is not None and item[3].type == "mall" for item in checked):
-                return checked
             tried = {(item[3].type, item[3].id) for item in shortlist}
-            replacements = [item for item in ranked
-                            if item[3].type == "mall" and (item[3].type, item[3].id) not in tried]
-            # Failed first-choice malls must not hide later feasible ones. Try a
-            # bounded reserve in small batches; stop as soon as a mall is verified.
-            # Both phases share ONE deadline and the process-wide routing slots.
-            replacements = replacements[:MAX_MALL_REPLACEMENT_CHECKS]
-            for offset in range(0, len(replacements), MALL_REPLACEMENT_BATCH_SIZE):
-                extra = await verify_batch(replacements[offset:offset + MALL_REPLACEMENT_BATCH_SIZE])
-                checked.extend(extra)
-                if any(item is not None for item in extra):
+            mall_check_limit = sum(item[3].type == "mall" for item in shortlist) + MAX_MALL_REPLACEMENT_CHECKS
+            if not any(item is not None and item[3].type == "mall" for item in checked):
+                replacements = [item for item in remaining_ranked
+                                if item[3].type == "mall" and (item[3].type, item[3].id) not in tried]
+                # Preserve category coverage before filling the overall list.
+                replacements = replacements[:MAX_MALL_REPLACEMENT_CHECKS]
+                for offset in range(0, len(replacements), MALL_REPLACEMENT_BATCH_SIZE):
+                    batch = replacements[offset:offset + MALL_REPLACEMENT_BATCH_SIZE]
+                    extra = await verify_batch(batch)
+                    checked.extend(extra)
+                    tried.update((item[3].type, item[3].id) for item in batch)
+                    if any(item is not None for item in extra):
+                        break
+
+            # A larger time budget changes the screening departure and ordering.
+            # Rejected first choices must not leave a four-place list just because
+            # one mall survived. Refill every category, without unbounded OTP work.
+            while sum(item is not None for item in checked) < TARGET_VERIFIED_PROPOSALS:
+                remaining = MAX_TOTAL_CANDIDATE_CHECKS - len(tried)
+                if remaining <= 0:
                     break
+                mall_slots = mall_check_limit - sum(kind == "mall" for kind, _id in tried)
+                candidates = []
+                for item in remaining_ranked:
+                    if (item[3].type, item[3].id) in tried:
+                        continue
+                    if item[3].type == "mall":
+                        if mall_slots <= 0:
+                            continue
+                        mall_slots -= 1
+                    candidates.append(item)
+                needed = TARGET_VERIFIED_PROPOSALS - sum(item is not None for item in checked)
+                batch = _candidate_shortlist(candidates, min(REPLACEMENT_BATCH_SIZE, remaining, needed))
+                if not batch:
+                    break
+                checked.extend(await verify_batch(batch))
+                tried.update((item[3].type, item[3].id) for item in batch)
+            checked_keys.update(tried)
             return checked
 
+        checked_keys = set(search.tried) if search else set()
         try:
             verified = await asyncio.wait_for(verify_shortlist(), timeout=verification_timeout)
         except TimeoutError as error:
             raise RoutingUnavailableError from error
     verified_ranked = sorted(
-        (item for item in verified if item is not None),
+        [*(search.verified if search else ()), *(item for item in verified if item is not None)],
         key=lambda item: (item[0], item[1], item[2].casefold(), item[3].id),
     )
 
@@ -548,15 +605,24 @@ async def common_ground(
         longestMinutes=longest,
         gapMinutes=gap,
         participantTrips=participant_trips(minutes),
-    ) for index, (longest, gap, _name, venue, minutes) in enumerate(verified_ranked[:MAX_PROPOSALS], 1)]
+    ) for index, (longest, gap, _name, venue, minutes) in enumerate(verified_ranked, 1)]
     # Even an empty venue ranking carries geometry that must pass the same revision guard.
     await asyncio.to_thread(
         _store_proposals, code, caller_id, calculation.room_revision, proposals,
         expected_budget=calculation.budget_minutes,
     )
+    page = search.page + 1 if search else 0
+    remaining = any((item[3].type, item[3].id) not in checked_keys for item in ranked)
+    if on_search is not None:
+        on_search(MeetingSearch(calculation.room_revision, calculation.budget_minutes, arrival_time,
+                                frozenset(venue_types), page, tuple(ranked), frozenset(checked_keys),
+                                tuple(verified_ranked), tuple(participant_areas)))
     return CommonGroundResponse(
         status="ready" if proposals else "no_common_ground",
         proposals=proposals,
         participantAreas=participant_areas,
+        searchPage=page, hasMore=remaining and page < MAX_SEARCH_PAGES - 1,
+        searchLimitReached=remaining and page == MAX_SEARCH_PAGES - 1,
+        checkedPlaces=len(checked_keys),
         **base,
     )

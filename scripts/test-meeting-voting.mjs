@@ -189,16 +189,47 @@ for (const label of ['Stations', 'Cafés', 'Restaurants']) {
   await act(async () => { categoryButton(label).props.onClick(); });
 }
 assert.ok(renderedText().includes('No verified places for the selected types in this shortlist')); checks++;
+assert.equal(planner.root.findByProps({ 'aria-label': 'Verified places in this shortlist' }).children.join(''), '0 verified'); checks++;
 assert.equal(categoryButton('Malls').props['aria-pressed'], true); checks++;
 const savedResult = globalThis.__meetingGround.state.result;
 globalThis.__meetingGround.state.result = { ...savedResult, proposals: [...savedResult.proposals, { rank: 2, venue: { ...venue, id: 'mall-test', type: 'mall', name: 'Test Mall' }, longestMinutes: 25, gapMinutes: 4 }] };
 await act(async () => { planner.update(React.createElement(page.MeetingPointPage)); });
 assert.ok(renderedText().includes('Test Mall')); checks++;
+assert.equal(planner.root.findByProps({ 'aria-label': 'Verified places in this shortlist' }).children.join(''), '1 verified'); checks++;
+assert.ok(renderedText().includes('This is not a count of all reachable places')); checks++;
 assert.equal(renderedText().includes('No verified places for the selected types'), false); checks++;
 await act(async () => { categoryButton('Malls').props.onClick(); });
 assert.equal(categoryButton('Malls').props['aria-pressed'], true); checks++;
 await act(async () => { planner.unmount(); });
 globalThis.__meetingGround.state.result = savedResult;
+// More is explicit, is disabled while computing, and keeps the old verified cards.
+const moreState = globalThis.__meetingGround.state;
+let moreCalls = 0;
+let moreTypes;
+globalThis.__meetingGround.loadMore = types => { moreCalls++; moreTypes = [...types].sort(); };
+globalThis.__meetingGround.state = { status: 'ready', result: { ...savedResult, hasMore: true, searchPage: 0 } };
+await act(async () => { planner = create(React.createElement(page.MeetingPointPage)); });
+await act(async () => { planner.root.findAllByType('button').find(button => button.children.includes('Find more places')).props.onClick(); });
+assert.equal(moreCalls, 1); checks++;
+assert.deepEqual(moreTypes, ['cafe', 'mall', 'restaurant', 'station']); checks++;
+globalThis.__meetingGround.loadingMore = true;
+globalThis.__meetingGround.state = { status: 'loading', result: { ...savedResult, hasMore: true } };
+await act(async () => { planner.update(React.createElement(page.MeetingPointPage)); });
+assert.equal(planner.root.findAllByType('button').find(button => button.children.includes('Finding more…')).props.disabled, true); checks++;
+assert.ok(renderedText().includes(venue.name)); checks++;
+globalThis.__meetingGround.loadingMore = false;
+globalThis.__meetingGround.state = { status: 'ready', result: { ...savedResult, hasMore: false } };
+await act(async () => { planner.update(React.createElement(page.MeetingPointPage)); });
+assert.ok(renderedText().includes('All candidates in this screened set checked')); checks++;
+globalThis.__meetingGround.searchTypesKey = 'cafe,mall,restaurant,station';
+await act(async () => { categoryButton('Stations').props.onClick(); });
+await act(async () => { planner.root.findAllByType('button').find(button => button.children.includes('Search selected types')).props.onClick(); });
+assert.deepEqual(moreTypes, ['cafe', 'mall', 'restaurant']); checks++;
+await act(async () => { planner.unmount(); });
+globalThis.__meetingGround.state = moreState;
+delete globalThis.__meetingGround.loadMore;
+delete globalThis.__meetingGround.loadingMore;
+delete globalThis.__meetingGround.searchTypesKey;
 if (process.argv.includes('--markup')) {
   // Layout QA uses an internally consistent tied round, not the defensive state assertions above.
   const secondVenue = { ...venue, id: 'cafe-2', type: 'cafe', name: 'Example café', kindLabel: 'Café' };

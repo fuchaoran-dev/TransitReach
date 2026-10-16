@@ -4,7 +4,7 @@ import { divIcon, latLngBounds } from 'leaflet';
 import { usePrefersReducedMotion } from '@/shared/hooks';
 import type { RankedPlace } from '../fairnessRanking';
 import { panelPadding } from '../mapFraming';
-import type { MeetingSelection } from '../types';
+import type { MeetingSelection, MeetingVenue } from '../types';
 
 /** Close enough to read the streets around a place, without losing the stations nearby. */
 const FOCUS_ZOOM = 15;
@@ -25,7 +25,7 @@ function venueGlyph(type: RankedPlace['venue']['type']): string {
   return `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${VENUE_GLYPHS[type]}</svg>`;
 }
 
-function rankIcon(place: RankedPlace, selected: boolean, besideStart: boolean, proposed: boolean, confirmed: boolean, dimmed: boolean) {
+function rankIcon(place: Pick<RankedPlace, 'venue'>, selected: boolean, besideStart: boolean, proposed: boolean, confirmed: boolean, dimmed: boolean) {
   const size = confirmed ? 40 : selected || proposed ? 34 : 24;
   const background = confirmed ? '#14b8a6' : proposed ? '#fbbf24' : selected ? '#ffffff' : '#1e293b';
   const colour = confirmed ? '#04201c' : selected || proposed ? '#1e293b' : '#ffffff';
@@ -81,10 +81,11 @@ interface RankedPlaceMarkersProps {
   selections?: MeetingSelection[];
   /** Once the group has chosen, that place leads and the rest step back. */
   confirmedId?: string | null;
+  confirmedVenue?: MeetingVenue | null;
 }
 
 /** Numbers on the map for the places the list is showing, so the two can be read against each other. */
-export function RankedPlaceMarkers({ places, selectedId, onSelect, memberPoints = [], selections = [], confirmedId = null }: RankedPlaceMarkersProps) {
+export function RankedPlaceMarkers({ places, selectedId, onSelect, memberPoints = [], selections = [], confirmedId = null, confirmedVenue = null }: RankedPlaceMarkersProps) {
   const map = useMap();
   const [zoom, setZoom] = useState(() => typeof map.getZoom === 'function' ? map.getZoom() : 13);
   useEffect(() => {
@@ -106,6 +107,19 @@ export function RankedPlaceMarkers({ places, selectedId, onSelect, memberPoints 
     }
     return grouped;
   }, [confirmedId, places, selectedId, zoom]);
+
+  // A peer can propose a later search page or another category. Show the shared
+  // public venue without inventing a rank or personal travel-time calculation.
+  const unlisted = new Map<string, { venue: MeetingVenue; people: string[] }>();
+  for (const selection of selections) {
+    if (places.some(place => place.venue.id === selection.venue.id && place.venue.type === selection.venue.type)) continue;
+    const key = `${selection.venue.type}:${selection.venue.id}`;
+    unlisted.set(key, { venue: selection.venue, people: [...(unlisted.get(key)?.people ?? []), selection.displayName] });
+  }
+  if (confirmedVenue && !places.some(place => place.venue.id === confirmedVenue.id && place.venue.type === confirmedVenue.type)) {
+    const key = `${confirmedVenue.type}:${confirmedVenue.id}`;
+    unlisted.set(key, { venue: confirmedVenue, people: unlisted.get(key)?.people ?? [] });
+  }
 
   return (
     <>
@@ -139,6 +153,15 @@ export function RankedPlaceMarkers({ places, selectedId, onSelect, memberPoints 
             eventHandlers={{ click: () => onSelect(place.venue.id) }}
           >{confirmed || selected ? <Tooltip permanent direction="bottom" offset={[0, confirmed ? 22 : 18]} className="meeting-confirmed-label"><span className="block max-w-44 text-center">{place.venue.name}</span></Tooltip> : proposers.length > 0 && !confirmedId && <Tooltip permanent direction="bottom" offset={[0, 16]}><span className="block max-w-44 text-center"><strong>Proposed</strong><br />{proposers.map(person => person.displayName).join(' · ')}</span></Tooltip>}</Marker>
         );
+      })}
+      {[...unlisted.values()].map(({ venue, people }) => {
+        const confirmed = venue.id === confirmedId;
+        return <Marker key={`shared-${venue.type}:${venue.id}`} position={[venue.lat, venue.lon]}
+          icon={rankIcon({ venue }, venue.id === selectedId, false, people.length > 0, confirmed, false)}
+          title={`${confirmed ? 'Chosen' : 'Proposed'}: ${venue.name}`} zIndexOffset={1200} bubblingMouseEvents={false}
+          eventHandlers={{ click: () => onSelect(venue.id) }}>
+          <Tooltip permanent direction="bottom" offset={[0, 18]}><span>{venue.name}<br />{confirmed ? 'Chosen by group vote' : `Proposed: ${people.join(', ')}`}</span></Tooltip>
+        </Marker>;
       })}
     </>
   );

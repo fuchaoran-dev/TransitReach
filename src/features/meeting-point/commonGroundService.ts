@@ -24,6 +24,10 @@ export interface CommonGroundResult {
   areaMethod: 'budget-window-preview';
   participantAreas: { memberId?: string | null; regions: IsochroneRegion[] }[];
   proposals: CommonGroundProposal[];
+  searchPage?: number;
+  hasMore?: boolean;
+  searchLimitReached?: boolean;
+  checkedPlaces?: number;
 }
 
 /**
@@ -39,8 +43,9 @@ export async function fetchCommonGround(
   signal: AbortSignal,
   roomRevision?: number,
   onProgress?: (result: CommonGroundResult) => void,
+  page = 0,
 ): Promise<CommonGroundResult> {
-  if (roomRevision !== undefined) return followCommonGround(client, code, timeBudget, venueTypes, roomRevision, signal, onProgress);
+  if (roomRevision !== undefined) return followCommonGround(client, code, timeBudget, venueTypes, roomRevision, signal, onProgress, page);
   const { data } = await client.auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new Error('A room session is required.');
@@ -60,7 +65,11 @@ export async function fetchCommonGround(
 
 function validateResult(result: CommonGroundResult): CommonGroundResult {
   const participantAreas = Array.isArray(result.participantAreas) ? result.participantAreas : [];
-  if (result.areaMethod !== 'budget-window-preview' ||
+  if ((result.searchPage !== undefined && (!Number.isInteger(result.searchPage) || result.searchPage < 0 || result.searchPage > 19)) ||
+    (result.hasMore !== undefined && typeof result.hasMore !== 'boolean') ||
+    (result.searchLimitReached !== undefined && typeof result.searchLimitReached !== 'boolean') ||
+    (result.checkedPlaces !== undefined && (!Number.isInteger(result.checkedPlaces) || result.checkedPlaces < 0)) ||
+    result.areaMethod !== 'budget-window-preview' ||
     !participantAreas.every(area => (area.memberId === undefined || area.memberId === null || typeof area.memberId === 'string') && Array.isArray(area.regions)) ||
     !Array.isArray(result.proposals) ||
     !result.proposals.every(proposal => proposal.participantTrips === undefined || (Array.isArray(proposal.participantTrips) && proposal.participantTrips.every(trip => typeof trip.memberId === 'string' && Number.isFinite(trip.minutes) && trip.minutes >= 0))) ||
@@ -71,6 +80,7 @@ function validateResult(result: CommonGroundResult): CommonGroundResult {
 }
 
 class TemporaryMeetingError extends Error {}
+export class MeetingSearchExpiredError extends Error {}
 
 function abortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
   signal.throwIfAborted();
@@ -93,7 +103,7 @@ function pause(milliseconds: number, signal: AbortSignal): Promise<void> {
 /** Short authenticated polls share one server job. Never replay a long POST on each screen. */
 async function followCommonGround(client: SupabaseClient, code: string, timeBudget: number,
   venueTypes: VenueType[], roomRevision: number, signal: AbortSignal,
-  onProgress?: (result: CommonGroundResult) => void): Promise<CommonGroundResult> {
+  onProgress?: (result: CommonGroundResult) => void, page = 0): Promise<CommonGroundResult> {
   const operation = new AbortController();
   const abort = () => operation.abort(signal.reason);
   signal.throwIfAborted();
@@ -116,11 +126,12 @@ async function followCommonGround(client: SupabaseClient, code: string, timeBudg
         if (!token) throw new Error('A room session is required.');
         const response = await fetch(`${API_BASE}/api/meetings/${encodeURIComponent(code)}/common-ground-job`, {
           method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ timeBudget, venueTypes, roomRevision }), signal: attempt.signal,
+          body: JSON.stringify({ timeBudget, venueTypes, roomRevision, ...(page > 0 ? { page } : {}) }), signal: attempt.signal,
         });
         if (!response.ok) {
           void response.body?.cancel().catch(() => {});
           if ([408, 429, 500, 502, 503, 504].includes(response.status)) throw new TemporaryMeetingError('Meeting service is temporarily unavailable.');
+          if (response.status === 410) throw new MeetingSearchExpiredError('This search expired. Restart search to find more places.');
           if (response.status === 409) throw new Error('The room changed. Wait for the current round to update.');
           if (response.status === 401) throw new Error('Your meeting session expired. Reopen the room.');
           throw new Error(`Meeting calculation could not start (HTTP ${response.status}).`);
@@ -132,13 +143,19 @@ async function followCommonGround(client: SupabaseClient, code: string, timeBudg
           const result = validateResult(job.result);
           if (result.roomRevision !== roomRevision || result.budgetMinutes !== timeBudget) throw new Error('The room changed during calculation.');
           if (result.status === 'finding_places' && (result.participantAreas.length !== result.participantCount || result.missingStartingPoints !== 0)) throw new Error('The shared area is incomplete. Please retry.');
-          if (job.status === 'ready') return result;
-          if (result.status !== 'finding_places' || result.proposals.length) throw new Error('The meeting service returned an unverified shortlist.');
+          if (job.status === 'ready') {
+            if (page > 0 && (result.searchPage === undefined || (result.searchPage < page && result.hasMore !== false))) throw new Error('The meeting service returned an incomplete search batch.');
+            return result;
+          }
+          const previousPage = page > 0 && result.searchPage !== undefined && result.searchPage < page && ['ready', 'no_common_ground'].includes(result.status);
+          if (!previousPage && (result.status !== 'finding_places' || result.proposals.length)) throw new Error('The meeting service returned an unverified shortlist.');
           if (!previewPublished) { onProgress?.(result); previewPublished = true; }
         } else if (job.status === 'ready') throw new Error('The meeting service returned no result.');
         if (job.status === 'failed') {
           previewPublished = false;
-          if (job.reason === 'routing_unavailable') throw new TemporaryMeetingError('Place route checks timed out. The shared area is retained; retry finding places.');
+          if (job.reason === 'routing_unavailable') throw new TemporaryMeetingError(page > 0
+            ? 'More place checks timed out. Previously verified places are retained; retry this batch.'
+            : 'Place route checks timed out. The shared area is retained; retry finding places.');
           throw new Error(job.reason === 'room_changed' ? 'The room changed. Wait for the current round to update.' : 'Meeting calculation failed. Please retry.');
         }
       } catch (error) {

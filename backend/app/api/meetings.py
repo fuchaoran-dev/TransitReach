@@ -7,7 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, HTTPException, Response
 
 from backend.app.schemas.meetings import CommonGroundJobRequest, CommonGroundJobResponse, CommonGroundRequest, CommonGroundResponse
-from backend.app.services.meeting_jobs import MeetingQueueFullError, meeting_jobs
+from backend.app.services.meeting_jobs import MeetingQueueFullError, MeetingSearchExpiredError, MeetingPageOrderError, meeting_jobs
 from backend.app.services.meeting_auth_service import validate_supabase_token
 from backend.app.services.meeting_service import (
     BudgetChangedError, MeetingInputsChangedError, RoomUnavailableError,
@@ -43,6 +43,10 @@ async def poll_common_ground_job(code: str, request: CommonGroundJobRequest, res
         raise HTTPException(status_code=409, detail="The room changed. Try again with the current round.") from error
     except MeetingQueueFullError as error:
         raise HTTPException(status_code=503, detail="Meeting calculations are busy.", headers={"Retry-After": "5"}) from error
+    except MeetingSearchExpiredError as error:
+        raise HTTPException(status_code=410, detail="This search expired. Restart the search to find more places.") from error
+    except MeetingPageOrderError as error:
+        raise HTTPException(status_code=409, detail="Wait for the current search batch before requesting another.") from error
 
 
 @router.post("/{code}/common-ground", response_model=CommonGroundResponse, response_model_by_alias=True)

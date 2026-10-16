@@ -105,10 +105,15 @@ class CommonGroundResponse(BaseModel):
     area_method: Literal["budget-window-preview"] = Field(default="budget-window-preview", alias="areaMethod")
     participant_areas: list[ParticipantArea] = Field(default_factory=list, alias="participantAreas", max_length=6)
     proposals: list[VenueProposal]
+    search_page: int = Field(default=0, alias="searchPage", ge=0, le=19)
+    has_more: bool = Field(default=False, alias="hasMore")
+    search_limit_reached: bool = Field(default=False, alias="searchLimitReached")
+    checked_places: int = Field(default=0, alias="checkedPlaces", ge=0)
 
 
 class CommonGroundJobRequest(CommonGroundRequest):
     room_revision: int = Field(alias="roomRevision", ge=0)
+    page: int = Field(default=0, ge=0, le=19, strict=True)
 
 
 class CommonGroundJobResponse(BaseModel):

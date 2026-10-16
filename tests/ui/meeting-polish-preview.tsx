@@ -1,4 +1,5 @@
 import { createRoot } from 'react-dom/client';
+import { useState } from 'react';
 import type { CommonGroundResult } from '@/features/meeting-point/commonGroundService';
 import type { MeetingRoomSnapshot } from '@/features/meeting-point/roomService';
 import { initializeDatabaseData } from '@/shared/data/databaseData';
@@ -58,9 +59,19 @@ async function start() {
   try {
     await initializeDatabaseData();
     const { MeetingPlanner } = await import('@/features/meeting-point/MeetingPointPage');
+    function PaginationPreview() {
+      const [current, setCurrent] = useState<CommonGroundResult>({ ...result, hasMore: true, searchPage: 0, checkedPlaces: 12 });
+      return <MeetingPlanner meeting={meeting} commonGround={{ state: { status: 'ready', result: current }, retry() {}, loadMore() {
+        setCurrent(value => ({ ...value, hasMore: false, searchPage: 1, checkedPlaces: 24,
+          proposals: [...value.proposals, ...result.proposals.map((proposal, index) => ({ ...proposal, rank: index + 7,
+            venue: { ...proposal.venue, id: `extra-${proposal.venue.id}`, name: `Synthetic extra place ${index + 1}` },
+          }))],
+        }));
+      } }} />;
+    }
     root.render(<div className="transit-shell">
       <header className="fixed inset-x-0 top-0 z-[1500] flex h-16 items-center bg-[#080f18] px-5 text-xs font-semibold text-amber-200">SYNTHETIC UI FIXTURE · No database, room, vote or route writes</header>
-      <MeetingPlanner meeting={meeting} commonGround={{ state: { status: 'ready', result }, retry() {} }} />
+      <PaginationPreview />
     </div>);
   } catch (error) {
     root.render(<p role="alert">Synthetic meeting fixture failed: {error instanceof Error ? error.message : 'Unknown error'}</p>);

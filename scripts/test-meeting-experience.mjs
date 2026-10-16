@@ -60,12 +60,20 @@ check(markers([{ venue, displayName: 'Ming', memberId: 'b' }]).includes('meeting
 check(markers([{ venue, displayName: 'Ming', memberId: 'b' }]).includes('Ming'), true);
 check(markers([{ venue, displayName: '<img onerror=x>', memberId: 'b' }]).includes('&lt;img onerror=x&gt;'), true);
 check(markers([]).includes('7. Synthetic station'), true);
+const laterPageSelection = { venue: { ...venue, id: 'later-page', name: 'Verified peer proposal' }, displayName: 'Ming', memberId: 'b' };
+const laterMarker = renderToStaticMarkup(React.createElement(RankedPlaceMarkers, { places: [], selectedId: null, onSelect() {}, selections: [laterPageSelection] }));
+check(laterMarker.includes('Verified peer proposal'), true);
+check(laterMarker.includes('Proposed: Ming'), true);
+check(laterMarker.includes('1. Verified peer proposal'), false); // No fabricated rank for a peer's unseen page.
 const { SharedMeetingMap } = await load('src/features/meeting-point/components/SharedMeetingMap.tsx', leafletStubs);
 const { meetingMapWaypoints } = await load('src/features/meeting-point/meetingMapWaypoints.ts');
 const sharedScene = meetingMapWaypoints([{id:'a', displayName:'Aina', at:venue, isSelf:true}, {id:'b', displayName:'Ming', at:venue}], [{venue,rank:7}], [{venue,memberId:'b',displayName:'Ming'}]);
 check(sharedScene.length, 1); check(sharedScene[0].lat, venue.lat); check(sharedScene[0].lon, venue.lon);
 check(sharedScene[0].label.includes('Aina (you) · Ming'), true);
 check(sharedScene[0].label.includes('Proposed: Ming'), true); check(sharedScene[0].colour, '#fbbf24');
+const laterScene = meetingMapWaypoints([], [], [laterPageSelection]);
+check(laterScene.length, 1); check(laterScene[0].label, 'Verified peer proposal · Proposed: Ming');
+check(meetingMapWaypoints([], [], [], null, venue)[0].label, 'Chosen: Synthetic station');
 const memberMap = renderToStaticMarkup(React.createElement(SharedMeetingMap, { members: [{ id: 'a', at: venue, displayName: 'Aina' }], areas: [{ regions: [{ outer: [] }] }], frameRequest: 0 }));
 check(memberMap.includes('data-polygon'), false); check(memberMap.includes('data-member'), true);
 const { MeetingRadar } = await load('src/features/meeting-point/components/MeetingRadar.tsx');
