@@ -10,9 +10,11 @@ transit failure handling and pass fixes) is described in
 released to Render and Netlify on 15 October 2026; that record includes verification
 scope and the remaining multi-account acceptance limitation.
 
-The [local mall-reserve/duration follow-up](docs/meeting-mall-reserve.md) adds bounded
-mall replacement checks and consistent page/PNG duration formatting. It is not
-deployed yet; production release evidence above does not cover this follow-up.
+The [mall-reserve/duration follow-up](docs/meeting-mall-reserve.md) adds bounded
+mall replacement checks and consistent page/PNG duration formatting. Runtime
+`945b633`, including upstream's saved-journey opening fix, was released to Render
+and Netlify on 16 October 2026. The linked record includes live three-/five-member
+60-minute verification and its limits.
 
 ## Group invitations and personal passes
 

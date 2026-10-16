@@ -4,6 +4,10 @@ Runtime: `bae4f6ef5d06b01ff720d571d9dfa729c8a21dcd`.
 Public site: https://transitreach-kl-team8.netlify.app/.
 This was verification, not a new runtime release or SQL migration.
 
+Historical record: the two findings below were subsequently addressed and
+released as `945b633` on the same date. See [release and live verification](meeting-mall-reserve.md)
+for the new runtime, changed-origin mall result and remaining bounded-search limits.
+
 ## Live scope and results
 
 An isolated live run used six temporary anonymous Supabase identities: five group
