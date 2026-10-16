@@ -1,7 +1,65 @@
-# Local revision: verified places, then Find more
+# Verified places, then Find more
 
-16 October 2026 (MYT). Not committed, pushed or deployed. No SQL migration or
-environment change is required. Deploy the backend before this frontend.
+Released on 16 October 2026 (MYT), runtime `9a39d9e568e8465b170e0ff5cf06ee439333c1f8`.
+Pushed to upstream main and the origin Render deployment branch. No SQL migration
+or environment changes were made. Backend was deployed before the frontend.
+
+## Production release
+
+- Render deploy `dep-db8s87mq1p3s739730j0`: **Deploy succeeded / Live**, source
+  `9a39d9e`. Health returned 200; live OpenAPI includes the finite `page` request
+  and `searchPage`, `hasMore`, `checkedPlaces` response contract.
+- Netlify production deploy `6ad1c51bf1ba0b88103a8404`: ready, published at
+  14:33:08 MYT. Public site: https://transitreach-kl-team8.netlify.app/.
+- Production entry JS/CSS and meeting, My Passes and Supabase client chunks were
+  byte-compared with the local release build and matched. Native Chrome showed
+  the normal street map, navigation and current weather without a bootstrap error.
+- Upstream main had no new commits to merge at the release preflight. User-owned
+  report JSON, Word files and local artifacts were excluded from the commit.
+
+### Post-release live acceptance
+
+The actual frontend short-poll client was bundled into a Node harness with six
+isolated real anonymous Supabase sessions (five members and one late visitor).
+Calls went through the production Netlify proxy to the deployed Render service,
+real PostgreSQL and OTP. These are independent authenticated callers, not five
+physical browser windows. The public station origins and 17 October 18:30 MYT
+meeting match the read-only comparison below; no real user's device coordinates
+or existing room were used.
+
+| Live scenario, 60-minute budget | Verified places | Elapsed | Slowest HTTP poll |
+| --- | ---: | ---: | ---: |
+| 3 members, first page | 12 | 19.70 s | 2.62 s |
+| 5 members, first page | 12 | 34.01 s | 3.89 s |
+| 5 members, Find more | 24 cumulative | 23.41 s | 7.07 s |
+| 5 members, repeated completed page | 24 cumulative | 3.50 s | 3.40 s |
+| 5 members, malls only | 3 | 26.48 s | 3.19 s |
+| 5 members, changed origin, first page | 9 | 32.57 s | 3.68 s |
+
+All callers received identical current-revision results and a nonempty actual
+intersection of all member areas. No polling HTTP failures occurred. The first
+five-member area preview arrived after about 9.72 seconds, before the verified
+places. Continuation retained all 12 previous places, added 12 more and returned
+the same cumulative list on the cached repeat. Malls-only returned only malls;
+all five screened candidates were checked, three passed, and `hasMore` was false.
+The changed-origin first page hit the 24-check cap with nine verified places and
+`hasMore: true`, so Find more remains available; 12 is a target, not fabricated
+minimum coverage. Returned malls were inside the displayed common intersection.
+
+Sixty-nine integration assertions plus scoped cleanup passed. The same run also
+verified automatic Ready planning, joining-member invalidation, real Realtime
+delivery of a peer proposal, participant RLS, all five votes before confirmation,
+late-join rejection and old-revision HTTP 409 after a non-host changed origin.
+Five actual frontend-generated arrive-by Pass routes had real geometry, arrived
+by the meeting and took about 36.35, 42.18, 12.48, 22.62 and 46.67 minutes. Their
+storage validation used isolated in-memory localStorage, not native downloads.
+Only this run's temporary room and six newly created anonymous accounts were
+removed; cleanup was verified and existing rooms/users were preserved.
+
+Observed production latency differs from the local read-only times below; neither
+is a worst-case or cold-start guarantee. Cache expiry/failure controls and peer
+unseen-page markers are covered by controlled tests, not a new production fault
+injection or five-browser visual test.
 
 ## Behaviour and boundaries
 

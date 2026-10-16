@@ -16,14 +16,15 @@ mall replacement checks and consistent page/PNG duration formatting. Runtime
 and Netlify on 16 October 2026. The linked record includes live three-/five-member
 60-minute verification and its limits.
 
-The [local general candidate-refill follow-up](docs/meeting-candidate-refill.md)
+The [general candidate-refill follow-up](docs/meeting-candidate-refill.md)
 extends replacement checks beyond malls, targeting 12 verified places within a
-24-candidate cap. It is not deployed; its separate read-only real-routing comparison
-does not describe the current production runtime.
+24-candidate cap. It was released with the paged-search revision below; its original
+read-only routing comparison is separately labelled as pre-release evidence.
 
-The subsequent [local paged-search revision](docs/meeting-pagination.md) adds
+The subsequent [paged-search revision](docs/meeting-pagination.md) adds
 Find more, explicit category searches and five-minute member-authorized search
-progress. It also remains un-deployed; deploy its backend before its frontend.
+progress. Runtime `9a39d9e` was released to Render and Netlify on 16 October 2026,
+backend first. See the linked release record for verification scope and limits.
 
 ## Group invitations and personal passes
 

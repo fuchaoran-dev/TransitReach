@@ -1,11 +1,12 @@
 # Local follow-up: refill verified common places
 
-16 October 2026 (MYT). Local implementation only; not committed, pushed or deployed.
-Production remains runtime `945b633` until a separate release.
+Implemented on 16 October 2026 (MYT), subsequently included in released runtime
+`9a39d9e` with the paged-search follow-up. The tests below are its pre-release
+local/read-only evidence, not a substitute for that release's live acceptance.
 
 The later [paged-search follow-up](meeting-pagination.md) builds on this local
-refill implementation; its latest tests and continuation results are recorded
-separately below that document's local-only release notice.
+refill implementation; its release, latest tests and continuation results are
+recorded separately in that document.
 
 ## Why 30 minutes can list five places and 60 minutes only four
 
