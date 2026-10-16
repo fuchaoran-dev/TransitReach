@@ -10,6 +10,10 @@ transit failure handling and pass fixes) is described in
 released to Render and Netlify on 15 October 2026; that record includes verification
 scope and the remaining multi-account acceptance limitation.
 
+The [local mall-reserve/duration follow-up](docs/meeting-mall-reserve.md) adds bounded
+mall replacement checks and consistent page/PNG duration formatting. It is not
+deployed yet; production release evidence above does not cover this follow-up.
+
 ## Group invitations and personal passes
 
 The local automatic-Ready/map/PNG revision is described in

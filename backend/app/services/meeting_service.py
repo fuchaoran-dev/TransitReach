@@ -28,6 +28,8 @@ from backend.app.services.travel_time_surface import (
 ROUTING_TIMEOUT_SECONDS = 25.0
 MAX_PROPOSALS = 20
 MAX_CANDIDATE_CHECKS = 12
+MAX_MALL_REPLACEMENT_CHECKS = 6
+MALL_REPLACEMENT_BATCH_SIZE = 2
 MAX_ROUTING_CONCURRENCY = 6
 ROUTING_MODES = "WALK,SUBWAY,TRAM,BUS"
 DEPARTURE_TIME = TypeAdapter(AwareDatetime)
@@ -491,19 +493,41 @@ async def common_ground(
         return max(rounded), max(rounded) - min(rounded), venue.name, venue, rounded
 
     async with httpx.AsyncClient(timeout=timeout, limits=httpx.Limits(max_connections=MAX_ROUTING_CONCURRENCY)) as client:
-        tasks = [asyncio.create_task(verify_candidate(item)) for item in _candidate_shortlist(ranked)]
+        async def verify_batch(
+            items: list[tuple[int, int, str, PublicVenue]],
+        ) -> list[tuple[int, int, str, PublicVenue, list[int]] | None]:
+            tasks = [asyncio.create_task(verify_candidate(item)) for item in items]
+            try:
+                return await asyncio.gather(*tasks)
+            except BaseException:
+                for task in tasks:
+                    task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
+                raise
+
+        async def verify_shortlist() -> list[tuple[int, int, str, PublicVenue, list[int]] | None]:
+            shortlist = _candidate_shortlist(ranked)
+            checked = await verify_batch(shortlist)
+            if any(item is not None and item[3].type == "mall" for item in checked):
+                return checked
+            tried = {(item[3].type, item[3].id) for item in shortlist}
+            replacements = [item for item in ranked
+                            if item[3].type == "mall" and (item[3].type, item[3].id) not in tried]
+            # Failed first-choice malls must not hide later feasible ones. Try a
+            # bounded reserve in small batches; stop as soon as a mall is verified.
+            # Both phases share ONE deadline and the process-wide routing slots.
+            replacements = replacements[:MAX_MALL_REPLACEMENT_CHECKS]
+            for offset in range(0, len(replacements), MALL_REPLACEMENT_BATCH_SIZE):
+                extra = await verify_batch(replacements[offset:offset + MALL_REPLACEMENT_BATCH_SIZE])
+                checked.extend(extra)
+                if any(item is not None for item in extra):
+                    break
+            return checked
+
         try:
-            verified = await asyncio.wait_for(asyncio.gather(*tasks), timeout=verification_timeout)
+            verified = await asyncio.wait_for(verify_shortlist(), timeout=verification_timeout)
         except TimeoutError as error:
-            for task in tasks:
-                task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
             raise RoutingUnavailableError from error
-        except BaseException:
-            for task in tasks:
-                task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
-            raise
     verified_ranked = sorted(
         (item for item in verified if item is not None),
         key=lambda item: (item[0], item[1], item[2].casefold(), item[3].id),

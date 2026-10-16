@@ -292,10 +292,10 @@ export function drawPassCanvas(pass: PersonalPass, qr: HTMLImageElement, backdro
   c.moveTo(PAD + 28, y + 154);
   c.lineTo(WIDTH - PAD - 28, y + 154);
   c.stroke();
-  const duration = Math.max(0, Math.round((Date.parse(pass.estimatedArrivalTime) - Date.parse(pass.leaveTime)) / 60000));
+  const duration = minutesLabel((Date.parse(pass.estimatedArrivalTime) - Date.parse(pass.leaveTime)) / 1000);
   const transfers = Math.max(0, pass.legs.filter(leg => leg.transitLeg).length - 1);
   const summaries = [
-    `${duration} min journey`,
+    `${duration} journey`,
     `${minutesLabel(pass.walking.totalSeconds)} walking`,
     transfers === 1 ? '1 transfer' : `${transfers} transfers`,
     `Meeting ${clock(pass.meeting.arrivalTime)} MYT`,

@@ -107,6 +107,13 @@ const longStopLines = texts.filter(item => /Boundarycheck|终点站/.test(item.t
 check(longStopLines.length > 1, true);
 check(longStopLines.every(item => item.x + item.width <= 1200 - 64), true);
 check(imageTextLines(context, '没有空格的很长的中文名字', 56).every(line => line.length <= 4), true);
+const { minutesLabel } = await load('src/features/outing-pass/components/legPresentation.ts');
+for (const [seconds, expected] of [[0, '0 min'], [360, '6 min'], [380, '7 min'], [360.001, '7 min'], [3600, '1 h'], [3601, '1 h 1 min']]) {
+  texts.length = 0;
+  drawPassCanvas({ ...pass, estimatedArrivalTime: new Date(Date.parse(pass.leaveTime) + seconds * 1000).toISOString() }, {});
+  check(minutesLabel(seconds), expected);
+  check(texts.some(item => item.text === `${expected} journey`), true);
+}
 const previousPaths = drawCalls.filter(([name]) => name === 'lineTo').length;
 pass.legs.forEach(leg => { leg.geometry = []; }); texts.length = 0; drawPassCanvas(pass, {});
 check(texts.some(item => item.text.includes('Route geometry unavailable')), true);

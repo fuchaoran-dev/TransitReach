@@ -21,6 +21,7 @@ from backend.app.services.meeting_service import (
     RoomUnavailableError, RoutingUnavailableError, _fetch_isochrone, _fetch_surface,
     _load_calculation, _store_proposals, common_ground,
     _fetch_arrive_by_minutes, _candidate_shortlist, MAX_CANDIDATE_CHECKS,
+    MAX_MALL_REPLACEMENT_CHECKS, MALL_REPLACEMENT_BATCH_SIZE,
 )
 from backend.app.services.travel_time_surface import TravelTimeSurface
 
@@ -286,6 +287,77 @@ class MeetingCommonGroundTests(unittest.IsolatedAsyncioTestCase):
             result = await common_ground("ABCDEFGH", CALLER, ["mall"], 30)
         self.assertEqual(result.proposals, [])
         self.arrive_by.assert_not_awaited()
+
+    async def check_mall_reserve(
+        self, accepted: set[int], *, outage: bool = False, stall: bool = False,
+    ) -> tuple[CommonGroundResponse | None, AsyncMock]:
+        venues = tuple(VENUE.model_copy(update={
+            "id": f"{kind}-{index}", "type": kind, "name": f"{kind}-{index:02}",
+        }) for kind in ("station", "cafe", "restaurant", "mall") for index in range(20))
+        origins = tuple(PrivateOrigin(3.1 + index / 100, 101.1 + index / 100) for index in range(5))
+        calculation = replace(CALCULATION, participant_count=5, origins=origins, venues=venues)
+        cancelled = []
+
+        async def route(_client, origin, venue, _budget, _arrival):
+            if venue.type != "mall":
+                return 10
+            index = int(venue.id.split("-")[1])
+            if index >= 3:
+                if outage:
+                    raise RoutingUnavailableError
+                if stall:
+                    try:
+                        await asyncio.Event().wait()
+                    finally:
+                        cancelled.append(venue.id)
+            return 10 if index in accepted or origin != origins[-1] else None
+
+        with (
+            patch("backend.app.services.meeting_service._load_calculation", return_value=calculation),
+            patch("backend.app.services.meeting_service._fetch_surface", new=AsyncMock(return_value=SURFACE)),
+            patch("backend.app.services.meeting_service._fetch_isochrone", new=AsyncMock(return_value=AREA)),
+            patch("backend.app.services.meeting_service._fetch_arrive_by_minutes", new=AsyncMock(side_effect=route)) as routes,
+            patch("backend.app.services.meeting_service._store_proposals") as store,
+        ):
+            if outage or stall:
+                with self.assertRaises(RoutingUnavailableError):
+                    await common_ground("ABCDEFGH", CALLER, ["station", "cafe", "restaurant", "mall"], 30,
+                                        verification_timeout=0.05 if stall else 25)
+                store.assert_not_called()
+                if stall:
+                    self.assertTrue(cancelled)
+                return None, routes
+            result = await common_ground("ABCDEFGH", CALLER, ["station", "cafe", "restaurant", "mall"], 30)
+            self.assertEqual(store.call_args.args[3], result.proposals)
+            return result, routes
+
+    async def test_five_members_find_later_mall_after_first_three_fail(self) -> None:
+        result, routes = await self.check_mall_reserve({3, 8})
+        self.assertEqual([proposal.venue.id for proposal in result.proposals if proposal.venue.type == "mall"], ["mall-3"])
+        self.assertEqual(routes.await_count, (MAX_CANDIDATE_CHECKS + MALL_REPLACEMENT_BATCH_SIZE) * 5)
+        calls = [call.args[2].id for call in routes.await_args_list]
+        self.assertNotIn("mall-5", calls)  # Stop once this batch has a verified mall.
+        self.assertEqual([proposal.rank for proposal in result.proposals], list(range(1, len(result.proposals) + 1)))
+
+    async def test_verified_initial_mall_does_not_trigger_reserve(self) -> None:
+        result, routes = await self.check_mall_reserve({1, 3})
+        self.assertEqual([proposal.venue.id for proposal in result.proposals if proposal.venue.type == "mall"], ["mall-1"])
+        self.assertEqual(routes.await_count, MAX_CANDIDATE_CHECKS * 5)
+
+    async def test_unreachable_malls_exhaust_only_the_bounded_reserve(self) -> None:
+        result, routes = await self.check_mall_reserve(set())
+        self.assertFalse(any(proposal.venue.type == "mall" for proposal in result.proposals))
+        self.assertEqual(routes.await_count, (MAX_CANDIDATE_CHECKS + MAX_MALL_REPLACEMENT_CHECKS) * 5)
+        self.assertNotIn("mall-9", [call.args[2].id for call in routes.await_args_list])
+
+    async def test_reserve_outage_does_not_store_partial_results(self) -> None:
+        await self.check_mall_reserve(set(), outage=True)
+
+    async def test_reserve_shares_deadline_and_cancels_pending_routes(self) -> None:
+        with patch("backend.app.services.meeting_service.asyncio.wait_for", wraps=asyncio.wait_for) as deadline:
+            await self.check_mall_reserve(set(), stall=True)
+        deadline.assert_called_once()
+        self.assertEqual(deadline.call_args.kwargs["timeout"], 0.05)
 
     async def test_arrive_by_outage_does_not_store_partially_checked_candidates(self) -> None:
         self.arrive_by.side_effect = RoutingUnavailableError
